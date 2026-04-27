@@ -4,6 +4,12 @@
 # Shell scripts must keep LF on every platform — CRLF breaks `#!/usr/bin/env bash` on Linux/macOS.
 *.sh text eol=lf
 
+# Husky.NET hook scripts have no extension but are shell scripts — same rule.
+.husky/pre-commit text eol=lf
+.husky/post-commit text eol=lf
+.husky/pre-push text eol=lf
+.husky/commit-msg text eol=lf
+
 # PowerShell scripts conventionally use CRLF on Windows; harmless on PS Core too.
 *.ps1 text eol=crlf
 

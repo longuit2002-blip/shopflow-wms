@@ -1,0 +1,110 @@
+version: '3'
+
+# ShopFlow WMS Taskfile
+#
+# Cross-platform task runner. Pick this over `make` (tab-sensitive on Windows),
+# `package.json` scripts (Node dependency we don't otherwise need), or shell
+# scripts (per-OS proliferation). See `docs/adr/0001-aspire-vs-docker-compose.md`
+# for the dev-orchestrator decision and `AGENTS.md` for the rule canon.
+#
+# After a fresh clone: `task setup` is the only documented onboarding command.
+
+silent: false
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  setup:
+    desc: 'Install local .NET tools (Husky.NET, CSharpier) and wire pre-commit hooks. Idempotent.'
+    cmds:
+      - dotnet --version
+      - dotnet tool restore
+      - dotnet husky install
+    sources:
+      - .config/dotnet-tools.json
+      - .husky/pre-commit
+
+  up:
+    desc: 'Start the dev orchestrator (Aspire AppHost). Lands in U9.'
+    cmds:
+      - cmd: echo "Aspire AppHost not yet built. See U9 of docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md."
+      - exit 1
+
+  down:
+    desc: 'Stop the dev orchestrator. Lands in U9.'
+    cmds:
+      - cmd: echo "Aspire AppHost not yet built. See U9."
+      - exit 1
+
+  test:
+    desc: 'Run the full test suite (unit + integration + property). Excludes Load category.'
+    cmds:
+      - dotnet test --filter "Category!=Load"
+
+  test:unit:
+    desc: 'Run only unit tests (Domain + Application layers).'
+    cmds:
+      - dotnet test --filter "Category=Unit"
+
+  test:integration:
+    desc: 'Run only integration tests (Testcontainers Postgres + RabbitMQ).'
+    cmds:
+      - dotnet test --filter "Category=Integration"
+
+  test:property:
+    desc: 'Run only the FsCheck property suite (reservation ledger invariants).'
+    cmds:
+      - dotnet test --filter "Category=Property"
+
+  test:load:
+    desc: 'Run the load harness (k6 / NBomber). Slow; nightly in CI, not per-PR.'
+    cmds:
+      - dotnet test --filter "Category=Load"
+
+  ci:
+    desc: 'Run the full CI sequence locally (matches .github/workflows/ci.yml).'
+    cmds:
+      - dotnet restore
+      - dotnet build --no-restore
+      - dotnet test --filter "Category!=Load" --no-build
+      - dotnet csharpier check .
+
+  pre-commit:
+    desc: 'Run pre-commit checks (formatter). Invoked by Husky.NET hook.'
+    cmds:
+      - dotnet csharpier check .
+
+  format:
+    desc: 'Apply CSharpier formatting to all C# files in-place.'
+    cmds:
+      - dotnet csharpier format .
+
+  migrate:
+    desc: 'Apply EF Core migrations. Lands in U6 with Inventory module.'
+    cmds:
+      - cmd: echo "Inventory module not yet built. See U6."
+      - exit 1
+
+  gate:
+    desc: 'Run shopflow-gate <phase> CLI. Usage: task gate -- 0'
+    cmds:
+      - dotnet run --project tools/shopflow-gate -- {{.CLI_ARGS}}
+
+  scale-gate:
+    desc: 'Run the Phase-0 scale gate (cold-start + auth p99 + CI time). Lands in U11.'
+    cmds:
+      - task: gate
+        vars:
+          CLI_ARGS: "0"
+
+  extract-docs:
+    desc: 'Extract plain text from the .docx source documents into docs/source/.'
+    cmds:
+      - cmd: bash tools/extract-docs.sh
+        platforms: [linux, darwin]
+      - cmd: pwsh tools/extract-docs.ps1
+        platforms: [windows]
