@@ -1,0 +1,94 @@
+{
+  "_meta": {
+    "fixture": "lazada/api-product-list-response",
+    "shape_source": "Lazada Open Platform /products/get",
+    "captured_at": "2026-04-27T00:00:00Z",
+    "synthetic": true,
+    "notes": "Lazada wraps every API response in `code`, `type`, `message`, `request_id`, and `data` envelope. `code = '0'` (string) signals success. Pagination uses cursor offset (`offset`, `total_products`)."
+  },
+  "_request_context": {
+    "method": "GET",
+    "path": "/products/get",
+    "query": {
+      "app_key": "EXAMPLE_APP_KEY",
+      "timestamp": "1769472000000",
+      "sign_method": "sha256",
+      "sign": "EXAMPLE_HMAC_SHA256_HEX",
+      "access_token": "EXAMPLE_ACCESS_TOKEN",
+      "filter": "all",
+      "offset": 0,
+      "limit": 50,
+      "options": "1"
+    }
+  },
+  "code": "0",
+  "type": "",
+  "message": "",
+  "request_id": "EXAMPLE_REQUEST_ID_uuid_v4",
+  "data": {
+    "total_products": 3,
+    "products": [
+      {
+        "item_id": 9990001000,
+        "primary_category": 12345,
+        "attributes": {
+          "name": "EXAMPLE Wireless Mouse — Black",
+          "brand": "EXAMPLE_BRAND",
+          "model": "EXAMPLE_MODEL_M1"
+        },
+        "skus": [
+          {
+            "Status": "active",
+            "quantity": 25,
+            "ShopSku": "EXAMPLE-LZD-SHOP-SKU-001",
+            "SellerSku": "EXAMPLE-SKU-MOUSE-BLK-A",
+            "Url": "https://www.lazada.vn/products/EXAMPLE_PATH",
+            "package_height": "5.0",
+            "special_price": "225000",
+            "price": "250000",
+            "package_length": "20.0",
+            "package_weight": "0.3",
+            "Available": 25,
+            "package_width": "12.0",
+            "_currency": "VND"
+          }
+        ]
+      },
+      {
+        "item_id": 9990001001,
+        "primary_category": 12345,
+        "attributes": {
+          "name": "EXAMPLE USB-C Hub — 7-in-1",
+          "brand": "EXAMPLE_BRAND"
+        },
+        "skus": [
+          {
+            "Status": "active",
+            "quantity": 12,
+            "SellerSku": "EXAMPLE-SKU-HUB-001",
+            "price": "850000",
+            "Available": 12,
+            "_currency": "VND"
+          }
+        ]
+      },
+      {
+        "item_id": 9990001002,
+        "primary_category": 12345,
+        "attributes": {
+          "name": "EXAMPLE Mousepad XL"
+        },
+        "skus": [
+          {
+            "Status": "inactive",
+            "quantity": 0,
+            "SellerSku": "EXAMPLE-SKU-PAD-XL",
+            "price": "150000",
+            "Available": 0,
+            "_currency": "VND"
+          }
+        ]
+      }
+    ]
+  }
+}
