@@ -39,6 +39,9 @@ msbuild.log
 # Commit .husky/pre-commit, gitignore everything under _/.
 .husky/_/
 
+# Task (Taskfile.dev) checksum cache — used by `sources:` declarations.
+.task/
+
 # Coverage outputs
 coverage/
 *.coverage

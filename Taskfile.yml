@@ -71,17 +71,17 @@ tasks:
       - dotnet restore
       - dotnet build --no-restore
       - dotnet test --filter "Category!=Load" --no-build
-      - dotnet csharpier check .
+      - dotnet csharpier --check .
 
   pre-commit:
     desc: 'Run pre-commit checks (formatter). Invoked by Husky.NET hook.'
     cmds:
-      - dotnet csharpier check .
+      - dotnet csharpier --check .
 
   format:
     desc: 'Apply CSharpier formatting to all C# files in-place.'
     cmds:
-      - dotnet csharpier format .
+      - dotnet csharpier .
 
   migrate:
     desc: 'Apply EF Core migrations. Lands in U6 with Inventory module.'

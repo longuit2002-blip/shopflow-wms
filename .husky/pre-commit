@@ -1,11 +1,40 @@
 #!/usr/bin/env sh
 # ShopFlow WMS pre-commit hook (Husky.NET)
 #
-# Wired by `dotnet husky install` (run via `task setup`). Do not edit the
-# generated _/husky.sh — edit this file to change pre-commit behavior.
+# Wired by `dotnet husky install` (run via `task setup`). Edit this file to
+# change pre-commit behavior; do NOT edit the generated `_/husky.sh`.
 
 . "$(dirname "$0")/_/husky.sh"
 
+# Robustness: on Windows, Git Bash sessions started before winget installs
+# don't see the new PATH. Look for dotnet at standard install locations and
+# add to PATH if found. This keeps `git commit` working from any shell on
+# any platform without requiring a manual session-restart dance.
+if ! command -v dotnet >/dev/null 2>&1; then
+  for candidate in \
+    "/c/Program Files/dotnet" \
+    "/c/Program Files (x86)/dotnet" \
+    "$LOCALAPPDATA/Microsoft/dotnet" \
+    "/usr/local/share/dotnet" \
+    "/usr/share/dotnet" \
+    "$HOME/.dotnet"
+  do
+    if [ -x "$candidate/dotnet" ] || [ -x "$candidate/dotnet.exe" ]; then
+      export PATH="$candidate:$PATH"
+      break
+    fi
+  done
+
+  if ! command -v dotnet >/dev/null 2>&1; then
+    echo "pre-commit: 'dotnet' not found on PATH or at standard install locations." >&2
+    echo "Install .NET 8 SDK (winget install Microsoft.DotNet.SDK.8) and restart your shell." >&2
+    echo "If you're sure .NET is installed at a non-standard location, add it to PATH." >&2
+    exit 1
+  fi
+fi
+
 # Run CSharpier in check mode against staged files. Fails the commit if any
-# .cs file is unformatted; run `task format` to fix.
-dotnet csharpier check .
+# .cs file is unformatted; run `task format` (or `dotnet csharpier .`) to fix.
+# Note: CSharpier 0.30.x uses --check flag; later versions migrate to a
+# `check` subcommand. Update this when bumping the dotnet-tools.json pin.
+dotnet csharpier --check .
