@@ -1,0 +1,11 @@
+# Default: let Git auto-detect text vs binary and normalize line endings to LF in the repo.
+* text=auto
+
+# Shell scripts must keep LF on every platform — CRLF breaks `#!/usr/bin/env bash` on Linux/macOS.
+*.sh text eol=lf
+
+# PowerShell scripts conventionally use CRLF on Windows; harmless on PS Core too.
+*.ps1 text eol=crlf
+
+# Word documents are binary — never try to merge or normalize them.
+*.docx binary
