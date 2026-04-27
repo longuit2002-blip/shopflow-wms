@@ -2,6 +2,8 @@
 
 This file is auto-loaded by Claude Code (and respected as a fallback by other agents). It captures the project context that should ship with the source. The user works across multiple computers — anything project-related belongs here in the source tree, not in machine-local memory.
 
+> **Two files, two audiences.** [`CLAUDE.md`](./CLAUDE.md) (this file) carries *project context* — what we're building, why, where the source-of-truth specs live, working preferences. [`AGENTS.md`](./AGENTS.md) carries the *executable rule canon* — how to write code in this repo (layering, multi-tenancy, error handling, naming, testing). Both files coexist; they serve different audiences and have different lifecycles. AGENTS.md is the cross-tool standard auto-loaded by Cursor / Codex CLI / Aider / Copilot in addition to Claude Code.
+
 ## What this project is
 
 **ShopFlow WMS** — 12-week single-developer portfolio Warehouse Management System for SEA marketplaces (Shopee, Lazada, TikTok Shop, Shopify). Source is being bootstrapped from scratch as of late April 2026.
