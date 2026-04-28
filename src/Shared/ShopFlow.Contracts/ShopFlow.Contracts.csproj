@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Contracts
+    ==================
+    Wire-compatible integration event records that cross bounded-context
+    boundaries via MassTransit. Intentionally near-empty in U5 — concrete
+    event records (StockReservedEvent, OrderPlacedEvent, ...) land with
+    the modules that emit them in U6 and U10 per the Phase-0 plan
+    (docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md).
+
+    Rules (per AGENTS.md §6):
+      - Every published integration event carries tenant_id, correlation_id,
+        and occurred_at UTC in its envelope.
+      - Records are immutable, JSON-serialisable, and never reference
+        domain types from a specific module.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

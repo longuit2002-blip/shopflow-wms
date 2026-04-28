@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.SharedKernel.UnitTests
+    ===============================
+    Unit tests for the kernel:
+      • Domain/    — Result<T>, BaseEntity (domain event buffer), ValueObject equality
+      • Infrastructure/ — TenancyInterceptor, OutboxInterceptor (EF Core SQLite in-memory)
+      • Analyzers/ — RawDbSet, MissingCorrelation, MissingIdempotent, DateTimeNow
+
+    Postgres-backed integration tests for these interceptors live in U6's
+    Inventory IntegrationTests project, where Testcontainers Postgres is
+    on the menu. Here we use the EF Core SQLite provider against
+    `Filename=:memory:` because it's the standard fast-loop substitute.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+    <!--
+      Suppress NU1701 globally for this csproj. The analyzer-testing package
+      (Microsoft.CodeAnalysis.CSharp.Analyzer.Testing.XUnit) has historically
+      transitively depended on Microsoft.CodeAnalysis.* 1.0.1 packages whose
+      published target frameworks predate netcoreapp / net5+. They work fine
+      under net8.0 in practice. Without this NoWarn, the warning-as-error
+      promotion above turns those transitives into 6 build errors.
+    -->
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" Version="6.12.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing.XUnit" Version="1.1.2" />
+    <!--
+      The Analyzer.Testing package's transitive deps lock Microsoft.CodeAnalysis
+      at 1.0.x (a 2015 version). The analyzer DLL we test against is built on
+      MS.CodeAnalysis 4.11.0. Without these explicit higher-version pins NuGet
+      resolves the LOWEST version satisfying both, the runtime gets 1.0.x, and
+      CS1705 explodes at the analyzer ProjectReference. Explicit pins here
+      force resolution to the modern API surface.
+    -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Reference the analyzer assembly directly (NOT as Analyzer), because
+      the analyzer test framework needs to load the type at runtime to feed
+      it test sources. The runtime kernel keeps the OutputItemType="Analyzer"
+      reference for consumers; this test project loads the assembly for
+      reflection only.
+    -->
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel.Analyzers\ShopFlow.SharedKernel.Analyzers.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.SharedKernel
+    =====================
+    The cross-cutting NuGet meta-package every module references. Provides:
+
+      • Domain primitives        (BaseEntity, AggregateRoot, ValueObject, Result<T>, IDomainEvent)
+      • Application plumbing     (IRequestContext, MediatR pipeline behaviors)
+      • Infrastructure wiring    (TenancyInterceptor, OutboxInterceptor, OutboxDispatcher)
+      • Composition-root helper  (services.AddShopFlowDefaults(IConfiguration))
+      • Roslyn analyzers (ShopFlow0001…0004) bundled at consumer build time
+
+    The companion analyzer assembly is referenced with OutputItemType="Analyzer"
+    and ReferenceOutputAssembly="false" so consumers automatically get the
+    ShopFlow0001…0004 rules without taking a runtime dependency on Roslyn.
+    Per the U5 layout note in the bootstrap plan, the analyzer ships as a
+    sibling .csproj rather than a nested folder because it targets
+    netstandard2.0 (Roslyn host requirement).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.4.1" />
+    <PackageReference Include="MassTransit" Version="8.3.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.10" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
+    <PackageReference Include="FluentValidation" Version="11.10.0" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
+    <PackageReference Include="Hellang.Middleware.ProblemDetails" Version="6.5.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+  </ItemGroup>
+
+  <!--
+    Bundle the Roslyn analyzer assembly so every consumer of this kernel
+    automatically picks up ShopFlow0001…0004 without an extra reference.
+    The two attributes below are the canonical pattern for shipping an
+    analyzer from a sibling .csproj:
+      OutputItemType="Analyzer"   – treats the dll as an analyzer asset
+      ReferenceOutputAssembly="false" – no runtime ref; pure build-time
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.SharedKernel.Analyzers\ShopFlow.SharedKernel.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
