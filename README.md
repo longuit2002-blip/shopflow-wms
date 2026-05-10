@@ -5,7 +5,7 @@
 [![Stage](https://img.shields.io/badge/stage-Phase--0%20bootstrap-blue)](docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey)](#license)
 
-**Current stage**: Phase-0 bootstrap (W0). The source tree is being stood up from scratch per [`docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md`](docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md). Phase 1+ (Inventory ledger implementation, Inbound, Outbound saga, Multi-channel sync) lands in subsequent plans.
+**Current stage**: **Phase-0 complete** — tagged [`v0.1.0-phase-0`](docs/phase-gates/2026-05-10-phase-0-signoff.md). 30 .NET projects, 67 unit + property tests passing, 10 compounding learnings captured under `docs/solutions/`. Phase 1+ (Inventory ledger implementation, Inbound, Outbound saga, Multi-channel sync) lands in subsequent plans.
 
 ---
 
@@ -90,8 +90,8 @@ These are the parts the design earns its keep on; reviewers should focus here:
 
 | Phase | Weeks | Deliverable | State |
 |---|---|---|---|
-| 0 | W0-W2 | Foundation + blessed Inventory module + mock channels + harnesses + CI | **In progress (W0)** |
-| 1 | W3-W5 | Core WMS (Inventory ledger, Inbound, Outbound saga) | Planned |
+| 0 | W0-W2 | Foundation + blessed Inventory module + mock channels + harnesses + CI | ✅ **Complete** ([signoff](docs/phase-gates/2026-05-10-phase-0-signoff.md)) |
+| 1 | W3-W5 | Core WMS (Inventory ledger, Inbound, Outbound saga) | Next |
 | 2 | W6-W8 | Multi-channel + Sync engine, mechanical service split | Planned |
 | 3 | W9-W10 | Real-time + Analytics | Planned |
 | 4 | W11-W12 | Harden + Ship | Planned |

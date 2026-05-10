@@ -79,6 +79,8 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 ## Current stage
 
-Phase 0 (bootstrap) on `feat/phase-0-bootstrap`. The active plan is [`docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md`](./docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md). U1–U6 shipped (W0 + most of W1). U7 (mock-channel servers) is next.
+**Phase 0 complete** — tagged `v0.1.0-phase-0` on `feat/phase-0-bootstrap`. All 12 units shipped per [`docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md`](./docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md). Sign-off measurements in [`docs/phase-gates/2026-05-10-phase-0-signoff.md`](./docs/phase-gates/2026-05-10-phase-0-signoff.md).
 
-To resume work, run `/compound-engineering:ce-work` and point it at the plan. The plan, AGENTS.md, ADRs, and docs/solutions/ are the durable inputs — every fresh agent session reads them automatically.
+To resume work on Phase 1, run `/compound-engineering:ce-plan` and write a Phase-1 Sprint-1 plan covering the `ReservationRepository` real implementation against the `tests/ShopFlow.PropertyTests/` red bar. Then `/compound-engineering:ce-work` executes it.
+
+**Always read `docs/solutions/` first** — 10 entries capture problems already solved on this branch. Three minutes there saves multi-hour debugging trips on the next encounter.
