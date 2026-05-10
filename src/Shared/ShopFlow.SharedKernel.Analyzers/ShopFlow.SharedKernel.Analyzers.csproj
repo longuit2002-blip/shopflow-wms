@@ -1,45 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    ShopFlow.SharedKernel.Analyzers
-    ===============================
-    Roslyn analyzers that enforce the executable subset of AGENTS.md:
+    ShopFlow.SharedKernel.Analyzers — Roslyn analyzers enforcing the executable
+    subset of AGENTS.md:
+      ShopFlow0001  RawDbSetAnalyzer            (AGENTS.md §3.16)
+      ShopFlow0002  MissingCorrelationAnalyzer  (AGENTS.md §6.40)
+      ShopFlow0003  MissingIdempotentAnalyzer   (AGENTS.md §6.37)
+      ShopFlow0004  DateTimeNowAnalyzer         (AGENTS.md §5.31, §5.32)
 
-      ShopFlow0001  RawDbSetAnalyzer        (AGENTS.md §3.16)
-      ShopFlow0002  MissingCorrelationAnalyzer (AGENTS.md §6.40)
-      ShopFlow0003  MissingIdempotentAnalyzer  (AGENTS.md §6.37)
-      ShopFlow0004  DateTimeNowAnalyzer        (AGENTS.md §5.31, §5.32)
+    Targets netstandard2.0 because the Roslyn analyzer host (C# compiler in
+    MSBuild and IDEs) loads analyzers into a netstandard2.0 AppDomain. Bumping
+    to net8.0 would silently fail to load.
 
-    Targets netstandard2.0 because the Roslyn analyzer host (the C# compiler
-    inside MSBuild and Visual Studio) loads analyzers into a netstandard2.0
-    AppDomain. Targeting net8.0 here would silently fail to load.
-
-    The runtime kernel (ShopFlow.SharedKernel.csproj) references this assembly
-    with OutputItemType="Analyzer" and ReferenceOutputAssembly="false" so that
-    every consumer of the kernel automatically pulls in the rules.
+    Inherits from repo-root Directory.Build.props but overrides:
+      - TargetFramework (netstandard2.0)
+      - Adds IsRoslynComponent + EnforceExtendedAnalyzerRules
+      - Suppresses RS1036 (banned API) + RS2008 (analyzer release tracking) —
+        both irrelevant for an internal-only analyzer pack.
   -->
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-    <IsPackable>false</IsPackable>
     <IsRoslynComponent>true</IsRoslynComponent>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!--
-      Suppressed analyzer-host warnings:
-        RS1036 — banned-API enforcement: not relevant for an internal repo.
-        RS2008 — analyzer release tracking: optional formality; we'll
-                 introduce AnalyzerReleases.Shipped.md if/when these
-                 analyzers ever ship as a NuGet package.
-    -->
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <NoWarn>$(NoWarn);RS1036;RS2008</NoWarn>
+    <!--
+      Override the repo-root TreatWarningsAsErrors=true is fine here — we want
+      analyzer code to itself be clean. Kept implicit by inheritance.
+    -->
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" PrivateAssets="all" />
   </ItemGroup>
 
 </Project>

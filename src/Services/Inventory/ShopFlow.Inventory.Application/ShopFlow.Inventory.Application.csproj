@@ -1,22 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    ShopFlow.Inventory.Application
-    ==============================
-    Use-case orchestration for the Inventory bounded context: MediatR
-    commands/queries/handlers, DTOs, and the repository port interfaces
-    that Infrastructure implements (per AGENTS.md §7.46). No EF, no
-    ASP.NET, no MassTransit transport here — only the contracts.
+    ShopFlow.Inventory.Application — use-case orchestration for Inventory.
+    MediatR commands/queries/handlers, DTOs, repository port interfaces.
+    AGENTS.md §7.46: no EF, no ASP.NET, no MassTransit transport — only
+    contracts. SharedKernel + Contracts + own Domain are the only refs.
   -->
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <LangVersion>latest</LangVersion>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />

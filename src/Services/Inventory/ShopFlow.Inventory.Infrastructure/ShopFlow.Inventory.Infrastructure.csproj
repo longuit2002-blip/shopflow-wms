@@ -1,26 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    ShopFlow.Inventory.Infrastructure
-    =================================
-    EF Core DbContext, entity configurations, migrations, and repository
-    implementations for the Inventory bounded context. Npgsql.* and
-    Microsoft.EntityFrameworkCore.* come transitively from
-    ShopFlow.SharedKernel; the design-time package is module-local because
-    only modules with a DbContext need it.
+    ShopFlow.Inventory.Infrastructure — EF Core DbContext, entity configs,
+    migrations, and repository implementations for Inventory. EF Core +
+    Npgsql come transitively from SharedKernel; only the design-time
+    package is module-local (used by `dotnet ef migrations`).
   -->
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <LangVersion>latest</LangVersion>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
-
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

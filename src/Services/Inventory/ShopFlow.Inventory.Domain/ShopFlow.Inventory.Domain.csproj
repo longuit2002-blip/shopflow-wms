@@ -1,22 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    ShopFlow.Inventory.Domain
-    =========================
-    Pure domain layer for the Inventory bounded context: aggregates
-    (StockItem, Reservation), value objects (Sku, Quantity), enums and
-    domain events. Per AGENTS.md §2.9 this csproj has zero framework
-    references — only ShopFlow.SharedKernel.Domain primitives.
+    ShopFlow.Inventory.Domain — pure domain layer for Inventory.
+    AGENTS.md §2.9: zero framework references, only SharedKernel primitives.
   -->
-
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <LangVersion>latest</LangVersion>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />

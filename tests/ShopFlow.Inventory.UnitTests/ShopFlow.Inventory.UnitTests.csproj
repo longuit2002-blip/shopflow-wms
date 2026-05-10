@@ -1,43 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    ShopFlow.Inventory.UnitTests
-    ============================
-    Unit tests for the Inventory Domain and Application layers. No I/O —
-    handler tests stub IReservationRepository / IStockItemRepository via
-    NSubstitute. Postgres-backed verification lives in
-    ShopFlow.Inventory.IntegrationTests.
+    ShopFlow.Inventory.UnitTests — unit tests for Inventory Domain + Application.
+    No I/O; handler tests stub repositories via NSubstitute. Postgres-backed
+    verification lives in ShopFlow.Inventory.IntegrationTests.
+
+    Inherits all base settings + test conventions from
+    Directory.Build.props (root + tests/).
   -->
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-    <IsTestProject>true</IsTestProject>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <LangVersion>latest</LangVersion>
-  </PropertyGroup>
-
-  <!--
-    Implicit usings: Xunit so test files don't repeat `using Xunit;` and
-    FluentAssertions so `.Should()` is available everywhere. ImplicitUsings
-    above is `enable` which gives the .NET BCL set; these add to it.
-  -->
   <ItemGroup>
-    <Using Include="Xunit" />
-    <Using Include="FluentAssertions" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
-    <PackageReference Include="xunit" Version="2.9.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="FluentAssertions" Version="6.12.2" />
-    <PackageReference Include="NSubstitute" Version="5.1.0" />
+    <PackageReference Include="NSubstitute" />
   </ItemGroup>
 
   <ItemGroup>

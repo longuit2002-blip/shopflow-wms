@@ -1,0 +1,54 @@
+<Project>
+
+  <!--
+    Test-project conventions. Auto-applied to every .csproj under tests/.
+
+    What this gives every test project, for free:
+      • IsTestProject=true (VSTest discovery; some MSBuild targets gate on it)
+      • NU1701 + NU1902 NoWarn — third-party transitive complaints we can't
+        control (see docs/solutions/ entries for context)
+      • Microsoft.NET.Test.Sdk + xunit + xunit.runner.visualstudio + FluentAssertions
+        as default PackageReferences; per-test csproj only adds extras (NSubstitute,
+        Testcontainers, Mvc.Testing, etc.)
+      • <Using Include="Xunit" /> and <Using Include="FluentAssertions" /> as
+        implicit usings so test files don't need to repeat them.
+
+    Imports the parent Directory.Build.props automatically (MSBuild discovery
+    walks up; nested files merge with parent rather than replacing). The
+    explicit Import statement below is redundant under .NET 8 SDK 8.0.420
+    but kept for clarity — readers can see the chain.
+  -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <!--
+      NU1701 — package was restored using older target framework. Affects
+      analyzer-testing transitives (MS.CodeAnalysis 1.0.x via the Analyzer.Testing
+      package). Suppressed at test scope so production build still surfaces
+      these warnings if they appear in a real .csproj.
+
+      NU1902 — known-vulnerability advisory. Suppressed at test scope so an
+      advisory on a transitive test-only dep (e.g., a Testcontainers helper)
+      doesn't break test runs. Production code still treats NU1902 as error
+      (the OpenTelemetry advisory in U6 is the canonical example of why).
+    -->
+    <NoWarn>$(NoWarn);NU1701;NU1902</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="FluentAssertions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="FluentAssertions" />
+  </ItemGroup>
+
+</Project>

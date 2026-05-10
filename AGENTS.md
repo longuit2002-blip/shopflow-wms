@@ -4,7 +4,9 @@ This is the executable canon that AI-pair-programming agents (Claude Code, Curso
 
 **How this file evolves**: every reviewer/Copilot suggestion that violates the canon is a missing rule, not a one-off correction. When that happens, add the rule here, then fix the violation. The Roslyn analyzer in `src/Shared/ShopFlow.SharedKernel/Analyzers/` enforces the rules that can be made executable; the rest are review-time signals.
 
-**The blessed reference**: when in doubt, copy the pattern from `src/Services/Inventory/` (lands at end of W1 in U6 of `docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md`). Until that exists, defer to ADR-0001, ADR-0002, and `02-technical-design-document.md.docx` §5–§20.
+**The blessed reference**: when in doubt, copy the pattern from `src/Services/Inventory/`. Until a pattern is documented in this file or in `docs/solutions/`, defer to ADR-0001, ADR-0002, and `02-technical-design-document.md.docx` §5–§20.
+
+**Compounding learnings**: when a fix takes >5 minutes to diagnose or is non-obvious from the project tree, capture it in `docs/solutions/` ([README](docs/solutions/README.md)) so future agents (and future-you) don't re-discover. The compound principle: institutional memory > individual genius.
 
 ---
 
@@ -127,6 +129,21 @@ This is the executable canon that AI-pair-programming agents (Claude Code, Curso
 70. Never `--no-verify` to bypass pre-commit hooks. Fix the underlying issue.
 71. Never force-push to `main`. Force-push on feature branches is allowed but discouraged; prefer `git commit --amend` only on un-pushed commits.
 72. PR titles match the conventional-commit format. PR descriptions cite the closing R-IDs and U-IDs.
+
+---
+
+## 11. Module shape canon
+
+Every bounded-context module follows this layout. Diverging requires a new ADR.
+
+73. **Csproj quartet**: `ShopFlow.<Name>.Domain` + `.Application` + `.Infrastructure` + `.Api`. Analytics is the documented exception (no Domain — read-side only per Tech Design §5).
+74. **Folder layout**: `src/Services/<Name>/ShopFlow.<Name>.<Layer>/`. The module's `AGENTS.md` lives at `src/Services/<Name>/AGENTS.md` (sibling to the four csproj folders).
+75. **Project reference direction** (CI-enforced via `.csproj` references): `Api → Infrastructure → Application → Domain → SharedKernel`. Wrong-direction references fail the build (rule 8 already says this; here it gets a concrete shape).
+76. **Composition root extension**: each module exposes `services.Add<Name>Module(IConfiguration)` from `<Name>.Infrastructure/<Name>ServiceCollectionExtensions.cs`. The `Api/Program.cs` calls `services.AddShopFlowDefaults(...)` first, then `services.Add<Name>Module(...)`. No exceptions.
+77. **DbContext-per-module**: each module that persists owns one `<Name>DbContext` at `<Name>.Infrastructure/<Name>DbContext.cs`. Migrations live at `<Name>.Infrastructure/Migrations/`. Cross-module reads never touch another module's DbContext (rule 10).
+78. **Test layout mirrors source**: `tests/ShopFlow.<Name>.UnitTests/` (always — Domain + Application coverage), `tests/ShopFlow.<Name>.IntegrationTests/` (when DB- or API-bound).
+79. **Module `AGENTS.md` is delta-only**, ≤ 50 lines: lifecycle invariants specific to this module, hard "do not simplify" warnings on load-bearing primitives, deltas from root canon. Do not restate root rules.
+80. **Csproj keeps only what diverges from the defaults**. Root `Directory.Build.props` carries TargetFramework, ImplicitUsings, Nullable, LangVersion, TreatWarningsAsErrors, IsPackable. `Directory.Packages.props` carries every package version (CPM enforced — `<PackageReference>` declares Include, never Version). Test projects inherit additional defaults from `tests/Directory.Build.props`. A typical Domain csproj is ~10 lines; a typical test csproj is ~15 lines.
 
 ---
 
