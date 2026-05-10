@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.3.0" />
+
+  <!--
+    ShopFlow dev orchestrator (per ADR-0001). Aspire AppHost is the
+    source-of-truth for local development only. The hand-maintained
+    infrastructure/docker-compose.yml is the production-handoff manifest;
+    a CI smoke check guards drift between the two.
+
+    Inheriting net8.0, ImplicitUsings, Nullable, TreatWarningsAsErrors,
+    and CPM from the root Directory.Build.props. Per-project divergence
+    is limited to what Aspire's AppHost shape requires.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>shopflow-apphost-2026-04-27</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Inventory is the only module API project Aspire registers in Phase 0
+      (per ADR-0002 modular-monolith-first; W6 mechanical split adds the
+      remaining five module API references).
+    -->
+    <ProjectReference Include="..\..\Services\Inventory\ShopFlow.Inventory.Api\ShopFlow.Inventory.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
+</Project>

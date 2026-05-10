@@ -80,6 +80,19 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Aspire AppHost — dev orchestrator (per ADR-0001)">
+    <!--
+      Aspire.Hosting.* pinned at 13.3.0 — the GA stable line as of late 2025.
+      Per ADR-0001 the AppHost is dev-only; the production manifest lives
+      in infrastructure/docker-compose.yml. Bumping requires re-running
+      the cold-start gate (Phase-0 target: 60s on a developer laptop).
+    -->
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.3.0" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.3.0" />
+    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.3.0" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.3.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Property + Load testing — FsCheck (reservation ledger spec) + NBomber (sync primitives spec)">
     <!--
       FsCheck.Xunit 3.x is a major rewrite from 2.x:

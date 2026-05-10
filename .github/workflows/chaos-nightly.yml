@@ -1,0 +1,36 @@
+name: Chaos (nightly)
+
+# Stub workflow. Populated when chaos tests land in Phase 4
+# (per docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md
+# U9 and AGENTS.md rule 59 — load tests are nightly, not per-PR).
+#
+# Expected scope when populated:
+#   • NBomber load harness against the dev orchestrator (Aspire or Compose).
+#   • Toxiproxy fault injection against the broker (RabbitMQ partition,
+#     Postgres slow-IO).
+#   • Mock-channel control-plane scenarios (5xx-burst-30s,
+#     webhook-redelivered-after-200-ack, etc.) per U7.
+#   • Property suite re-run with longer iteration budget.
+#
+# Trigger schedule: 03:00 UTC daily, plus manual workflow_dispatch.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  stub:
+    name: chaos stub (lands in Phase 4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Placeholder
+        run: |
+          echo "Chaos / load harness lands in Phase 4."
+          echo "See docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md U9."
+          echo "AGENTS.md rule 59: load tests run nightly, not per-PR."

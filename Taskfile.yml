@@ -29,16 +29,20 @@ tasks:
       - .husky/pre-commit
 
   up:
-    desc: 'Start the dev orchestrator (Aspire AppHost). Lands in U9.'
+    desc: 'Start the dev orchestrator (Aspire AppHost). See ADR-0001.'
     cmds:
-      - cmd: echo "Aspire AppHost not yet built. See U9 of docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md."
-      - exit 1
+      - dotnet run --project src/AppHost/ShopFlow.AppHost/ShopFlow.AppHost.csproj
+
+  up:compose:
+    desc: 'Alternate dev path: docker compose with infra + obs + mocks profiles. Use when Aspire is unavailable or you want to exercise the production-handoff manifest.'
+    cmds:
+      - docker compose -f infrastructure/docker-compose.yml --profile infra --profile obs --profile mocks up --wait
 
   down:
-    desc: 'Stop the dev orchestrator. Lands in U9.'
+    desc: 'Stop the dev orchestrator. Tears down both Aspire (Ctrl-C parent) and any compose-launched containers.'
     cmds:
-      - cmd: echo "Aspire AppHost not yet built. See U9."
-      - exit 1
+      - cmd: docker compose -f infrastructure/docker-compose.yml --profile infra --profile obs --profile mocks down
+        ignore_error: true
 
   test:
     desc: 'Run the full test suite (unit + integration + property). Excludes Load category.'
@@ -66,12 +70,13 @@ tasks:
       - dotnet test --filter "Category=Load"
 
   ci:
-    desc: 'Run the full CI sequence locally (matches .github/workflows/ci.yml).'
+    desc: 'Run the local CI replay (matches .github/workflows/ci.yml stages).'
     cmds:
+      - dotnet tool restore
       - dotnet restore
-      - dotnet build --no-restore
-      - dotnet test --filter "Category!=Load" --no-build
+      - dotnet build --no-restore --configuration Release -warnaserror
       - dotnet csharpier --check .
+      - dotnet test --no-build --configuration Release --filter "Category!=Integration&Category!=Load"
 
   pre-commit:
     desc: 'Run pre-commit checks (formatter). Invoked by Husky.NET hook.'

@@ -1,0 +1,130 @@
+# ShopFlow WMS — production-handoff Compose manifest.
+#
+# Per ADR-0001 the source-of-truth for local development is the Aspire
+# AppHost at src/AppHost/ShopFlow.AppHost/. THIS file is the
+# production-handoff artifact: it lists the same external services
+# (infra + observability + mocks) but deliberately omits the .NET module
+# API entries — production deploys per-service via `dotnet publish` into
+# containers handled by a real orchestrator (k8s, ECS, Nomad), not by
+# this Compose file.
+#
+# Trade-off (documented for the next reader):
+#   • `task up`           runs the Aspire AppHost. Default path; gives
+#                         you the dashboard, OTel traces, and DNS-based
+#                         service discovery for free.
+#   • `task up:compose`   runs this file with all profiles. Use when
+#                         Aspire is unavailable, or when you want to
+#                         exercise the production-handoff manifest
+#                         end-to-end.
+#
+# The two manifests must list the same external services. A CI smoke
+# check guards drift between Program.cs and this file.
+#
+# Profiles:
+#   infra  — Postgres, Redis, RabbitMQ      (the data plane)
+#   obs    — Seq, Tempo, Prometheus         (logs, traces, metrics)
+#   mocks  — shopee-mock, lazada-mock       (dev substitutes for U7)
+#
+# Run all three:
+#   docker compose --profile infra --profile obs --profile mocks up --wait
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["infra"]
+    environment:
+      POSTGRES_DB: shopflow_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shopflow_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["infra"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    profiles: ["infra"]
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  seq:
+    image: datalust/seq:2024.3
+    profiles: ["obs"]
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:80"
+    volumes:
+      - seq-data:/data
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    profiles: ["obs"]
+    command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "4317:4317"
+      - "3200:3200"
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    profiles: ["obs"]
+    ports:
+      - "9090:9090"
+
+  shopee-mock:
+    profiles: ["mocks"]
+    build:
+      # Build context per docs/solutions/2026-05-10-mock-channel-shared-library-pattern.md.
+      # Context must be infrastructure/mock-channels/ so the Dockerfile can
+      # COPY both the per-server folder and the sibling _shared/ library.
+      context: ./mock-channels
+      dockerfile: shopee-mock/Dockerfile
+    ports:
+      - "7001:7001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://localhost:7001/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  lazada-mock:
+    profiles: ["mocks"]
+    build:
+      context: ./mock-channels
+      dockerfile: lazada-mock/Dockerfile
+    ports:
+      - "7002:7002"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --spider http://localhost:7002/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  seq-data:
