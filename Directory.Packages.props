@@ -80,4 +80,24 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Property + Load testing — FsCheck (reservation ledger spec) + NBomber (sync primitives spec)">
+    <!--
+      FsCheck.Xunit 3.x is a major rewrite from 2.x:
+      [Property] attribute now lives in FsCheck.Xunit; generators use Arb.Default
+      and Gen.Choose; Property return type comes from FsCheck.FSharp.Prop.
+      See tests/ShopFlow.PropertyTests/ReservationLedgerProperties.cs.
+    -->
+    <PackageVersion Include="FsCheck.Xunit" Version="3.3.3" />
+    <!--
+      NBomber 6.x — load harness for .NET. NBomber.Http is held for U9
+      to drive HTTP load against the real Inventory + Channel modules
+      once the dev orchestrator is wired (no current stub-driven HTTP need).
+      Subagent originally pinned 5.10.1 which does not exist on NuGet
+      (latest 5.x branch was 5.x earlier; current is 6.x). NU1603 surfaced
+      this; bumped to 6.4.0 / 6.2.0 (the latest stable each).
+    -->
+    <PackageVersion Include="NBomber" Version="6.4.0" />
+    <PackageVersion Include="NBomber.Http" Version="6.2.0" />
+  </ItemGroup>
+
 </Project>

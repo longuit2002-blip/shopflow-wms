@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.LoadTests — NBomber harness encoding the three sync-engine
+    primitives' invariants from 01-product-development-plan.md.docx
+    §316–§323 verbatim:
+
+      • Coalescer (§317)       — 100 changes within 500ms → 1 push
+      • Per-channel rate limit (§318) — bucket=100/s, 1000 req/s × 5s → 500±5 served
+      • Priority queue (§319)  — high-priority job served within 100ms
+
+    The IStockSyncCoalescer / IRateLimiter / IPriorityQueue<T> interfaces
+    declared inside this project are SPEC-only placeholders. When U10 /
+    Phase-2 Sprint-5 lands the real Channel module
+    (ShopFlow.Channel.Application + .Infrastructure), the spec interfaces
+    move there and the stubs in this project are replaced with project
+    references — a mechanical move, no test rewrites.
+
+    Per Plan §1597 + AGENTS.md §8.59 the load harness runs nightly, NOT
+    per-PR. xUnit traits flag every NBomber Fact with
+    [Trait("Category", "Load")] so the default per-PR test run filters
+    them out via the Category!=Load filter (see Taskfile.yml `test` task
+    and the U9 CI workflow when it lands).
+
+    Also hosts k6 scripts under Scripts/ that target the eventual real
+    APIs; today they are documentation, scheduled to run nightly once
+    U9 wires the dev orchestrator + chaos workflow.
+
+    Inherits all base settings + test conventions from
+    Directory.Build.props (root + tests/).
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="NBomber" />
+    <PackageReference Include="NBomber.Http" />
+  </ItemGroup>
+
+  <!--
+    k6 scripts ship with the test project but are not compiled. Marked as
+    None + Pack=false so MSBuild doesn't trip on the .js extension and the
+    test runner ignores them.
+  -->
+  <ItemGroup>
+    <None Include="Scripts\**\*.js">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <Pack>false</Pack>
+    </None>
+  </ItemGroup>
+
+</Project>

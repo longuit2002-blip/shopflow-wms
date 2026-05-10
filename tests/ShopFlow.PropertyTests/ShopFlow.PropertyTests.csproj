@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.PropertyTests — FsCheck.Xunit property suite encoding the
+    reservation-ledger invariants from 01-product-development-plan.md.docx
+    §299 verbatim. Tests run against NotImplementedReservationRepository
+    (a stub that throws); each property accepts NotImplementedException
+    as the expected-stub-state in W1, and flips to live invariant
+    enforcement when Phase-1 Sprint-1 lands the real ReservationRepository.
+
+    See AGENTS.md §8.55 for the test-first discipline. Inherits all base
+    settings + test conventions from Directory.Build.props (root + tests/).
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="FsCheck.Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

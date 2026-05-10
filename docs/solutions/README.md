@@ -25,3 +25,5 @@ Short, atomic notes on problems that bit us once and the discipline that prevent
 | [2026-04-28-central-package-management.md](2026-04-28-central-package-management.md) | Why CPM + Directory.Build.props from day 1 — version drift + transitive resolution |
 | [2026-04-28-test-csproj-conventions.md](2026-04-28-test-csproj-conventions.md) | xUnit implicit usings, NU1701 NoWarn, IActionResult assembly reference |
 | [2026-05-10-mock-channel-shared-library-pattern.md](2026-05-10-mock-channel-shared-library-pattern.md) | Mock channels: `_shared/` carries everything that isn't marketplace-specific (signing + endpoints + webhook headers) |
+| [2026-05-10-green-against-stub-property-suite.md](2026-05-10-green-against-stub-property-suite.md) | Property/load suites: catch `NotImplementedException` with a known prefix → green-against-stub in W1, live invariant in W3+ without test edits |
+| [2026-05-10-fscheck-replay-gamma-must-be-odd.md](2026-05-10-fscheck-replay-gamma-must-be-odd.md) | FsCheck `Replay = "(seed,gamma)"` — gamma must be odd, or every property silently dies before running |
