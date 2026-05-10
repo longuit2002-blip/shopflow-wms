@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Channel.Infrastructure — EF Core DbContext, webhook idempotency
+    table, channel-specific HMAC adapters, and stock-sync primitives. EF Core
+    + Npgsql come transitively from SharedKernel; only the design-time
+    package is module-local.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Channel.Application\ShopFlow.Channel.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Channel.Domain\ShopFlow.Channel.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

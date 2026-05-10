@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Outbound.Infrastructure — EF Core DbContext + saga state
+    persistence (MassTransit) for Outbound. EF Core + Npgsql come transitively
+    from SharedKernel; only the design-time package is module-local.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Outbound.Domain\ShopFlow.Outbound.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

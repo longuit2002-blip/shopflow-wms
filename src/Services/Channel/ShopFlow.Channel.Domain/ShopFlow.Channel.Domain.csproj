@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Channel.Domain — pure domain layer for marketplace channels
+    (Shopee, Lazada, TikTok Shop, Shopify). AGENTS.md §2.9: zero framework
+    references.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

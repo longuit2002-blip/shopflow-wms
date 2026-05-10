@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Channel.Application — use-case orchestration for Channel.
+    Phase-0 skeleton; the stock-sync engine (coalescing buffer + token
+    bucket + priority queue) and channel adapter framework land in
+    Phase-2 Sprint-4/5 (W6-7).
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Channel.Domain\ShopFlow.Channel.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

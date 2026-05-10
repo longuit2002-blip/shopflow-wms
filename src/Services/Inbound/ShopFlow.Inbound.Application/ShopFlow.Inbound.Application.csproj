@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Inbound.Application — use-case orchestration for Inbound.
+    Phase-0 skeleton; MediatR handlers + ports land in Phase-1 Sprint-2 (W4).
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

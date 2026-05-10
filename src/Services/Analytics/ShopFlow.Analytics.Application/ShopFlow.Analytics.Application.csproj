@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Analytics.Application — read-side queries + DTOs for Analytics.
+    Per Tech Design §5, Analytics has NO Domain layer (read-model only);
+    it consumes integration events + projects them into reporting tables.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>

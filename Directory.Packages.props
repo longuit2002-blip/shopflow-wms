@@ -51,6 +51,12 @@
   <ItemGroup Label="API stack — ASP.NET extras">
     <PackageVersion Include="Hellang.Middleware.ProblemDetails" Version="6.5.1" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
+    <!--
+      Yarp.ReverseProxy 2.3.0 — stable line for net8.0 used by the YARP gateway
+      (U10). The gateway loads its route table from configuration via
+      LoadFromConfig("ReverseProxy"), so package-side changes are infrequent.
+    -->
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
   </ItemGroup>
 
   <ItemGroup Label="Roslyn analyzers — netstandard2.0 host">

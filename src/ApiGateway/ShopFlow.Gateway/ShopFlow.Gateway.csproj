@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    ShopFlow.Gateway — YARP reverse proxy in front of every module API.
+    Loads its route table from the "ReverseProxy" config section
+    (appsettings.json) and validates JWT bearer tokens at the boundary.
+    No ProjectReferences to module APIs: the gateway only holds shape, not
+    code references — downstream services are reached over HTTP.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Yarp.ReverseProxy" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

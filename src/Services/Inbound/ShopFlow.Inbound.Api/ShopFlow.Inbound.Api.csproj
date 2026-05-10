@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    ShopFlow.Inbound.Api — Inbound module's HTTP host. Phase-0 skeleton:
+    AddShopFlowDefaults + AddInboundModule + a /healthz endpoint. JWT bearer
+    auth is enforced at the gateway boundary (ShopFlow.Gateway) in Phase-0;
+    the JwtBearer reference here keeps the API ready to validate downstream.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inbound.Infrastructure\ShopFlow.Inbound.Infrastructure.csproj" />
+    <ProjectReference Include="..\ShopFlow.Inbound.Application\ShopFlow.Inbound.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

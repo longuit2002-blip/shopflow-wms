@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Inbound.Domain — pure domain layer for Inbound (purchase orders,
+    receiving). AGENTS.md §2.9: zero framework references, only SharedKernel.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

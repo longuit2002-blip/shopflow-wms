@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Outbound.Domain — pure domain layer for Outbound (orders, picks,
+    packs, shipments). AGENTS.md §2.9: zero framework references.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

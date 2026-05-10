@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    ShopFlow.Channel.Api — Channel module's HTTP host. Hosts the per-channel
+    webhook receivers in Phase-2; in Phase-0 only AddShopFlowDefaults +
+    AddChannelModule + a /healthz endpoint.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
+    <ProjectReference Include="..\ShopFlow.Channel.Application\ShopFlow.Channel.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Channel.Domain\ShopFlow.Channel.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>
