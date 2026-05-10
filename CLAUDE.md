@@ -6,22 +6,24 @@ This file is auto-loaded by Claude Code (and respected as a fallback by other ag
 
 **ShopFlow WMS** — 12-week single-developer portfolio Warehouse Management System for SEA marketplaces (Shopee, Lazada, TikTok Shop, Shopify). Source is being bootstrapped from scratch as of late April 2026.
 
-**Stack**: C# .NET 8, Next.js 14 App Router + React Query + SignalR, Postgres 16 (RLS + monthly partitioning), Redis, RabbitMQ, MassTransit (sagas + outbox), OpenTelemetry, Docker Compose dev. Six modular-monolith microservices internally: Gateway (YARP), Inventory, Inbound, Outbound, Channel, Analytics.
+**Stack**: C# .NET 8, Next.js 14 App Router + React Query + SignalR, Postgres 16, **PgBouncer** (transaction-pooling), Redis, RabbitMQ, MassTransit (sagas + outbox), OpenTelemetry, Aspire AppHost (dev) + hand-maintained Docker Compose (prod). Six modular-monolith microservices internally: Gateway (YARP), Inventory, Inbound, Outbound, Channel, Analytics.
 
 **Engineering anchors**:
-- Append-only **reservation ledger** (CTE-based conditional INSERT, not row lock) — the hot-key flash-sale solution.
-- **Stock sync engine** with coalescing buffer + per-channel token bucket + priority queue.
-- Persistent **webhook idempotency** via Postgres `UNIQUE(channel_id, provider_event_id)` (NOT Redis).
-- **Multi-tenant RLS from day 1** even at MVP single-tenant.
-- **Outbox pattern** with EF interceptor; dispatcher path: polling → LISTEN/NOTIFY → Debezium CDC at scale.
-- **MassTransit saga** for fulfillment orchestration (Reserve → Pick → Pack → Ship with compensation).
+- **Database-per-tenant** on shared Postgres cluster ([ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md)) — PDPA SEA hard isolation. Routing per-request via middleware; control-plane catalog DB; right-to-erasure is `DROP DATABASE`.
+- Append-only **reservation ledger** (CTE-based conditional INSERT at READ COMMITTED, not row lock) — the hot-key flash-sale solution.
+- **Stock sync engine** with coalescing buffer + per-channel token bucket + priority queue, scoped per-tenant.
+- Persistent **webhook idempotency** via Postgres `UNIQUE(channel_id, provider_event_id)` per tenant DB.
+- **Outbox pattern** per-tenant with multiplexed dispatcher; dispatcher path: polling → LISTEN/NOTIFY → Debezium CDC at scale.
+- **MassTransit saga** for fulfillment orchestration (Reserve → Pick → Pack → Ship with compensation), tenant context per-message via headers.
 
 ## Source documents (canonical)
 
-- [01-product-development-plan.md.docx](./01-product-development-plan.md.docx) — scope, roadmap, SLOs, phase gates, risk register
-- [02-technical-design-document.md.docx](./02-technical-design-document.md.docx) — architecture, ADR log, scale-tier roadmap, code excerpts
+- [01-product-development-plan.md.docx](./01-product-development-plan.md.docx) — v2.0 (April 2026); v3.0 markdown draft at [docs/redesign/01-product-development-plan.md](./docs/redesign/01-product-development-plan.md). The .docx will be regenerated from the v3.0 draft.
+- [02-technical-design-document.md.docx](./02-technical-design-document.md.docx) — v2.0; v3.0 markdown draft at [docs/redesign/02-technical-design-document.md](./docs/redesign/02-technical-design-document.md). Same regeneration plan.
 
 These are .docx (Word) files. To extract text for grep/search, run [tools/extract-docs.sh](./tools/extract-docs.sh) (bash) or [tools/extract-docs.ps1](./tools/extract-docs.ps1) (PowerShell). The script writes plain-text equivalents to `docs/source/` (gitignored) — re-runnable on any machine.
+
+**v3.0 changes summary**: multi-tenancy is now §1 (was §4). Tenancy model is database-per-tenant on shared Postgres cluster ([ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md)). The reservation ledger conditional CTE INSERT runs at READ COMMITTED (was SERIALIZABLE in v2.0 — corrected per Postgres docs). Outbox is per-tenant with multiplexed dispatcher.
 
 ## Bootstrap stance (decided 2026-04-27)
 
@@ -40,14 +42,17 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 ## Working preferences
 
 - **Cross-machine workflow.** User zips and ships the source between computers. Anything project-related — context, scripts, decisions, ideation, ADRs — must live inside this directory tree, not in `~/.claude/projects/...` or other machine-local locations.
-- **Source docs are .docx**, not markdown. Read via the extraction scripts under `tools/`. Treat the .docx as the source of truth; do not edit the extracted .txt as if they were originals.
-- **Not yet a git repo.** The first bootstrap action will be `git init` plus the W0 ADRs.
+- **Source docs are .docx**, not markdown (with v3.0 markdown drafts in `docs/redesign/` pending .docx regeneration). Read via the extraction scripts under `tools/`. Treat the .docx as the source of truth; do not edit the extracted .txt as if they were originals.
+- **Compounding learnings**: when a fix is non-obvious, capture in [`docs/solutions/`](./docs/solutions/). The "every reviewer comment is a missing rule" pattern is canon (AGENTS.md).
 
-## Recommended next steps (when ready to bootstrap)
+## Current stage
 
-1. `git init` and the initial W0 commits per the ideation doc's "Week 0" section.
-2. Author `AGENTS.md` (the production rules canon — different from this CLAUDE.md context file) per ideation idea #4.
-3. Write `docs/adr/0001-aspire-vs-compose.md` and `docs/adr/0002-modular-monolith-first.md`.
-4. Begin Phase 0 deliverables on the modular-monolith foundation.
+**Multi-tenancy redesign accepted (2026-05-11)**. Phase-0 (RLS-shared) and Phase-1 Sprint-1 work-in-progress are archived at `archive/phase-1-sprint-1-rls-shared` branch and `archive/v0.1.0-phase-0-rls-shared` tag. The system pivots to **database-per-tenant on shared Postgres cluster** under [ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md).
 
-For deeper development of any single bootstrap idea, run `/compound-engineering:ce-brainstorm`. To produce a day-by-day implementation plan, run `/compound-engineering:ce-plan` with the ideation doc as input.
+**Active branch**: `feat/phase-0-redux-db-per-tenant` (cut from `main` after the canon supersession).
+
+**Next implementation step**: execute [docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md](./docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md) U1 → U10. Sprint-1-redux follows: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+
+**Always read `docs/CHANGELOG.md` first** to understand what supersedes what. Then `docs/solutions/` for accumulated learnings (re-discovery prevention).
+
+To resume implementation, run `/compound-engineering:ce-work` against the Phase-0-redux plan. To deepen a design decision, run `/compound-engineering:ce-brainstorm` or `/compound-engineering:ce-plan`.
