@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    shopflow-gate — Phase-N scale-gate orchestrator CLI.
+
+    See tools/shopflow-gate/README.md for purpose, invocation, and the
+    pattern for adding new phase gates.
+
+    Inherits TargetFramework=net8.0, Nullable, ImplicitUsings,
+    TreatWarningsAsErrors, and Central Package Management from the
+    repo-root Directory.Build.props + Directory.Packages.props. The
+    csproj only carries what diverges (OutputType=Exe, AssemblyName,
+    RootNamespace).
+
+    No PackageReference today — arg parsing is hand-rolled (single
+    positional arg + optional flags; System.CommandLine 2.0 is still
+    in beta and not worth the dependency for this surface).
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>shopflow-gate</AssemblyName>
+    <RootNamespace>ShopFlow.Gate</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>

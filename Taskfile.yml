@@ -95,12 +95,12 @@ tasks:
       - exit 1
 
   gate:
-    desc: 'Run shopflow-gate <phase> CLI. Usage: task gate -- 0'
+    desc: 'Run shopflow-gate <phase>. Usage: task gate -- 0'
     cmds:
-      - dotnet run --project tools/shopflow-gate -- {{.CLI_ARGS}}
+      - dotnet run --project tools/shopflow-gate/ShopFlow.Gate.csproj -- {{.CLI_ARGS}}
 
   scale-gate:
-    desc: 'Run the Phase-0 scale gate (cold-start + auth p99 + CI time). Lands in U11.'
+    desc: 'Run the Phase-0 scale gate (cold-start + auth p99 + CI time).'
     cmds:
       - task: gate
         vars:

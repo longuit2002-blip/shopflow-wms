@@ -61,12 +61,20 @@ csharp_style_expression_bodied_accessors = when_on_single_line:suggestion
 csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
 csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
 
-# ShopFlow analyzer rules — Warning at MVP per ADR/U5; promoted to Error in U11.
-# See AGENTS.md sections 3, 5, 6 for the rule rationale.
-dotnet_diagnostic.ShopFlow0001.severity = warning   # No raw DbSet<T> queries
-dotnet_diagnostic.ShopFlow0002.severity = warning   # Missing correlation context propagation
-dotnet_diagnostic.ShopFlow0003.severity = warning   # Webhook handler missing [Idempotent] attribute
-dotnet_diagnostic.ShopFlow0004.severity = warning   # DateTime.Now / DateTimeOffset.Now forbidden
+# ShopFlow analyzer rules — promoted to Error in U11 per the plan after the
+# canon stabilized across U5-U10. The kernel (U5), six modules (U6, U10), and
+# test/property/load harness (U7-U10) all built clean at Warning severity for
+# 7+ days with zero false positives, satisfying the "Roslyn analyzer false-
+# positives" risk-register exit criterion. The promotion locks the canon: any
+# new code that violates ShopFlow0001-0004 fails the build, full stop. Module-
+# level overrides remain possible via per-module .editorconfig if a real
+# exception ever emerges. See AGENTS.md sections 3, 5, 6 for the rule rationale
+# and U11 in docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md
+# for the promotion's place in the Phase-0 sequence.
+dotnet_diagnostic.ShopFlow0001.severity = error      # No raw DbSet<T> queries
+dotnet_diagnostic.ShopFlow0002.severity = error      # Missing correlation context propagation
+dotnet_diagnostic.ShopFlow0003.severity = error      # Webhook handler missing [Idempotent] attribute
+dotnet_diagnostic.ShopFlow0004.severity = error      # DateTime.Now / DateTimeOffset.Now forbidden
 
 # Microsoft analyzer rules — opinionated baseline
 dotnet_diagnostic.CA1822.severity = suggestion       # Mark members as static
