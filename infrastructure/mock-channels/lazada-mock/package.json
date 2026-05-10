@@ -1,0 +1,22 @@
+{
+  "name": "@shopflow/lazada-mock",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ShopFlow mock-channel server impersonating Lazada Open Platform.",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@shopflow/mock-channels-shared": "file:../_shared",
+    "ajv": "8.17.1",
+    "express": "4.21.0",
+    "js-yaml": "4.1.0",
+    "pino": "9.5.0",
+    "pino-http": "10.3.0"
+  }
+}

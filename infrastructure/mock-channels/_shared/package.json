@@ -1,0 +1,27 @@
+{
+  "name": "@shopflow/mock-channels-shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared library for ShopFlow mock-channel servers (Shopee + Lazada). Internal-only; never published.",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./controlPlane": "./controlPlane.js",
+    "./scenarioEngine": "./scenarioEngine.js",
+    "./hmac": "./hmac.js",
+    "./webhookDispatch": "./webhookDispatch.js",
+    "./requestLog": "./requestLog.js",
+    "./scenarioSchema": "./scenarioSchema.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "ajv": "8.17.1",
+    "express": "4.21.0",
+    "js-yaml": "4.1.0",
+    "pino": "9.5.0",
+    "pino-http": "10.3.0"
+  }
+}

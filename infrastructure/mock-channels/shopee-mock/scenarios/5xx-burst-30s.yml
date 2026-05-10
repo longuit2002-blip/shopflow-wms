@@ -1,0 +1,18 @@
+name: "5xx-burst-30s"
+description: >-
+  Marketplace returns 503 Service Unavailable to every request for 30 seconds
+  after scenario activation, then resumes normal behaviour (the rule expires via
+  durationMs). Tests circuit-breaker / exponential-backoff: the consumer should
+  open the breaker, stop hammering, and let the burst resolve before retrying.
+behavior:
+  responses:
+    - matchPath: "^/api/v2/.*"
+      matchMethod: "*"
+      returnStatus: 503
+      returnHeaders:
+        Content-Type: "application/json"
+        Retry-After: "30"
+      returnBody: '{"request_id":"mock-shopee-5xx","error":"error_server","message":"upstream unavailable","response":{}}'
+      repeat: "until-stopped"
+      durationMs: 30000
+  webhookDeliveryRules: []

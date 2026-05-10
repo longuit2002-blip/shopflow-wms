@@ -1,0 +1,18 @@
+name: "partial-body-then-eof"
+description: >-
+  Marketplace begins streaming a JSON response then closes the TCP connection
+  mid-body. Tests the consumer's partial-response handling — the parser must not
+  silently accept truncated JSON, the HTTP client must surface the EOF, and any
+  retry must use a fresh idempotency key only when the previous attempt is known
+  to have not committed server-side.
+behavior:
+  responses:
+    - matchPath: "^/api/v2/.*"
+      matchMethod: "*"
+      returnStatus: 200
+      returnHeaders:
+        Content-Type: "application/json"
+        Transfer-Encoding: "chunked"
+      returnBody: '{"request_id":"mock-shopee-partial","error":"","message":"","response":{"item":[{"item_id":1234567000,"item_status":"NORMAL","update_time":1769471000,"tag":[]},{"item_id":1234567001,"item_status":"NORMAL","update_time":1769470000,"tag":[]}],"total_count":3,"has_next_page":false,"next_offset":0}}'
+      repeat: "partial-then-eof"
+  webhookDeliveryRules: []

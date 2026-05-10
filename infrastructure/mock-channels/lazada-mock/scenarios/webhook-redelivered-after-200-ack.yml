@@ -1,0 +1,14 @@
+name: "webhook-redelivered-after-200-ack"
+description: >-
+  After registering a webhook target via /control/webhook/register, every triggered
+  delivery sends the payload TWICE with a 5-second gap between deliveries. Tests
+  the consumer's persistent-idempotency design (Tech Design §9: UNIQUE on
+  (channel_id, message_id) for Lazada — message_id is the canonical idempotency
+  key, NOT request_id, per `tests/fixtures/channels/lazada/README.md`).
+behavior:
+  responses: []
+  webhookDeliveryRules:
+    - eventPattern: "*"
+      deliveryCount: 2
+      gapMs: 5000
+      signatureMode: "valid"

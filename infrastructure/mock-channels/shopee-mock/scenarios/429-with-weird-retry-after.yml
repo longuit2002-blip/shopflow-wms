@@ -1,0 +1,19 @@
+name: "429-with-weird-retry-after"
+description: >-
+  Marketplace returns 429 Too Many Requests with a Retry-After header containing
+  non-integer garbage. Tests parser robustness in the consumer's rate-limit-respecting
+  retry loop. Real marketplaces have shipped non-RFC-compliant Retry-After values
+  in incidents; the consumer must treat the header as advisory and fall back to
+  exponential backoff.
+behavior:
+  responses:
+    - matchPath: "^/api/v2/.*"
+      matchMethod: "*"
+      returnStatus: 429
+      returnHeaders:
+        Retry-After: "garbage-not-a-number"
+        Content-Type: "application/json"
+        X-Shopee-Error: "rate_limit"
+      returnBody: '{"request_id":"mock-shopee-rate-limit","error":"error_rate_limit","message":"too many requests","response":{}}'
+      repeat: "until-stopped"
+  webhookDeliveryRules: []

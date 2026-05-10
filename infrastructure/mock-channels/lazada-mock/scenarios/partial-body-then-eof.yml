@@ -1,0 +1,17 @@
+name: "partial-body-then-eof"
+description: >-
+  Marketplace begins streaming the Lazada response envelope then closes the TCP
+  connection mid-body. Tests the consumer's partial-response handling — the JSON
+  parser must not silently accept truncated `data` arrays, and the HTTP client
+  must surface the EOF rather than treating it as a normal close.
+behavior:
+  responses:
+    - matchPath: "^/(products|orders|order)/.*"
+      matchMethod: "*"
+      returnStatus: 200
+      returnHeaders:
+        Content-Type: "application/json"
+        Transfer-Encoding: "chunked"
+      returnBody: '{"code":"0","type":"","message":"","request_id":"mock-lazada-partial","data":{"total_products":3,"products":[{"item_id":9990001000,"attributes":{"name":"EXAMPLE Wireless Mouse — Black"},"skus":[{"Status":"active","quantity":25,"SellerSku":"EXAMPLE-SKU-MOUSE-BLK-A","price":"250000","Available":25,"_currency":"VND"}]}]}}'
+      repeat: "partial-then-eof"
+  webhookDeliveryRules: []

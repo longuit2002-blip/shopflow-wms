@@ -1,0 +1,18 @@
+name: "429-with-weird-retry-after"
+description: >-
+  Marketplace returns 429 Too Many Requests with a Retry-After header containing
+  non-integer garbage. Tests parser robustness in the consumer's rate-limit-respecting
+  retry loop. Lazada production has shipped non-RFC-compliant Retry-After values in
+  past incidents; the consumer must treat the header as advisory and fall back to
+  exponential backoff.
+behavior:
+  responses:
+    - matchPath: "^/(products|orders|order)/.*"
+      matchMethod: "*"
+      returnStatus: 429
+      returnHeaders:
+        Retry-After: "soon-ish"
+        Content-Type: "application/json"
+      returnBody: '{"code":"ApiCallLimit","type":"ISP","message":"too many requests","request_id":"mock-lazada-rate-limit"}'
+      repeat: "until-stopped"
+  webhookDeliveryRules: []

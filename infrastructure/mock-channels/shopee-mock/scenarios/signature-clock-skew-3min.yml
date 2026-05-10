@@ -1,0 +1,14 @@
+name: "signature-clock-skew-3min"
+description: >-
+  Webhook deliveries are signed with a timestamp 3 minutes in the future. Exercises
+  the receiver's allowed-skew window (Tech Design §9.4). The consumer should accept
+  small skews (typical: ±5 min) and reject large ones; this scenario sits inside the
+  acceptance window so deliveries should still verify, but the test confirms the
+  receiver actually checks the timestamp rather than ignoring it.
+behavior:
+  responses: []
+  webhookDeliveryRules:
+    - eventPattern: "*"
+      deliveryCount: 1
+      gapMs: 0
+      signatureMode: "clock-skew-3min"
