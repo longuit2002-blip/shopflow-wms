@@ -51,7 +51,26 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 **Active branch**: `feat/phase-0-redux-db-per-tenant` (cut from `main` after the canon supersession).
 
-**Next implementation step**: execute [docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md](./docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md) U1 → U10. Sprint-1-redux follows: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+**Phase-0-redux progress** (as of 2026-05-11 session 1):
+- ✅ U1 — Canon verification + AGENTS.md numbering fix (commit `0111ee7`)
+- ✅ U2 — Repo skeleton, sln, props, `global.json` pinning .NET 9 (commit `a26f507`)
+- ✅ U3 — Channel test fixtures cherry-picked (commit `31c8a07`)
+- ✅ U4 — SharedKernel + 4 analyzers (ShopFlow0001-0004) + 8 passing unit tests; build clean (commit `a9a8c62`)
+- ⏭️ **U5 — ControlPlane quartet + catalog migration** (next, fresh session recommended)
+- U6-U10 — pending
+
+**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U5 (ControlPlane: Tenant aggregate, `ControlPlaneDbContext`, catalog schema + initial migration, `TenantCatalog` repository implementing `ITenantCatalog`). Sprint-1-redux follows: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+
+**Session-1 decisions captured** (apply when resuming):
+- **D1 PgBouncer pool sizing (U7)**: `pool_mode=transaction`, `default_pool_size=20`, `max_db_connections=20`, `min_pool_size=2`, `reserve_pool_size=5`. Postgres `max_connections=500` in dev, document `1000` for prod.
+- **D2 Catalog cache (U5)**: 5 min TTL, LRU size 1000. Synchronous eviction on write paths (provision-complete, archive-start).
+- **D3 Migration smoke test assertions (U8/U10)**: load-bearing assertion is `__ef_migrations_history` row count ≥ 1 after `MigrateAsync()`. Per-module named-table existence + named PK / UNIQUE constraint existence. No `pg_dump --schema-only` diff.
+- **D4 Routing middleware (already implemented in U4)**: header > JWT > subdomain priority; 2+ source conflict → 403 + audit row; 10 concrete scenarios documented in `TenantRoutingMiddleware.cs`.
+
+**Build/test invariants for resume**:
+- `dotnet build` → 0 warnings, 0 errors
+- `dotnet test` → 8 passed (3 Result + 2 ValueObject + 3 RequestContext)
+- .NET 9.0.305 SDK pinned via `global.json`
 
 **Always read `docs/CHANGELOG.md` first** to understand what supersedes what. Then `docs/solutions/` for accumulated learnings (re-discovery prevention).
 
