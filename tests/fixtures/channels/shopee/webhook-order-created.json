@@ -1,0 +1,64 @@
+{
+  "_meta": {
+    "fixture": "shopee/webhook-order-created",
+    "shape_source": "Shopee Open Platform v2 Push Order Status documentation",
+    "captured_at": "2026-04-27T00:00:00Z",
+    "synthetic": true,
+    "notes": "Derived from public Shopee Open Platform v2 documentation. All identifiers are EXAMPLE_* placeholders. Field names and nesting reflect the documented wire format; current production API may have evolved. Re-validate before relying on this for contract tests."
+  },
+  "_transport": {
+    "method": "POST",
+    "path": "/webhook/shopee",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "EXAMPLE_HMAC_SHA256_SIGNATURE_BASE64=",
+      "X-Shopee-Push-Event-Type": "order_status_push",
+      "X-Request-Id": "EXAMPLE_REQUEST_ID_uuid_v4"
+    }
+  },
+  "code": 3,
+  "shop_id": 9999000111,
+  "timestamp": 1769472000,
+  "data": {
+    "ordersn": "EXAMPLE_2604ABCDEFGH",
+    "status": "READY_TO_SHIP",
+    "update_time": 1769472000,
+    "create_time": 1769471700,
+    "currency": "VND",
+    "total_amount": 450000,
+    "buyer_user_id": 8888000222,
+    "buyer_username": "EXAMPLE_buyer_anon",
+    "items": [
+      {
+        "item_id": 1234567000,
+        "model_id": 7654321000,
+        "item_name": "EXAMPLE Wireless Mouse — Black",
+        "model_name": "EXAMPLE Variant A",
+        "item_sku": "EXAMPLE-SKU-MOUSE-BLK-A",
+        "model_sku": "EXAMPLE-SKU-MOUSE-BLK-A-V1",
+        "model_quantity_purchased": 2,
+        "model_original_price": 250000,
+        "model_discounted_price": 225000
+      }
+    ],
+    "recipient_address": {
+      "name": "EXAMPLE_RECIPIENT_NAME",
+      "phone": "EXAMPLE_PHONE_E164",
+      "full_address": "EXAMPLE_FULL_ADDRESS_LINE_HCMC",
+      "district": "EXAMPLE_DISTRICT",
+      "city": "Ho Chi Minh City",
+      "state": "Ho Chi Minh",
+      "region": "VN",
+      "zipcode": "700000"
+    },
+    "package_list": [
+      {
+        "package_number": "EXAMPLE_PKG_NUM",
+        "logistics_status": "LOGISTICS_NOT_START",
+        "shipping_carrier": "EXAMPLE_CARRIER"
+      }
+    ],
+    "estimated_shipping_fee": 25000,
+    "actual_shipping_fee": 25000
+  }
+}

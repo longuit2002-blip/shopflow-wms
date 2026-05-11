@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "fixture": "shopee/webhook-order-cancelled",
+    "shape_source": "Shopee Open Platform v2 Push Order Status documentation",
+    "captured_at": "2026-04-27T00:00:00Z",
+    "synthetic": true,
+    "notes": "Order cancellation event. Cancellation reasons and payloads vary by stage (pre-payment, post-payment, post-shipment); this example covers the most common pre-shipment cancellation. Fields prefixed EXAMPLE_ are placeholders."
+  },
+  "_transport": {
+    "method": "POST",
+    "path": "/webhook/shopee",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "EXAMPLE_HMAC_SHA256_SIGNATURE_BASE64=",
+      "X-Shopee-Push-Event-Type": "order_status_push",
+      "X-Request-Id": "EXAMPLE_REQUEST_ID_uuid_v4"
+    }
+  },
+  "code": 3,
+  "shop_id": 9999000111,
+  "timestamp": 1769558400,
+  "data": {
+    "ordersn": "EXAMPLE_2604ABCDEFGH",
+    "status": "CANCELLED",
+    "update_time": 1769558400,
+    "create_time": 1769471700,
+    "cancel_reason": "BUYER_CANCEL",
+    "cancel_by": "buyer",
+    "currency": "VND",
+    "total_amount": 450000,
+    "items": [
+      {
+        "item_id": 1234567000,
+        "model_id": 7654321000,
+        "item_sku": "EXAMPLE-SKU-MOUSE-BLK-A",
+        "model_sku": "EXAMPLE-SKU-MOUSE-BLK-A-V1",
+        "model_quantity_purchased": 2
+      }
+    ]
+  }
+}

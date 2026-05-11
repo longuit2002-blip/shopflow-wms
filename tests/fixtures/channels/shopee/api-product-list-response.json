@@ -1,0 +1,51 @@
+{
+  "_meta": {
+    "fixture": "shopee/api-product-list-response",
+    "shape_source": "Shopee Open Platform v2 GET /api/v2/product/get_item_list",
+    "captured_at": "2026-04-27T00:00:00Z",
+    "synthetic": true,
+    "notes": "Paginated product list response. `next_offset = 0` signals end-of-results in Shopee v2's offset-based pagination. The `request_id` field is echoed back from the request and is used for idempotency by the integrator (NOT by Shopee — Shopee does not dedupe by request_id)."
+  },
+  "_request_context": {
+    "method": "GET",
+    "path": "/api/v2/product/get_item_list",
+    "query": {
+      "partner_id": "EXAMPLE_PARTNER_ID",
+      "shop_id": "9999000111",
+      "timestamp": "1769472000",
+      "access_token": "EXAMPLE_ACCESS_TOKEN",
+      "sign": "EXAMPLE_HMAC_SHA256_HEX",
+      "offset": "0",
+      "page_size": 50,
+      "item_status": ["NORMAL", "BANNED"]
+    }
+  },
+  "request_id": "EXAMPLE_REQUEST_ID_uuid_v4",
+  "error": "",
+  "message": "",
+  "response": {
+    "item": [
+      {
+        "item_id": 1234567000,
+        "item_status": "NORMAL",
+        "update_time": 1769471000,
+        "tag": []
+      },
+      {
+        "item_id": 1234567001,
+        "item_status": "NORMAL",
+        "update_time": 1769470000,
+        "tag": []
+      },
+      {
+        "item_id": 1234567002,
+        "item_status": "BANNED",
+        "update_time": 1769400000,
+        "tag": ["kit"]
+      }
+    ],
+    "total_count": 3,
+    "has_next_page": false,
+    "next_offset": 0
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "fixture": "lazada/webhook-order-status",
+    "shape_source": "Lazada Open Platform Push Message documentation",
+    "captured_at": "2026-04-27T00:00:00Z",
+    "synthetic": true,
+    "notes": "Lazada push messages wrap the actual event in a `data` object with a `seller_id` and `message_id` that the receiver MUST use for idempotency (UNIQUE on (channel_id, message_id)). Lazada signs payloads via HMAC-SHA256; signature is delivered in the `X-Lazop-Signature` header (older docs) or `X-LZD-Signature` (newer). Both are accepted in the mock."
+  },
+  "_transport": {
+    "method": "POST",
+    "path": "/webhook/lazada",
+    "headers": {
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Lazop-Signature": "EXAMPLE_HMAC_SHA256_HEX",
+      "X-Lazop-Timestamp": "1769472000000",
+      "X-Lazop-App-Key": "EXAMPLE_APP_KEY",
+      "X-Request-Id": "EXAMPLE_REQUEST_ID_uuid_v4"
+    }
+  },
+  "message_id": "EXAMPLE_LAZADA_MSG_ID_unique_v4",
+  "message_type": "order_status_change",
+  "site": "vn",
+  "seller_id": "EXAMPLE_SELLER_ID_NUMERIC",
+  "timestamp": 1769472000000,
+  "data": {
+    "trade_order_id": "EXAMPLE_LAZADA_TRADE_ORDER_ID",
+    "trade_order_line_id": "EXAMPLE_LAZADA_LINE_ID",
+    "order_status": "ready_to_ship",
+    "previous_status": "pending",
+    "buyer_id_hash": "EXAMPLE_BUYER_HASH",
+    "currency": "VND",
+    "amount": 450000,
+    "items": [
+      {
+        "sku_id": "EXAMPLE_LAZADA_SKU_ID",
+        "seller_sku": "EXAMPLE-SKU-MOUSE-BLK-A",
+        "name": "EXAMPLE Wireless Mouse — Black",
+        "quantity": 2,
+        "unit_price": 225000
+      }
+    ],
+    "warehouse_code": "EXAMPLE_WH_HCMC_001",
+    "shipping_provider": "EXAMPLE_LZD_LEX",
+    "tracking_number": null
+  }
+}
