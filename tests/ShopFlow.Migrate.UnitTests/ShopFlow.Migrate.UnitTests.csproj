@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Migrate.UnitTests — covers the parts of shopflow-migrate that
+    do not need a live Postgres: arg parsing, module registry, and the
+    TenantProvisioner workflow via a fake IPostgresAdmin + in-memory
+    catalog DbContext. Testcontainers-backed integration tests land
+    alongside U10's MigrationSmokeTests (plan U10) — those exercise the
+    full provision-against-real-Postgres path.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\shopflow-migrate\shopflow-migrate.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -88,11 +88,20 @@ tasks:
     cmds:
       - dotnet csharpier .
 
-  migrate:
-    desc: 'Apply EF Core migrations. Lands in U6 with Inventory module.'
+  migrate:apply:
+    desc: 'Run shopflow-migrate apply across all Ready tenants. Pass extra flags after --, e.g. `task migrate:apply -- --target=latest --concurrency=8`.'
     cmds:
-      - cmd: echo "Inventory module not yet built. See U6."
-      - exit 1
+      - dotnet run --project tools/shopflow-migrate/shopflow-migrate.csproj -- apply {{.CLI_ARGS}}
+
+  migrate:provision:
+    desc: 'Provision one tenant. Usage: `task migrate:provision -- --tenant=dev1` or `task migrate:provision -- --catalog`.'
+    cmds:
+      - dotnet run --project tools/shopflow-migrate/shopflow-migrate.csproj -- provision {{.CLI_ARGS}}
+
+  migrate:status:
+    desc: 'Print per-tenant migration status across the catalog.'
+    cmds:
+      - dotnet run --project tools/shopflow-migrate/shopflow-migrate.csproj -- status
 
   gate:
     desc: 'Run shopflow-gate <phase>. Usage: task gate -- 0'

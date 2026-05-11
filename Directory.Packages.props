@@ -34,6 +34,7 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
   </ItemGroup>
@@ -51,6 +52,15 @@
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Hosting — Generic Host for CLI tools (shopflow-migrate, shopflow-gate)">
+    <!--
+      Microsoft.Extensions.Hosting 9.0.0 — Generic Host (DI + config + logging)
+      for console tools that don't need ASP.NET. Added in U6 for
+      tools/shopflow-migrate. Aligned with the EF Core / Npgsql 9.0.0 pin.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="API stack — ASP.NET extras">
