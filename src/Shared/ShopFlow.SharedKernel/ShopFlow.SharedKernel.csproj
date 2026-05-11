@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.SharedKernel — the cross-cutting NuGet meta-package every module
+    references. Provides: Domain primitives, Application plumbing (MediatR
+    behaviours, IRequestContext), Infrastructure wiring (Tenancy + Outbox
+    interceptors, OutboxDispatcher), AddShopFlowDefaults composition root,
+    and the bundled Roslyn analyzers ShopFlow0001…0004.
+
+    Per-project settings inherited from the repo-root Directory.Build.props.
+    Package versions inherited from the repo-root Directory.Packages.props.
+
+    The companion analyzer assembly is referenced with OutputItemType="Analyzer"
+    and ReferenceOutputAssembly="false" so consumers automatically get the
+    rules without taking a runtime dependency on Roslyn. The analyzer ships
+    as a sibling .csproj (netstandard2.0) rather than nested.
+  -->
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="Hellang.Middleware.ProblemDetails" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+  </ItemGroup>
+
+  <!--
+    Bundle the Roslyn analyzer assembly so every consumer of the kernel
+    automatically picks up ShopFlow0001…0004 without an extra reference.
+      OutputItemType="Analyzer"        treats the dll as an analyzer asset
+      ReferenceOutputAssembly="false"  no runtime ref; pure build-time
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.SharedKernel.Analyzers\ShopFlow.SharedKernel.Analyzers.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

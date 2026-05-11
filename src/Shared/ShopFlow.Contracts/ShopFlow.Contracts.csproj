@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Contracts — wire-compatible integration event records that cross
+    bounded-context boundaries via MassTransit. Intentionally empty in U5;
+    concrete events (StockReservedEvent, OrderPlacedEvent, ...) land with the
+    modules that emit them (U6, U10) per the Phase-0 plan.
+
+    Rules (root AGENTS.md §6): every published integration event carries
+    tenant_id, correlation_id, and occurred_at UTC in its envelope. Records
+    are immutable, JSON-serialisable, never reference domain types.
+
+    Per-project settings inherited from the repo-root Directory.Build.props.
+    Package versions inherited from the repo-root Directory.Packages.props.
+  -->
+
+</Project>
