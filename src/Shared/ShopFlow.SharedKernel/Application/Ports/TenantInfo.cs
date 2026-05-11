@@ -1,3 +1,5 @@
+using ShopFlow.SharedKernel.Domain;
+
 namespace ShopFlow.SharedKernel.Application.Ports;
 
 /// <summary>
@@ -22,18 +24,3 @@ public sealed record TenantInfo(
     string Tier,
     TenantStatus Status
 );
-
-/// <summary>
-/// Tenant lifecycle states. Transitions:
-/// <c>Pending → Provisioning → (ProvisioningFailed | Ready)</c>;
-/// <c>Ready → Archiving → Archived</c>.
-/// </summary>
-public enum TenantStatus
-{
-    Pending,
-    Provisioning,
-    ProvisioningFailed,
-    Ready,
-    Archiving,
-    Archived,
-}

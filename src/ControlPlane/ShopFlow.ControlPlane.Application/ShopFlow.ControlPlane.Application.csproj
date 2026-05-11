@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.ControlPlane.Application — application-layer seams over the
+    control-plane domain. Holds ports consumed by the rest of the system
+    (notably IChannelDirectory) but NOT ITenantCatalog: that port lives in
+    ShopFlow.SharedKernel.Application.Ports because the kernel routing
+    middleware + outbox dispatcher consume it without taking a backward
+    dep on this project. See plan U5 deviation note.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.ControlPlane.Domain\ShopFlow.ControlPlane.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

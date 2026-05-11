@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.ControlPlane.Migrations — owns the catalog schema migrations
+    for shopflow_control. Migrations live in a separate assembly so that
+    tools/shopflow-migrate (U6) can reference the migration set without
+    dragging in Infrastructure cache / repository / etc dependencies it
+    does not need.
+
+    Per AGENTS.md §3.23 hand-authored migrations MUST carry both
+    [Migration("<timestamp>_Name")] and [DbContext(typeof(<DbContext>))]
+    attributes. The migration smoke test in per-PR CI (U10) re-verifies
+    this on every push.
+  -->
+
+  <ItemGroup>
+    <!--
+      Runtime-only: Relational carries Migration, MigrationBuilder,
+      MigrationAttribute, and DbContextAttribute. EF Core .Design pulls in
+      a Microsoft.CodeAnalysis.Workspaces.MSBuild 4.8.0 transitive that
+      collides with the CPM-pinned CodeAnalysis 4.11.0 elsewhere in the
+      repo (NU1608). The CLI scaffolding workflow (`dotnet ef migrations
+      add`) is opt-in per-developer; the runtime migration apply path used
+      by `shopflow-migrate` (U6) and the smoke test (U10) does not need it.
+    -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

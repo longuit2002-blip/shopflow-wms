@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.ControlPlane.Domain — write-side of the control plane: tenant
+    aggregate, tenant lifecycle events, channel-connection entity. Read-side
+    (TenantInfo projection) lives in ShopFlow.SharedKernel.Application.Ports
+    where the kernel routing middleware can consume it without taking a
+    backward dep on ControlPlane.
+
+    Per AGENTS.md §2.9 Domain projects have zero framework refs. The
+    SharedKernel reference is the documented exception (rule 9: "Pure C# +
+    ShopFlow.SharedKernel.Domain only"); SharedKernel keeps framework refs
+    behind its Infrastructure folder which Domain code never touches.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

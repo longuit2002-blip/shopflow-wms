@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.ControlPlane.Infrastructure — EF Core + Npgsql implementation of
+    the control-plane catalog and channel directory. Owns the
+    ControlPlaneDbContext (fixed connection string, not per-request — the
+    control-plane DB is one), the LRU-cached TenantCatalog implementing the
+    SharedKernel ITenantCatalog port, and the ChannelDirectory implementation.
+    Migrations live in the sibling ShopFlow.ControlPlane.Migrations project
+    so the migration assembly can be referenced by tools/shopflow-migrate
+    without dragging in the full Infrastructure dep graph.
+
+    Caching + options extensions arrive transitively via the SharedKernel
+    FrameworkReference on Microsoft.AspNetCore.App; no extra PackageReferences
+    needed here.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.ControlPlane.Application\ShopFlow.ControlPlane.Application.csproj" />
+    <ProjectReference Include="..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.ControlPlane.UnitTests — pure-Domain coverage of the Tenant
+    state machine. No I/O, no DB, no Testcontainers; runs in < 1s. The
+    DB-bound TenantCatalog + ChannelDirectory + migration-apply scenarios
+    listed in plan U5 land in ShopFlow.ControlPlane.IntegrationTests at U6.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Domain\ShopFlow.ControlPlane.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

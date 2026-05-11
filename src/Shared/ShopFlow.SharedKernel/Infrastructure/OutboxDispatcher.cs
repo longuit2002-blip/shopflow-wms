@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Application.Ports;
+using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.SharedKernel.Infrastructure;
 

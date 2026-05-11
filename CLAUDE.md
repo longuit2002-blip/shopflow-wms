@@ -51,15 +51,18 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 **Active branch**: `feat/phase-0-redux-db-per-tenant` (cut from `main` after the canon supersession).
 
-**Phase-0-redux progress** (as of 2026-05-11 session 1):
+**Phase-0-redux progress** (as of 2026-05-11 session 2):
 - ✅ U1 — Canon verification + AGENTS.md numbering fix (commit `0111ee7`)
 - ✅ U2 — Repo skeleton, sln, props, `global.json` pinning .NET 9 (commit `a26f507`)
 - ✅ U3 — Channel test fixtures cherry-picked (commit `31c8a07`)
 - ✅ U4 — SharedKernel + 4 analyzers (ShopFlow0001-0004) + 8 passing unit tests; build clean (commit `a9a8c62`)
-- ⏭️ **U5 — ControlPlane quartet + catalog migration** (next, fresh session recommended)
-- U6-U10 — pending
+- ✅ U5 — ControlPlane quartet (Domain/Application/Infrastructure/Migrations) + Tenant aggregate + initial catalog migration with mandatory attributes + 16 Tenant state-machine tests
+- ⏭️ **U6 — shopflow-migrate CLI tool** (next)
+- U7-U10 — pending
 
-**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U5 (ControlPlane: Tenant aggregate, `ControlPlaneDbContext`, catalog schema + initial migration, `TenantCatalog` repository implementing `ITenantCatalog`). Sprint-1-redux follows: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U6 (`tools/shopflow-migrate/` CLI: `provision`, `apply --target=<version>`, `archive`, `restore`, `status` subcommands; parallel-by-tenant apply with bounded concurrency). Sprint-1-redux follows: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+
+**U5 deviation from plan file list**: `ITenantCatalog` port stays in `ShopFlow.SharedKernel.Application.Ports` (where U4 placed it) rather than being re-created in `ControlPlane.Application.Ports` — the SharedKernel routing middleware and outbox dispatcher consume the port and cannot take a backward dep on ControlPlane. `TenantStatus` enum relocated from `SharedKernel.Application.Ports` to `SharedKernel.Domain` (pure value type) so `ControlPlane.Domain.Tenant` and `Application.Ports.TenantInfo` share one enum without violating layering. The Migrations csproj omits `Microsoft.EntityFrameworkCore.Design` (NU1608 vs CPM-pinned CodeAnalysis 4.11.0); the runtime apply path used by `shopflow-migrate` and U10's smoke test does not need it.
 
 **Session-1 decisions captured** (apply when resuming):
 - **D1 PgBouncer pool sizing (U7)**: `pool_mode=transaction`, `default_pool_size=20`, `max_db_connections=20`, `min_pool_size=2`, `reserve_pool_size=5`. Postgres `max_connections=500` in dev, document `1000` for prod.
@@ -68,8 +71,8 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 - **D4 Routing middleware (already implemented in U4)**: header > JWT > subdomain priority; 2+ source conflict → 403 + audit row; 10 concrete scenarios documented in `TenantRoutingMiddleware.cs`.
 
 **Build/test invariants for resume**:
-- `dotnet build` → 0 warnings, 0 errors
-- `dotnet test` → 8 passed (3 Result + 2 ValueObject + 3 RequestContext)
+- `dotnet build` → 0 warnings, 0 errors across 9 projects (8 src + 2 test)
+- `dotnet test` → 24 passed (8 SharedKernel — 3 Result + 2 ValueObject + 3 RequestContext; 16 ControlPlane.Domain Tenant state-machine)
 - .NET 9.0.305 SDK pinned via `global.json`
 
 **Always read `docs/CHANGELOG.md` first** to understand what supersedes what. Then `docs/solutions/` for accumulated learnings (re-discovery prevention).
