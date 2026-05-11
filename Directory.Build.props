@@ -1,0 +1,54 @@
+<Project>
+
+  <!--
+    Repo-wide csproj defaults. Every .csproj under this tree inherits these.
+    Per-project csproj only carries what diverges from the defaults (e.g.,
+    the analyzer project overrides TargetFramework to netstandard2.0).
+
+    Companion files:
+      • Directory.Packages.props  — Central Package Management. All package
+                                    versions live there; .csproj uses
+                                    <PackageReference Include="..." /> with
+                                    NO Version attribute.
+      • tests/Directory.Build.props — Test-project-specific overrides
+                                    (IsTestProject, common test packages,
+                                    NU1701 NoWarn for analyzer-test transitives).
+
+    Changing a value here propagates to every project. That is the point.
+
+    Note (Phase-0-redux 2026-05-11): plan + canon docs declare ".NET 8"
+    historically; this branch pins net9.0 via global.json because that
+    is the SDK available on the developer machine (.NET 8 SDK is not
+    installed). EF Core, Npgsql, MassTransit, OpenTelemetry, Aspire are
+    all version-aligned with net9.0 in Directory.Packages.props.
+    Rationale captured at U10 sign-off.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      Central Package Management. .csproj files declare PackageReference
+      Include="..." without a Version; resolution happens through
+      Directory.Packages.props. CentralPackageTransitivePinningEnabled
+      forces transitive deps to inherit the same pinned versions, which
+      is the point of CPM (and prevents the kind of NuGet resolver drift
+      that surfaced as the MS.CodeAnalysis 1.0.x vs 4.11.0 conflict in U5).
+    -->
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+
+    <!--
+      Honest defaults that prevent quiet bugs.
+    -->
+    <CheckEolTargetFramework>true</CheckEolTargetFramework>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <AnalysisLevel>latest</AnalysisLevel>
+  </PropertyGroup>
+
+</Project>

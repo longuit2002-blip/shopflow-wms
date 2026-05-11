@@ -1,0 +1,127 @@
+<Project>
+
+  <!--
+    Central Package Management (CPM) — single source of truth for every
+    package version in the repo. Bumping a package = edit one line here,
+    not 10 .csproj files. Was a real pain point during U6 when the
+    OpenTelemetry GHSA-4625-4j76-fww9 advisory required updating five
+    PackageReferences across two csprojs; with CPM it is one PackageVersion
+    edit.
+
+    Pinned with intent — these are the versions that pass `dotnet build`
+    cleanly under net9.0 + the ShopFlow analyzer set + CSharpier 0.30.6.
+    Bumps require: re-running `dotnet test`, re-running CSharpier in
+    check mode (`task pre-commit`), and a brief docs/solutions/ entry
+    if the bump fixed a known issue.
+
+    Phase-0-redux 2026-05-11: bumped EF Core / AspNetCore / Npgsql from
+    8.0.10 to 9.0.0 to match Directory.Build.props TargetFramework=net9.0.
+    Aspire stays at 13.3.0 (framework-agnostic). OpenTelemetry stays at
+    1.15.x (no .NET 9-specific bump required).
+
+    Categories below are organizational; MSBuild does not care about
+    grouping. Package names are alphabetical within each group.
+  -->
+
+  <ItemGroup Label="Domain / Application — MediatR + MassTransit + validation">
+    <PackageVersion Include="FluentValidation" Version="11.10.0" />
+    <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />
+    <PackageVersion Include="MassTransit" Version="8.3.4" />
+    <PackageVersion Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="Infrastructure — EF Core + Npgsql">
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Observability — Serilog + OpenTelemetry">
+    <PackageVersion Include="Serilog.AspNetCore" Version="8.0.3" />
+    <!--
+      OpenTelemetry pinned at 1.15.x: 1.10.0 had GHSA-4625-4j76-fww9 which
+      TreatWarningsAsErrors=true promoted to a build error. See
+      docs/solutions/2026-04-28-opentelemetry-advisory-bump.md.
+      Hosting/Exporter at 1.15.3, AspNetCore at 1.15.2, Http at 1.15.1
+      (each at its latest non-prerelease as of 2026-04-28).
+    -->
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+  </ItemGroup>
+
+  <ItemGroup Label="API stack — ASP.NET extras">
+    <PackageVersion Include="Hellang.Middleware.ProblemDetails" Version="6.5.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+    <!--
+      Yarp.ReverseProxy 2.3.0 — stable line for net8.0 used by the YARP gateway
+      (U10). The gateway loads its route table from configuration via
+      LoadFromConfig("ReverseProxy"), so package-side changes are infrequent.
+    -->
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Roslyn analyzers — netstandard2.0 host">
+    <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.11.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="4.11.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test infrastructure — xUnit + FluentAssertions + NSubstitute">
+    <PackageVersion Include="FluentAssertions" Version="6.12.2" />
+    <!--
+      Microsoft.CodeAnalysis.CSharp.Analyzer.Testing.XUnit 1.1.2 has stale
+      transitive deps on MS.CodeAnalysis 1.0.x. The CSharp + Workspaces
+      4.11.0 references in the analyzer-tests group above force resolution
+      to the modern API surface. See
+      docs/solutions/2026-04-28-analyzer-testing-transitives.md.
+    -->
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing.XUnit" Version="1.1.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageVersion Include="NSubstitute" Version="5.1.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup Label="Integration test infrastructure">
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Aspire AppHost — dev orchestrator (per ADR-0001)">
+    <!--
+      Aspire.Hosting.* pinned at 13.3.0 — the GA stable line as of late 2025.
+      Per ADR-0001 the AppHost is dev-only; the production manifest lives
+      in infrastructure/docker-compose.yml. Bumping requires re-running
+      the cold-start gate (Phase-0 target: 60s on a developer laptop).
+    -->
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.3.0" />
+    <PackageVersion Include="Aspire.Hosting.PostgreSQL" Version="13.3.0" />
+    <PackageVersion Include="Aspire.Hosting.RabbitMQ" Version="13.3.0" />
+    <PackageVersion Include="Aspire.Hosting.Redis" Version="13.3.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Property + Load testing — FsCheck (reservation ledger spec) + NBomber (sync primitives spec)">
+    <!--
+      FsCheck.Xunit 3.x is a major rewrite from 2.x:
+      [Property] attribute now lives in FsCheck.Xunit; generators use Arb.Default
+      and Gen.Choose; Property return type comes from FsCheck.FSharp.Prop.
+      See tests/ShopFlow.PropertyTests/ReservationLedgerProperties.cs.
+    -->
+    <PackageVersion Include="FsCheck.Xunit" Version="3.3.3" />
+    <!--
+      NBomber 6.x — load harness for .NET. NBomber.Http is held for U9
+      to drive HTTP load against the real Inventory + Channel modules
+      once the dev orchestrator is wired (no current stub-driven HTTP need).
+      Subagent originally pinned 5.10.1 which does not exist on NuGet
+      (latest 5.x branch was 5.x earlier; current is 6.x). NU1603 surfaced
+      this; bumped to 6.4.0 / 6.2.0 (the latest stable each).
+    -->
+    <PackageVersion Include="NBomber" Version="6.4.0" />
+    <PackageVersion Include="NBomber.Http" Version="6.2.0" />
+  </ItemGroup>
+
+</Project>

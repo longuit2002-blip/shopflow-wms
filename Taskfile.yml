@@ -1,0 +1,115 @@
+version: '3'
+
+# ShopFlow WMS Taskfile
+#
+# Cross-platform task runner. Pick this over `make` (tab-sensitive on Windows),
+# `package.json` scripts (Node dependency we don't otherwise need), or shell
+# scripts (per-OS proliferation). See `docs/adr/0001-aspire-vs-docker-compose.md`
+# for the dev-orchestrator decision and `AGENTS.md` for the rule canon.
+#
+# After a fresh clone: `task setup` is the only documented onboarding command.
+
+silent: false
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  setup:
+    desc: 'Install local .NET tools (Husky.NET, CSharpier) and wire pre-commit hooks. Idempotent.'
+    cmds:
+      - dotnet --version
+      - dotnet tool restore
+      - dotnet husky install
+    sources:
+      - .config/dotnet-tools.json
+      - .husky/pre-commit
+
+  up:
+    desc: 'Start the dev orchestrator (Aspire AppHost). See ADR-0001.'
+    cmds:
+      - dotnet run --project src/AppHost/ShopFlow.AppHost/ShopFlow.AppHost.csproj
+
+  up:compose:
+    desc: 'Alternate dev path: docker compose with infra + obs + mocks profiles. Use when Aspire is unavailable or you want to exercise the production-handoff manifest.'
+    cmds:
+      - docker compose -f infrastructure/docker-compose.yml --profile infra --profile obs --profile mocks up --wait
+
+  down:
+    desc: 'Stop the dev orchestrator. Tears down both Aspire (Ctrl-C parent) and any compose-launched containers.'
+    cmds:
+      - cmd: docker compose -f infrastructure/docker-compose.yml --profile infra --profile obs --profile mocks down
+        ignore_error: true
+
+  test:
+    desc: 'Run the full test suite (unit + integration + property). Excludes Load category.'
+    cmds:
+      - dotnet test --filter "Category!=Load"
+
+  test:unit:
+    desc: 'Run only unit tests (Domain + Application layers).'
+    cmds:
+      - dotnet test --filter "Category=Unit"
+
+  test:integration:
+    desc: 'Run only integration tests (Testcontainers Postgres + RabbitMQ).'
+    cmds:
+      - dotnet test --filter "Category=Integration"
+
+  test:property:
+    desc: 'Run only the FsCheck property suite (reservation ledger invariants).'
+    cmds:
+      - dotnet test --filter "Category=Property"
+
+  test:load:
+    desc: 'Run the load harness (k6 / NBomber). Slow; nightly in CI, not per-PR.'
+    cmds:
+      - dotnet test --filter "Category=Load"
+
+  ci:
+    desc: 'Run the local CI replay (matches .github/workflows/ci.yml stages).'
+    cmds:
+      - dotnet tool restore
+      - dotnet restore
+      - dotnet build --no-restore --configuration Release -warnaserror
+      - dotnet csharpier --check .
+      - dotnet test --no-build --configuration Release --filter "Category!=Integration&Category!=Load"
+
+  pre-commit:
+    desc: 'Run pre-commit checks (formatter). Invoked by Husky.NET hook.'
+    cmds:
+      - dotnet csharpier --check .
+
+  format:
+    desc: 'Apply CSharpier formatting to all C# files in-place.'
+    cmds:
+      - dotnet csharpier .
+
+  migrate:
+    desc: 'Apply EF Core migrations. Lands in U6 with Inventory module.'
+    cmds:
+      - cmd: echo "Inventory module not yet built. See U6."
+      - exit 1
+
+  gate:
+    desc: 'Run shopflow-gate <phase>. Usage: task gate -- 0'
+    cmds:
+      - dotnet run --project tools/shopflow-gate/ShopFlow.Gate.csproj -- {{.CLI_ARGS}}
+
+  scale-gate:
+    desc: 'Run the Phase-0 scale gate (cold-start + auth p99 + CI time).'
+    cmds:
+      - task: gate
+        vars:
+          CLI_ARGS: "0"
+
+  extract-docs:
+    desc: 'Extract plain text from the .docx source documents into docs/source/.'
+    cmds:
+      - cmd: bash tools/extract-docs.sh
+        platforms: [linux, darwin]
+      - cmd: pwsh tools/extract-docs.ps1
+        platforms: [windows]

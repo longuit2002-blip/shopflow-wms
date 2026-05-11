@@ -1,0 +1,82 @@
+# EditorConfig: https://editorconfig.org
+# Establishes baseline editor settings across the team and across CSharpier-formatted output.
+
+root = true
+
+# Defaults for every file
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# Markdown preserves trailing whitespace (used for line breaks)
+[*.md]
+trim_trailing_whitespace = false
+indent_size = 2
+
+# YAML, JSON, JS, TS, HTML/Razor — 2 spaces
+[*.{yml,yaml,json,js,jsx,ts,tsx,html,cshtml,razor}]
+indent_size = 2
+
+# Shell scripts must be LF on every platform
+[*.sh]
+end_of_line = lf
+
+# PowerShell scripts conventionally CRLF on Windows
+[*.ps1]
+end_of_line = crlf
+
+# .NET source files
+[*.{cs,csx,vb}]
+indent_size = 4
+
+# C# specific style and analyzer rules ----------------------------------------
+
+[*.cs]
+# Use spaces around binary operators
+csharp_space_around_binary_operators = before_and_after
+
+# Prefer file-scoped namespaces (matches CSharpier output)
+csharp_style_namespace_declarations = file_scoped:warning
+
+# var preferences (CSharpier doesn't enforce; this is review-time signal)
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_for_built_in_types = false:suggestion
+csharp_style_var_elsewhere = true:suggestion
+
+# Modern language features
+csharp_prefer_simple_using_statement = true:suggestion
+csharp_style_prefer_top_level_statements = false:suggestion
+csharp_style_prefer_primary_constructors = true:suggestion
+
+# Expression-bodied members
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = when_on_single_line:suggestion
+csharp_style_expression_bodied_accessors = when_on_single_line:suggestion
+
+# Pattern matching
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+
+# ShopFlow analyzer rules — promoted to Error in U11 per the plan after the
+# canon stabilized across U5-U10. The kernel (U5), six modules (U6, U10), and
+# test/property/load harness (U7-U10) all built clean at Warning severity for
+# 7+ days with zero false positives, satisfying the "Roslyn analyzer false-
+# positives" risk-register exit criterion. The promotion locks the canon: any
+# new code that violates ShopFlow0001-0004 fails the build, full stop. Module-
+# level overrides remain possible via per-module .editorconfig if a real
+# exception ever emerges. See AGENTS.md sections 3, 5, 6 for the rule rationale
+# and U11 in docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md
+# for the promotion's place in the Phase-0 sequence.
+dotnet_diagnostic.ShopFlow0001.severity = error      # No raw DbSet<T> queries
+dotnet_diagnostic.ShopFlow0002.severity = error      # Missing correlation context propagation
+dotnet_diagnostic.ShopFlow0003.severity = error      # Webhook handler missing [Idempotent] attribute
+dotnet_diagnostic.ShopFlow0004.severity = error      # DateTime.Now / DateTimeOffset.Now forbidden
+
+# Microsoft analyzer rules — opinionated baseline
+dotnet_diagnostic.CA1822.severity = suggestion       # Mark members as static
+dotnet_diagnostic.CA2007.severity = none             # ConfigureAwait — handled by ASP.NET context
+dotnet_diagnostic.IDE0290.severity = suggestion      # Use primary constructor

@@ -5,7 +5,7 @@
 [![Stage](https://img.shields.io/badge/stage-redesign%20%E2%86%92%20Phase--0--redux-orange)](docs/plans/2026-05-11-001-redesign-multi-tenancy-db-per-tenant-plan.md)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey)](#license)
 
-**Current stage**: **Multi-tenancy redesign accepted (2026-05-11)** — Phase-0 (RLS-shared) and Phase-1 Sprint-1 work-in-progress are archived. The system pivots to **database-per-tenant on shared Postgres cluster** under [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md) for PDPA SEA hard isolation. New canon ([product plan v3.0](docs/redesign/01-product-development-plan.md), [tech design v3.0](docs/redesign/02-technical-design-document.md)), implementation plans ([Phase-0-redux](docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md), [Sprint-1-redux](docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md)), and AGENTS.md §3 rewrite are committed to `main`.
+**Current stage**: **Phase-0-redux in flight (2026-05-11)** — executing [Phase-0-redux plan](docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md) U1 → U10 on branch `feat/phase-0-redux-db-per-tenant`. Multi-tenancy redesign accepted under [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md): **database-per-tenant on shared Postgres cluster** for PDPA SEA hard isolation. New canon ([product plan v3.0](docs/redesign/01-product-development-plan.md), [tech design v3.0](docs/redesign/02-technical-design-document.md)), implementation plans ([Phase-0-redux](docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md), [Sprint-1-redux](docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md)), and AGENTS.md §3 rewrite are on `main`.
 
 The Phase-0-redux implementation runs on branch `feat/phase-0-redux-db-per-tenant`. The historical Phase-0 + Sprint-1 work is preserved at branch `archive/phase-1-sprint-1-rls-shared` and tag `archive/v0.1.0-phase-0-rls-shared`.
 
@@ -23,7 +23,7 @@ Six bounded contexts (Inventory, Inbound, Outbound, Channel, Analytics, Gateway)
 
 Multi-tenancy is **database-per-tenant on a shared Postgres cluster** ([ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md)). Each tenant maps to one logical Postgres DATABASE; routing happens in middleware (header → JWT claim → subdomain priority); PgBouncer in transaction-pooling mode is the connection multiplexer. A separate `shopflow_control` database holds the tenant catalog. Right-to-erasure is `DROP DATABASE` after retention window.
 
-**Stack**: C# .NET 8, Postgres 16, **PgBouncer**, Redis, RabbitMQ, MassTransit (sagas + outbox), OpenTelemetry, Aspire AppHost (dev) + hand-maintained Docker Compose (production handoff per [ADR-0001](docs/adr/0001-aspire-vs-docker-compose.md)).
+**Stack**: C# .NET 9 (canon declares .NET 8; Phase-0-redux pins net9.0 via `global.json` because that is the SDK available on the developer machine — see [Directory.Build.props](Directory.Build.props)), Postgres 16, **PgBouncer**, Redis, RabbitMQ, MassTransit (sagas + outbox), OpenTelemetry, Aspire AppHost (dev) + hand-maintained Docker Compose (production handoff per [ADR-0001](docs/adr/0001-aspire-vs-docker-compose.md)).
 
 ## Compliance posture
 
