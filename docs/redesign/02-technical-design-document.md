@@ -1085,4 +1085,4 @@ Picked with business justification, v3.0 list:
 7. Skim §17 (Testing Strategy) to see what's verified.
 8. Use §10 (Solution Layout) and §11 (Bounded Contexts) as a navigational reference when reading code.
 
-The companion `01-product-development-plan.md` carries the product story. ADR-0003 explains the multi-tenancy decision. `docs/plans/2026-05-DD-002-phase-0-redux-bootstrap-plan.md` (when written) walks the implementation unit list under this design.
+The companion `01-product-development-plan.md` carries the product story. ADR-0003 explains the multi-tenancy decision. [`docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md`](../plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md) walks the implementation unit list under this design.
