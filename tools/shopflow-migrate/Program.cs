@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ShopFlow.ControlPlane.Infrastructure;
+using ShopFlow.Inventory.Infrastructure;
 using ShopFlow.Migrate;
 using ShopFlow.Migrate.Commands;
 using ShopFlow.Migrate.Modules;
@@ -80,7 +81,15 @@ static IHost BuildHost(string[] args)
     var options = optionsRoot.ToOptions();
 
     builder.Services.AddSingleton(options);
-    builder.Services.AddSingleton<IModuleMigrationRegistry>(_ => new ModuleMigrationRegistry());
+    builder.Services.AddSingleton<IModuleMigrationRegistry>(_ =>
+        new ModuleMigrationRegistry().Register(
+            new ModuleMigrationDescriptor(
+                moduleName: "Inventory",
+                dbContextType: typeof(InventoryDbContext),
+                migrationsAssemblyName: typeof(InventoryDbContext).Assembly.GetName().Name!
+            )
+        )
+    );
 
     builder.Services.AddDbContext<ControlPlaneDbContext>(o =>
         o.UseNpgsql(

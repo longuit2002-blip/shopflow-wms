@@ -37,6 +37,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

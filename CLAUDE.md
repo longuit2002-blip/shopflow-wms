@@ -59,10 +59,16 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 - ✅ U5 — ControlPlane quartet (Domain/Application/Infrastructure/Migrations) + Tenant aggregate + initial catalog migration + 16 state-machine tests (commit `6307242`)
 - ✅ U6 — `shopflow-migrate` CLI: provision/apply/archive/restore/status + 35 unit tests (commit `ee616df`)
 - ✅ U7 — Aspire AppHost (Postgres + PgBouncer + Redis + RabbitMQ + observability) + chained provisioning of catalog/dev1/dev2 + production handoff via `infrastructure/docker-compose.yml`
-- ⏭️ **U8 — Inventory module (Domain/Application/Infrastructure + initial migration)** (next)
-- U9-U10 — pending
+- ✅ U8 — Inventory module (Domain entities + value objects + 4 domain events; 3 Application ports; Infrastructure DbContext + 4 entity configs + repo skeletons throwing NIE; ReservationExpiryWorker hosted-service stub; InitialInventorySchema migration with mandatory `[Migration]`+`[DbContext]` attributes; Api 501 skeleton) + 16 Domain unit tests
+- ⏭️ **U9 — Replicate module shape: Inbound, Outbound, Channel, Analytics, Gateway** (next)
+- U10 — pending
 
-**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U8 (Inventory module skeleton — DB-per-tenant schema, no `tenant_id`, `UNIQUE(order_id)` idempotency, repository skeletons throw `NotImplementedException` for Sprint-1-redux to flesh out). Sprint-1-redux follows: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U9 (module shape replication — 4 csproj quartets + Gateway YARP scaffold; placeholder markers + 501 controllers; per-module AGENTS.md deltas). Sprint-1-redux flesh-out of Inventory follows U10 close: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+
+**U8 deviations from plan file list**:
+- `StockItem` inherits `BaseEntity` (not `AggregateRoot`) because the inherited `byte[] RowVersion` on `AggregateRoot` doesn't match the Postgres `xid` shape Tech Design v3.0 §4.2 wants; `StockItem` declares its own `uint RowVersion`. EF `Ignore`s the inherited Guid `Id`; `HasKey(s => s.Sku)` is the natural PK. The domain-event buffer from `BaseEntity` survives.
+- A 4th test project landed (`tests/ShopFlow.Inventory.UnitTests/` — 16 tests for Sku/Quantity/Reservation.Create + Sprint-1-redux NIE detection). The plan didn't strictly require it, but the Domain primitives have real behavior that's cheap to lock down here; Sprint-1-redux behavior tests live in a separate Integration/Property project later.
+- Inventory.Api `Program.cs` does NOT call `services.AddShopFlowDefaults(...)` yet — that composition entry point lands in U9-U10 along with the kernel-wide composition root. The Api project compiles and the controller returns 501 either way; the wiring gap is documented in the Program.cs comment and is a U10 concern.
 
 **U7 deviations from plan file list**: AppHost csproj requires `<Sdk Name="Aspire.AppHost.Sdk" Version="13.3.0" />` (in addition to the `Aspire.Hosting.AppHost` package) — Aspire 13.x's MSBuild SDK is what tells .NET 9's `ImportWorkloads` target the workload is satisfied via NuGet; without it `dotnet build` raises NETSDK1147. CPM bumped `Microsoft.Extensions.Hosting` from 9.0.0 → 10.0.7 (Aspire 13.3.0 transitively requires the 10.x floor; cross-targets net9.0 cleanly). PgBouncer config is generated at AppHost startup from `infrastructure/pgbouncer/pgbouncer.ini.template` and bind-mounted into the bitnami container; the same template ships unmodified to the prod compose manifest. Mock channel servers are reserved as commented placeholders (Phase-2 Sprint-4 deliverable). The `task up` cold-start time + `GET /api/health` tenant-routing scenarios are deferred to U10 sign-off — Inventory.Api lands in U8.
 
@@ -75,8 +81,8 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 - **D4 Routing middleware (already implemented in U4)**: header > JWT > subdomain priority; 2+ source conflict → 403 + audit row; 10 concrete scenarios documented in `TenantRoutingMiddleware.cs`.
 
 **Build/test invariants for resume**:
-- `dotnet build` → 0 warnings, 0 errors across 12 projects (9 src + 3 test) including `ShopFlow.AppHost`
-- `dotnet test` → 59 passed (8 SharedKernel + 16 ControlPlane state-machine + 35 Migrate unit tests covering arg parsing, module registry, provisioner state transitions, command exit codes)
+- `dotnet build` → 0 warnings, 0 errors across 17 projects (13 src + 4 test) including `ShopFlow.AppHost` and the Inventory quartet
+- `dotnet test` → 75 passed (8 SharedKernel + 16 ControlPlane state-machine + 16 Inventory Domain + 35 Migrate unit tests)
 - .NET 9.0.305 SDK pinned via `global.json`; Aspire AppHost MSBuild SDK 13.3.0 referenced by `ShopFlow.AppHost.csproj`
 - Pre-existing csharpier drift on 23 files (mix of LF/CRLF inheritance + line-fold disagreements) carried over from U4-U6 commits; Husky pre-commit hook is not yet installed on this dev machine (`.husky/_/` absent), so commits do not enforce csharpier locally. U10 sign-off should either run `task format` once and capture the cleanup commit or stand up Husky everywhere.
 

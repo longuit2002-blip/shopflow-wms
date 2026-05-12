@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Inventory.Domain — blessed-reference write side for the
+    reservation ledger and stock-item aggregate (plan U8). Per AGENTS.md
+    §2.9 Domain projects carry zero framework references; the only allowed
+    dep is ShopFlow.SharedKernel for Result, BaseEntity, AggregateRoot,
+    ValueObject, IDomainEvent. Behavior is Sprint-1-redux (plan 003);
+    U8 ships schema + types + event shapes only.
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

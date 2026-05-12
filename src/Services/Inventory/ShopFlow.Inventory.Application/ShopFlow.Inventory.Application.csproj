@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Inventory.Application — handler + port surface for the
+    reservation ledger / stock-item flows (plan U8). U8 ships only the
+    Port interfaces (IReservationRepository, IStockItemRepository,
+    IUnitOfWork); MediatR commands + handlers land in Sprint-1-redux
+    (plan 003).
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

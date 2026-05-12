@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ShopFlow.Inventory.Infrastructure — EF Core + Npgsql implementation of
+    the Inventory aggregate plus the per-tenant outbox + migrations (plan
+    U8). The InventoryDbContext is constructed via
+    IDbContextFactory&lt;InventoryDbContext&gt; per request (AGENTS.md §3.17);
+    repository implementations throw NotImplementedException pending
+    Sprint-1-redux (plan 003) flesh-out. Schema-only ship per U8.
+
+    Migrations live in the Infrastructure project (under Migrations/) per
+    AGENTS.md §11.80. The ControlPlane separate-project pattern was a
+    one-off carve-out documented in U5 to avoid dragging the catalog
+    runtime stack into the migrate tool; per-tenant modules don't have
+    that problem.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>
