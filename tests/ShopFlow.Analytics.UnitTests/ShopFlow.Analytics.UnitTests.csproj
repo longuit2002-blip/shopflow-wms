@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Analytics.UnitTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\Analytics\ShopFlow.Analytics.Application\ShopFlow.Analytics.Application.csproj" />
+  </ItemGroup>
+
+</Project>

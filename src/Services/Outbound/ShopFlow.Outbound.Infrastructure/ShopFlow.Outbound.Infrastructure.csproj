@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Outbound module — Infrastructure placeholder (plan U9). Ships a stub
+    OutboundDbContext so the module shape compiles. Schema + repositories
+    land in Phase-1 sprint 3 (saga-driven fulfillment pipeline
+    Reserve → Pick → Pack → Ship per Tech Design v3.0 §9).
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Outbound.Domain\ShopFlow.Outbound.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

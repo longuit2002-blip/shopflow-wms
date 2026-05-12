@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    ShopFlow.Gateway — YARP reverse proxy (plan U9). In the W1-W5
+    modular-monolith stance the gateway and module APIs run in one
+    container; the YARP routes config (appsettings.json
+    "ReverseProxy" section) targets in-process upstream URLs. At W6
+    the same routes flip to the split-process host URLs; the gateway
+    itself is unchanged.
+
+    No business logic. The tenant routing middleware from the
+    SharedKernel runs first to extract IRequestContext; YARP then
+    forwards the request with the tenant header / JWT claim intact so
+    the downstream module sees the same routing signal.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.Gateway</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Yarp.ReverseProxy" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

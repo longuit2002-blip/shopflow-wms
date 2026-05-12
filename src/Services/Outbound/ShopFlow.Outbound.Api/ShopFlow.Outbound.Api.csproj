@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Outbound module — Api placeholder (plan U9). All endpoints return 501. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.Outbound.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Outbound.Infrastructure\ShopFlow.Outbound.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

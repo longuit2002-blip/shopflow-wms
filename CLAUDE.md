@@ -59,11 +59,16 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 - ✅ U5 — ControlPlane quartet (Domain/Application/Infrastructure/Migrations) + Tenant aggregate + initial catalog migration + 16 state-machine tests (commit `6307242`)
 - ✅ U6 — `shopflow-migrate` CLI: provision/apply/archive/restore/status + 35 unit tests (commit `ee616df`)
 - ✅ U7 — Aspire AppHost (Postgres + PgBouncer + Redis + RabbitMQ + observability) + chained provisioning of catalog/dev1/dev2 + production handoff via `infrastructure/docker-compose.yml`
-- ✅ U8 — Inventory module (Domain entities + value objects + 4 domain events; 3 Application ports; Infrastructure DbContext + 4 entity configs + repo skeletons throwing NIE; ReservationExpiryWorker hosted-service stub; InitialInventorySchema migration with mandatory `[Migration]`+`[DbContext]` attributes; Api 501 skeleton) + 16 Domain unit tests
-- ⏭️ **U9 — Replicate module shape: Inbound, Outbound, Channel, Analytics, Gateway** (next)
-- U10 — pending
+- ✅ U8 — Inventory module (Domain entities + value objects + 4 domain events; 3 Application ports; Infrastructure DbContext + 4 entity configs + repo skeletons throwing NIE; ReservationExpiryWorker hosted-service stub; InitialInventorySchema migration with mandatory `[Migration]`+`[DbContext]` attributes; Api 501 skeleton) + 16 Domain unit tests (commit `c9f642d`)
+- ✅ U9 — Module shape replicated (Inbound/Outbound/Channel quartets, Analytics triplet, Gateway YARP scaffold); per-module AGENTS.md deltas; 5 smoke test projects locking the shape in CI
+- ⏭️ **U10 — CI workflow + analyzers locked at Error + sign-off** (next)
 
-**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U9 (module shape replication — 4 csproj quartets + Gateway YARP scaffold; placeholder markers + 501 controllers; per-module AGENTS.md deltas). Sprint-1-redux flesh-out of Inventory follows U10 close: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U10 (`.github/workflows/ci.yml` per-PR build + tests; `chaos-nightly.yml`; promote ShopFlow0001-0004 analyzers Warning → Error; `CrossTenantRoutingTests` + `MigrationSmokeTests` against Testcontainers; `shopflow-gate` tenant-aware checks; sign-off doc; tag `v0.2.0-phase-0-redux`). Sprint-1-redux flesh-out of Inventory follows U10 close: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+
+**U9 deviations from plan file list**:
+- Smoke tests for the 4 module shapes are `[Fact]`-level checks that the marker class exposes the expected `ModuleName` string. Gateway smoke test inspects the rendered `appsettings.json` for the 5 expected route names; this is a structural assertion, not a YARP integration test (the full integration suite lives in `tests/ShopFlow.<Module>.IntegrationTests/` per AGENTS.md §11.81 once real handlers land).
+- Gateway routes use `http://<module>:8080` Docker-DNS-style destinations in `appsettings.json` — that's the W6 split-host shape. In the W1-W5 modular-monolith stance the modules all run as in-process controllers under one Aspire host, so the gateway routes are aspirational. U10 wires the AppHost to register each module's API as an Aspire resource so the gateway upstream addresses resolve.
+- Per-module AGENTS.md files are ≤ 50 lines each per root rule 82; the U9 stub-state notes are intentionally terse so they're easy to delete when Phase-1+ replaces them.
 
 **U8 deviations from plan file list**:
 - `StockItem` inherits `BaseEntity` (not `AggregateRoot`) because the inherited `byte[] RowVersion` on `AggregateRoot` doesn't match the Postgres `xid` shape Tech Design v3.0 §4.2 wants; `StockItem` declares its own `uint RowVersion`. EF `Ignore`s the inherited Guid `Id`; `HasKey(s => s.Sku)` is the natural PK. The domain-event buffer from `BaseEntity` survives.
@@ -81,8 +86,8 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 - **D4 Routing middleware (already implemented in U4)**: header > JWT > subdomain priority; 2+ source conflict → 403 + audit row; 10 concrete scenarios documented in `TenantRoutingMiddleware.cs`.
 
 **Build/test invariants for resume**:
-- `dotnet build` → 0 warnings, 0 errors across 17 projects (13 src + 4 test) including `ShopFlow.AppHost` and the Inventory quartet
-- `dotnet test` → 75 passed (8 SharedKernel + 16 ControlPlane state-machine + 16 Inventory Domain + 35 Migrate unit tests)
+- `dotnet build` → 0 warnings, 0 errors across 38 projects (29 src + 9 test) — full module shape locked
+- `dotnet test` → 80 passed (8 SharedKernel + 16 ControlPlane + 16 Inventory Domain + 35 Migrate + 5 module-shape smoke tests)
 - .NET 9.0.305 SDK pinned via `global.json`; Aspire AppHost MSBuild SDK 13.3.0 referenced by `ShopFlow.AppHost.csproj`
 - Pre-existing csharpier drift on 23 files (mix of LF/CRLF inheritance + line-fold disagreements) carried over from U4-U6 commits; Husky pre-commit hook is not yet installed on this dev machine (`.husky/_/` absent), so commits do not enforce csharpier locally. U10 sign-off should either run `task format` once and capture the cleanup commit or stand up Husky everywhere.
 

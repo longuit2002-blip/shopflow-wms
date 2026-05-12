@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Analytics module — Application placeholder (plan U9). Per AGENTS.md
+    §11.76 Analytics is the documented quartet exception: no Domain
+    project. The read-side (aggregations + dashboards) is what the
+    bounded context produces, and that lives entirely in the Application
+    + Infrastructure layers (Tech Design v3.0 §5 read-side).
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

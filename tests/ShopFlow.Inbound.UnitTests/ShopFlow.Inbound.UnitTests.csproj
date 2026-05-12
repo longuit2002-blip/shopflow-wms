@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Inbound.UnitTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Application\ShopFlow.Inbound.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Inbound module — Application placeholder (plan U9). -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>
