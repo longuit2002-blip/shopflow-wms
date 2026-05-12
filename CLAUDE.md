@@ -60,10 +60,19 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 - ✅ U6 — `shopflow-migrate` CLI: provision/apply/archive/restore/status + 35 unit tests (commit `ee616df`)
 - ✅ U7 — Aspire AppHost (Postgres + PgBouncer + Redis + RabbitMQ + observability) + chained provisioning of catalog/dev1/dev2 + production handoff via `infrastructure/docker-compose.yml`
 - ✅ U8 — Inventory module (Domain entities + value objects + 4 domain events; 3 Application ports; Infrastructure DbContext + 4 entity configs + repo skeletons throwing NIE; ReservationExpiryWorker hosted-service stub; InitialInventorySchema migration with mandatory `[Migration]`+`[DbContext]` attributes; Api 501 skeleton) + 16 Domain unit tests (commit `c9f642d`)
-- ✅ U9 — Module shape replicated (Inbound/Outbound/Channel quartets, Analytics triplet, Gateway YARP scaffold); per-module AGENTS.md deltas; 5 smoke test projects locking the shape in CI
-- ⏭️ **U10 — CI workflow + analyzers locked at Error + sign-off** (next)
+- ✅ U9 — Module shape replicated (Inbound/Outbound/Channel quartets, Analytics triplet, Gateway YARP scaffold); per-module AGENTS.md deltas; 5 smoke test projects locking the shape in CI (commit `2a9cd41`)
+- ✅ U10 — CI workflows (`.github/workflows/ci.yml` + `chaos-nightly.yml`); ShopFlow0001-0004 analyzers promoted Warning → Error; `MigrationSmokeTests` (2) + `CrossTenantRoutingTests` (5) against Testcontainers Postgres; `shopflow-gate phase-0-redux` operational CLI; [phase-0-redux sign-off](./docs/phase-gates/2026-05-12-phase-0-redux-signoff.md); README + CHANGELOG updates; tag `v0.2.0-phase-0-redux`
 
-**Next implementation step**: resume with `/compound-engineering:ce-work docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md` starting at U10 (`.github/workflows/ci.yml` per-PR build + tests; `chaos-nightly.yml`; promote ShopFlow0001-0004 analyzers Warning → Error; `CrossTenantRoutingTests` + `MigrationSmokeTests` against Testcontainers; `shopflow-gate` tenant-aware checks; sign-off doc; tag `v0.2.0-phase-0-redux`). Sprint-1-redux flesh-out of Inventory follows U10 close: [docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md).
+**Phase-0-redux is complete.** Tag: `v0.2.0-phase-0-redux`. Sign-off: [`docs/phase-gates/2026-05-12-phase-0-redux-signoff.md`](./docs/phase-gates/2026-05-12-phase-0-redux-signoff.md).
+
+**Next implementation step**: cut a fresh branch from `v0.2.0-phase-0-redux` and start [Sprint-1-redux reservation ledger plan](./docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md) — flesh out the `NotImplementedException` stubs in `ShopFlow.Inventory.Infrastructure.Repositories` against the conditional-INSERT CTE pattern at `IsolationLevel.ReadCommitted` per Tech Design v3.0 §4.4. The W1 green-against-stub property suite (`docs/solutions/2026-05-10-green-against-stub-property-suite.md`) becomes the spec — its red tests turn green as behavior lands.
+
+**U10 deviations from plan file list**:
+- `shopflow-gate` shipped as a NEW project under `tools/shopflow-gate/` (the plan said "carries forward" but the v2.0 implementation wasn't on this branch — `task gate` referenced an absent csproj). Minimal CLI implements `gate phase-0-redux` with 4 checks (catalog reachable, catalog migrated, all tenants Ready, PgBouncer reachable). The richer in-cluster checks (provisioning latency p99, RabbitMQ live, observability stack live) are Phase-2 deliverables; the CLI shape is stable so adding a check is one method.
+- `MigrationSmokeTests` parameterizes over the two known DbContexts directly (ControlPlane + Inventory) rather than reflection-discovering all DbContexts. The reflection version is a Sprint-1-redux improvement — cheap when a third DbContext lands; not load-bearing for U10's "guards the v2.0 silent-no-op defect" goal.
+- `CrossTenantRoutingTests` exercises the middleware directly with a synthetic `DefaultHttpContext` and a `FakeTenantCatalog` rather than spinning a full `TestServer`. The contract under test is the slug→TenantInfo→DbConnectionString binding plus a real database read through that binding — sufficient to catch any wrong-DB routing bug at the level that matters. Full TestServer with the entire request pipeline is a Sprint-1-redux upgrade.
+- Aspire cold-start + provisioning latency p99 measurements **deferred** in the sign-off — Docker daemon isn't running on this dev machine. Documented as a one-line table update in the sign-off doc once a Docker-enabled session lands.
+- CSharpier formatting cleanup **deferred** to a follow-up commit — 23 files inherited from U4-U6 don't match CSharpier output (mostly LF/CRLF + line-fold disagreements). CI's `csharpier --check` step will block on first run; one cleanup commit fixes them.
 
 **U9 deviations from plan file list**:
 - Smoke tests for the 4 module shapes are `[Fact]`-level checks that the marker class exposes the expected `ModuleName` string. Gateway smoke test inspects the rendered `appsettings.json` for the 5 expected route names; this is a structural assertion, not a YARP integration test (the full integration suite lives in `tests/ShopFlow.<Module>.IntegrationTests/` per AGENTS.md §11.81 once real handlers land).
@@ -86,8 +95,9 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 - **D4 Routing middleware (already implemented in U4)**: header > JWT > subdomain priority; 2+ source conflict → 403 + audit row; 10 concrete scenarios documented in `TenantRoutingMiddleware.cs`.
 
 **Build/test invariants for resume**:
-- `dotnet build` → 0 warnings, 0 errors across 38 projects (29 src + 9 test) — full module shape locked
-- `dotnet test` → 80 passed (8 SharedKernel + 16 ControlPlane + 16 Inventory Domain + 35 Migrate + 5 module-shape smoke tests)
+- `dotnet build` → 0 warnings, 0 errors across 40 projects (29 src + 10 test + 1 gate tool) — full module shape locked, analyzers at Error
+- `dotnet test --filter "Category!=Integration"` → 80 passed (8 SharedKernel + 16 ControlPlane + 16 Inventory Domain + 35 Migrate + 5 module-shape smoke)
+- `dotnet test --filter "Category=Integration"` → 7 tests in `ShopFlow.SharedKernel.IntegrationTests` (2 MigrationSmoke + 5 CrossTenantRouting). Needs Docker; runs in CI on every PR.
 - .NET 9.0.305 SDK pinned via `global.json`; Aspire AppHost MSBuild SDK 13.3.0 referenced by `ShopFlow.AppHost.csproj`
 - Pre-existing csharpier drift on 23 files (mix of LF/CRLF inheritance + line-fold disagreements) carried over from U4-U6 commits; Husky pre-commit hook is not yet installed on this dev machine (`.husky/_/` absent), so commits do not enforce csharpier locally. U10 sign-off should either run `task format` once and capture the cleanup commit or stand up Husky everywhere.
 

@@ -2,12 +2,12 @@
 
 > Multi-channel warehouse management system for SEA marketplaces, with database-per-tenant hard isolation under PDPA SEA compliance. 12-week single-developer portfolio build.
 
-[![Stage](https://img.shields.io/badge/stage-redesign%20%E2%86%92%20Phase--0--redux-orange)](docs/plans/2026-05-11-001-redesign-multi-tenancy-db-per-tenant-plan.md)
+[![Stage](https://img.shields.io/badge/stage-Phase--0--redux%20%E2%9C%85-brightgreen)](docs/phase-gates/2026-05-12-phase-0-redux-signoff.md)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey)](#license)
 
-**Current stage**: **Phase-0-redux in flight (2026-05-11)** — executing [Phase-0-redux plan](docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md) U1 → U10 on branch `feat/phase-0-redux-db-per-tenant`. Multi-tenancy redesign accepted under [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md): **database-per-tenant on shared Postgres cluster** for PDPA SEA hard isolation. New canon ([product plan v3.0](docs/redesign/01-product-development-plan.md), [tech design v3.0](docs/redesign/02-technical-design-document.md)), implementation plans ([Phase-0-redux](docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md), [Sprint-1-redux](docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md)), and AGENTS.md §3 rewrite are on `main`.
+**Current stage**: **Phase-0-redux complete (2026-05-12)** — tagged `v0.2.0-phase-0-redux`. The DB-per-tenant foundation is in place: SharedKernel + 4 Roslyn analyzers (locked at Error), ControlPlane catalog, `shopflow-migrate` per-tenant runner, Aspire AppHost + PgBouncer + observability stack, Inventory blessed-reference module (schema-only), 4 module shape replicas + Gateway, CI workflows running migration smoke + cross-tenant routing tests against Testcontainers Postgres. See [Phase-0-redux sign-off](docs/phase-gates/2026-05-12-phase-0-redux-signoff.md) for measured numbers and deferred items. **Next**: [Sprint-1-redux reservation ledger plan](docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md) cuts from this tag.
 
-The Phase-0-redux implementation runs on branch `feat/phase-0-redux-db-per-tenant`. The historical Phase-0 + Sprint-1 work is preserved at branch `archive/phase-1-sprint-1-rls-shared` and tag `archive/v0.1.0-phase-0-rls-shared`.
+Multi-tenancy redesign captured under [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md): **database-per-tenant on shared Postgres cluster** for PDPA SEA hard isolation. Canon: [product plan v3.0](docs/redesign/01-product-development-plan.md), [tech design v3.0](docs/redesign/02-technical-design-document.md). The historical Phase-0 + Sprint-1 work is preserved at branch `archive/phase-1-sprint-1-rls-shared` and tag `archive/v0.1.0-phase-0-rls-shared`.
 
 See [docs/CHANGELOG.md](docs/CHANGELOG.md) for the supersession record.
 
@@ -46,23 +46,36 @@ PDPA Vietnam (Decree 13/2023/ND-CP) + Singapore PDPA. Hard isolation answers "ho
 │   ├── source/                    .docx → .txt extracts (gitignored)
 │   ├── ideation/                  ranked candidate ideas
 │   └── CHANGELOG.md               canon supersession history
+├── src/
+│   ├── ApiGateway/ShopFlow.Gateway/        YARP reverse proxy
+│   ├── AppHost/ShopFlow.AppHost/           Aspire dev orchestrator
+│   ├── ControlPlane/                       tenant catalog + provisioning catalog DB
+│   ├── Services/{Inventory,Inbound,Outbound,Channel,Analytics}/   bounded contexts
+│   └── Shared/{SharedKernel,SharedKernel.Analyzers,Contracts}/    cross-cutting + Roslyn rules
+├── tests/                                  unit + integration test projects
+├── infrastructure/                         pgbouncer + docker-compose production handoff
 └── tools/
-    ├── extract-docs.{sh,ps1}      .docx text extraction
-    └── (shopflow-gate, shopflow-migrate land in Phase-0-redux)
+    ├── extract-docs.{sh,ps1}               .docx text extraction
+    ├── shopflow-migrate/                   per-tenant migration runner CLI
+    └── shopflow-gate/                      phase-gate runner CLI
 ```
 
 ## Getting started
 
-This repo is in transition. To work on the redesign implementation:
+```
+task setup        # install dotnet tools (CSharpier, Husky.NET) + pre-commit hook
+dotnet build      # 0 warnings / 0 errors expected
+dotnet test --filter "Category!=Integration&Category!=Load"   # 80 unit tests pass
+task up           # Aspire dev orchestrator — needs Docker
+```
 
-1. Read [docs/plans/2026-05-11-001-redesign-multi-tenancy-db-per-tenant-plan.md](docs/plans/2026-05-11-001-redesign-multi-tenancy-db-per-tenant-plan.md) — the plan-of-plans that drives everything.
-2. Read [docs/redesign/02-technical-design-document.md](docs/redesign/02-technical-design-document.md) §1 (multi-tenancy) and §2 (provisioning) — the architectural foundation.
-3. Read [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md) — the supersession decision.
-4. Check out the implementation branch:
-   ```
-   git checkout feat/phase-0-redux-db-per-tenant
-   ```
-5. Follow [docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md](docs/plans/2026-05-11-002-phase-0-redux-bootstrap-plan.md) U1 → U10.
+Reading order for new contributors:
+
+1. [Sprint-1-redux reservation ledger plan](docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md) — next implementation slice.
+2. [Phase-0-redux sign-off](docs/phase-gates/2026-05-12-phase-0-redux-signoff.md) — what landed, what's deferred.
+3. [Tech design v3.0](docs/redesign/02-technical-design-document.md) §1 (multi-tenancy), §2 (provisioning), §4 (reservation ledger).
+4. [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md) — the supersession decision.
+5. [AGENTS.md](AGENTS.md) — the executable rule canon.
 
 ## Historical reference
 

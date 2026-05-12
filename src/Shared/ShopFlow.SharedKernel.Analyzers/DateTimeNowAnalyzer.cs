@@ -35,7 +35,7 @@ public sealed class DateTimeNowAnalyzer : DiagnosticAnalyzer
         title: Title,
         messageFormat: MessageFormat,
         category: "ShopFlow.Time",
-        defaultSeverity: DiagnosticSeverity.Warning,
+        defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: Description,
         helpLinkUri: "https://github.com/longuit2002-blip/shopflow-wms/blob/main/AGENTS.md#5-async-time-and-concurrency"

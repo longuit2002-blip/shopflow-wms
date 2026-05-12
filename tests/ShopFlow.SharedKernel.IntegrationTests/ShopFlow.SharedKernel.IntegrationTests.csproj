@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration test harness for the SharedKernel routing middleware + every
+    per-tenant module's migration set, against a real Postgres in
+    Testcontainers (plan U10).
+
+    Two suites:
+      • MigrationSmokeTests  — exercises MigrateAsync() against every
+        registered DbContext on a fresh database, asserts the migration
+        actually ran (__ef_migrations_history populated + named tables +
+        named constraints exist per D3 in CLAUDE.md). Guards the v2.0
+        silent-no-op defect from recurring.
+      • CrossTenantRoutingTests — provisions two tenant DBs, writes
+        distinct stock rows to each, drives requests through the
+        TenantRoutingMiddleware, asserts a request bound to tenant A's
+        slug never reads tenant B's data.
+
+    Tagged `Category=Integration` so the per-PR CI lane runs them (per
+    AGENTS.md §8.61 the integration suite as a whole is nightly, but
+    these two are the load-bearing per-PR carve-outs per the same rule).
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.SharedKernel.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

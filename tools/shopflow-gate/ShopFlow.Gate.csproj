@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    shopflow-gate — operational phase-gate runner (plan U10).
+
+    Phase-0-redux ships a minimal CLI with one subcommand
+    (`gate phase-0-redux`) that connects to a tenant catalog and checks
+    catalog reachability + dev-tenant readiness + PgBouncer reachability.
+    The richer in-cluster checks (provisioning latency p99, RabbitMQ
+    health, observability stack live) are Phase-2 deliverables; the CLI
+    shape is stable so adding a check is a one-method addition.
+
+    The structural correctness gates (build, unit tests, migration smoke,
+    cross-tenant routing) live in .github/workflows/ci.yml and run on
+    every PR — gate-as-CI is the per-PR contract. The CLI is the
+    operator's seam for ad-hoc / pre-deploy validation against a live
+    cluster.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.Gate</RootNamespace>
+    <AssemblyName>shopflow-gate</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

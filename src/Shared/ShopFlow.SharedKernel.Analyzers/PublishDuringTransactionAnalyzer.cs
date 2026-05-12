@@ -46,7 +46,7 @@ public sealed class PublishDuringTransactionAnalyzer : DiagnosticAnalyzer
         title: Title,
         messageFormat: MessageFormat,
         category: "ShopFlow.Messaging",
-        defaultSeverity: DiagnosticSeverity.Warning,
+        defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: Description,
         helpLinkUri: "https://github.com/longuit2002-blip/shopflow-wms/blob/main/AGENTS.md#6-outbox-messaging-and-idempotency"

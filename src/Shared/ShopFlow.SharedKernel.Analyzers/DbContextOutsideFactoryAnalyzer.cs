@@ -50,7 +50,7 @@ public sealed class DbContextOutsideFactoryAnalyzer : DiagnosticAnalyzer
         title: Title,
         messageFormat: MessageFormat,
         category: "ShopFlow.Tenancy",
-        defaultSeverity: DiagnosticSeverity.Warning,
+        defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: Description,
         helpLinkUri: "https://github.com/longuit2002-blip/shopflow-wms/blob/main/AGENTS.md#3-multi-tenancy-and-data-access"
