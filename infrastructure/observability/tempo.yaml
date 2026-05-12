@@ -1,0 +1,32 @@
+# Tempo single-binary config — dev orchestrator (plan U7).
+# Receives OTLP-gRPC traces forwarded by the otel-collector and stores them
+# on the container's ephemeral filesystem. Production replaces local backend
+# with object storage (S3-compat) per Tech Design v3.0 §13.
+
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  trace_idle_period: 10s
+  max_block_bytes: 1_000_000
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 24h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/blocks
+    wal:
+      path: /var/tempo/wal

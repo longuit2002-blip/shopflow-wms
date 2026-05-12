@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.3.0" />
+
+
+  <!--
+    ShopFlow.AppHost — Aspire dev orchestrator (plan U7, per ADR-0001).
+
+    Wires Postgres, PgBouncer (transaction-pooling), Redis, RabbitMQ, the
+    observability stack, and a chained executable bootstrap that calls
+    shopflow-migrate to provision shopflow_control plus the two dev tenants
+    (dev1, dev2) before any application service starts.
+
+    Production handoff lives in infrastructure/docker-compose.yml — same
+    services, no Aspire. Use `task up:compose` to exercise that path.
+
+    Two non-default csproj knobs worth flagging:
+      • <Sdk Name="Aspire.AppHost.Sdk" Version="13.3.0" /> — Aspire 13.x
+        requires the AppHost MSBuild SDK in addition to the Hosting.AppHost
+        NuGet package. Without the SDK reference, .NET 9's ImportWorkloads
+        target raises NETSDK1147 ("aspire workload not installed") even
+        though the package brings in all the build logic. The SDK reference
+        is what tells the targets that the workload is satisfied via NuGet.
+      • <IsAspireHost>true</IsAspireHost> — propagates an Aspire project
+        capability so the dashboard discovers this as the orchestrator and
+        the Aspire codegen runs against AddProject<TProject> references.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.AppHost</RootNamespace>
+    <IsAspireHost>true</IsAspireHost>
+    <UserSecretsId>ShopFlow.AppHost.Dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" />
+    <PackageReference Include="Aspire.Hosting.RabbitMQ" />
+    <PackageReference Include="Aspire.Hosting.Redis" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\infrastructure\pgbouncer\pgbouncer.ini.template" Link="infrastructure\pgbouncer.ini.template" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,143 @@
+# ShopFlow dev + prod-handoff compose manifest (plan U7).
+#
+# Two intended uses:
+#   1. Alternate dev path when Aspire is unavailable — `task up:compose`
+#      brings up the same containers Aspire orchestrates, minus the
+#      Aspire dashboard. Use the `infra`, `obs`, `mocks` profiles.
+#   2. Production handoff base manifest — overlay docker-compose.prod.yml
+#      to swap dev defaults (volume drivers, secrets, exposed ports) for
+#      production equivalents. See ADR-0001 for the dev-vs-prod split.
+#
+# Tenant provisioning (catalog + dev1 + dev2) is run as a one-shot
+# `migrate-bootstrap` service that depends on Postgres+PgBouncer health.
+# When fronted by Aspire this work lives in the AppHost; the compose path
+# uses the same shopflow-migrate image to keep the workflow identical.
+
+services:
+
+  postgres:
+    image: postgres:16
+    profiles: [infra]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_MAX_CONNECTIONS: "500"
+    ports:
+      - "5432:5432"
+    volumes:
+      - shopflow-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  pgbouncer:
+    image: bitnami/pgbouncer:1.23.1
+    profiles: [infra]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGBOUNCER_AUTH_TYPE: scram-sha-256
+      PGBOUNCER_INI_FILE: /etc/pgbouncer/pgbouncer.ini
+      PGBOUNCER_USERLIST_FILE: /etc/pgbouncer/userlist.txt
+    ports:
+      - "6432:6432"
+    volumes:
+      - ./pgbouncer:/etc/pgbouncer:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U shopflow_app"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    profiles: [infra]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    profiles: [infra]
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  seq:
+    image: datalust/seq:2024.3
+    profiles: [obs]
+    environment:
+      ACCEPT_EULA: "Y"
+    ports:
+      - "5341:80"
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: [obs]
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    profiles: [obs]
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+    volumes:
+      - ./observability/tempo.yaml:/etc/tempo/tempo.yaml:ro
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    profiles: [obs]
+    command: ["--config=/etc/otel/collector.yaml"]
+    depends_on:
+      - tempo
+      - seq
+    ports:
+      - "4318:4318"
+      - "8889:8889"
+    volumes:
+      - ./observability/otel-collector.yaml:/etc/otel/collector.yaml:ro
+
+  minio:
+    image: minio/minio:RELEASE.2024-10-29T16-01-48Z
+    profiles: [obs]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: shopflow
+      MINIO_ROOT_PASSWORD: shopflow_dev_only
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  # Mock channel servers land in Phase-2 Sprint-4 (plan Scope Boundaries).
+  # The `mocks` profile is reserved here so the wire-up commit is a pure
+  # addition rather than a re-shape.
+  shopee-mock:
+    image: busybox
+    profiles: [mocks]
+    command: ["sh", "-c", "echo 'shopee-mock placeholder — Phase-2 Sprint-4'; sleep 3600"]
+
+  lazada-mock:
+    image: busybox
+    profiles: [mocks]
+    command: ["sh", "-c", "echo 'lazada-mock placeholder — Phase-2 Sprint-4'; sleep 3600"]
+
+volumes:
+  shopflow-postgres-data:

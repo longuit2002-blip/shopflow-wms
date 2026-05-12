@@ -54,13 +54,19 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
   </ItemGroup>
 
-  <ItemGroup Label="Hosting — Generic Host for CLI tools (shopflow-migrate, shopflow-gate)">
+  <ItemGroup Label="Hosting — Generic Host for CLI tools (shopflow-migrate, shopflow-gate) + Aspire transitive floor">
     <!--
-      Microsoft.Extensions.Hosting 9.0.0 — Generic Host (DI + config + logging)
-      for console tools that don't need ASP.NET. Added in U6 for
-      tools/shopflow-migrate. Aligned with the EF Core / Npgsql 9.0.0 pin.
+      Microsoft.Extensions.Hosting 10.0.7 — Generic Host (DI + config +
+      logging) for console tools that don't need ASP.NET. The 10.x line
+      cross-targets net9.0, so shopflow-migrate (a net9.0 console app)
+      continues to bind cleanly. We bumped from 9.0.0 in U7 because
+      Aspire.Hosting.AppHost 13.3.0 transitively requires >= 10.0.7;
+      under CPM the lower central pin surfaced as NU1109 on the AppHost
+      project. Letting the central pin float up to the floor Aspire wants
+      keeps the rest of the tree on its current model APIs (no breaking
+      changes between MEH 9.0 and 10.0 in the surfaces we use).
     -->
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup Label="API stack — ASP.NET extras">

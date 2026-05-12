@@ -1,0 +1,49 @@
+; ShopFlow PgBouncer config template (plan U7, D1 decisions).
+;
+; Per ADR-0003 + Tech Design v3.0 §1.6:
+;   - transaction pooling (required so per-tenant routing pools work)
+;   - max_db_connections=20 per tenant DB (conservative; benchmarked in U10)
+;   - app traffic ALWAYS goes through PgBouncer; provisioning DDL via
+;     shopflow-migrate connects to Postgres directly (bypass).
+;
+; Placeholders rewritten by ShopFlow.AppHost.PgBouncerConfig at dev startup
+; (and by the prod handoff manifest at deploy time):
+;   {databases}                — newline-delimited [databases] entries
+;   {auth_file}                — path to userlist.txt inside container
+;   {admin_users}              — comma-separated PgBouncer admin users
+;
+; The template is also the prod source-of-truth: the same file ships to
+; the production handoff (infrastructure/pgbouncer/) and is rendered at
+; deploy time by the same generator class (compiled into the deployment
+; tooling).
+
+[databases]
+{databases}
+
+[pgbouncer]
+listen_addr = 0.0.0.0
+listen_port = 6432
+
+auth_type = scram-sha-256
+auth_file = {auth_file}
+
+pool_mode = transaction
+default_pool_size = 20
+min_pool_size = 2
+reserve_pool_size = 5
+reserve_pool_timeout = 3
+max_db_connections = 20
+max_client_conn = 200
+
+server_reset_query = DISCARD ALL
+server_check_query = select 1
+server_check_delay = 30
+
+ignore_startup_parameters = extra_float_digits,search_path
+
+admin_users = {admin_users}
+stats_users = {admin_users}
+
+log_connections = 1
+log_disconnections = 1
+log_pooler_errors = 1

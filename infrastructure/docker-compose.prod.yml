@@ -1,0 +1,98 @@
+# Production overlay for the dev-or-prod compose manifest (plan U7).
+#
+# Compose with:
+#   docker compose \
+#     -f infrastructure/docker-compose.yml \
+#     -f infrastructure/docker-compose.prod.yml \
+#     --profile infra --profile obs \
+#     up -d
+#
+# This overlay does the strict minimum to convert the dev manifest into
+# a defensible production deployment:
+#   • removes host port bindings (services discovered inside the compose
+#     network; ingress is the operator's concern — Traefik, nginx, ALB)
+#   • swaps literal passwords for compose secrets
+#   • pins higher Postgres max_connections (1000 per D1)
+#   • disables the `mocks` profile (no marketplace stubs in prod)
+#   • flips PgBouncer userlist source from bind-mount to compose secret
+#
+# Hardening that is NOT in this file (and is intentionally deferred to the
+# deploy pipeline, not this manifest):
+#   - TLS certificates + renewal
+#   - secret rotation
+#   - backup orchestration (WAL-G or pgBackRest)
+#   - log shipping to a managed sink
+#   - pgBouncer HA pair (Phase-2 deliverable per plan Scope Boundaries)
+#
+# The base manifest's `volumes:` and `services:` keys are inherited; this
+# file only overrides what diverges.
+
+services:
+
+  postgres:
+    environment:
+      POSTGRES_USER_FILE: /run/secrets/pg_superuser_user
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_superuser_password
+      POSTGRES_DB: postgres
+      POSTGRES_MAX_CONNECTIONS: "1000"
+    ports: []
+    secrets:
+      - pg_superuser_user
+      - pg_superuser_password
+
+  pgbouncer:
+    ports: []
+    secrets:
+      - pgbouncer_userlist
+    # The production userlist ships as a docker secret; the bitnami image
+    # reads it from /run/secrets/. The dev bind-mount in the base manifest
+    # is shadowed by the secret-aware path.
+    environment:
+      PGBOUNCER_AUTH_TYPE: scram-sha-256
+      PGBOUNCER_INI_FILE: /etc/pgbouncer/pgbouncer.ini
+      PGBOUNCER_USERLIST_FILE: /run/secrets/pgbouncer_userlist
+
+  redis:
+    ports: []
+
+  rabbitmq:
+    ports: []
+
+  seq:
+    ports: []
+
+  prometheus:
+    ports: []
+
+  tempo:
+    ports: []
+
+  otel-collector:
+    ports: []
+
+  minio:
+    ports: []
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_root_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_root_password
+    secrets:
+      - minio_root_user
+      - minio_root_password
+
+  shopee-mock:
+    profiles: ["never"]
+
+  lazada-mock:
+    profiles: ["never"]
+
+secrets:
+  pg_superuser_user:
+    external: true
+  pg_superuser_password:
+    external: true
+  pgbouncer_userlist:
+    external: true
+  minio_root_user:
+    external: true
+  minio_root_password:
+    external: true
