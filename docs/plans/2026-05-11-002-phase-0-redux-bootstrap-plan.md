@@ -1,10 +1,13 @@
 ---
 title: "feat: Phase-0-redux bootstrap — DB-per-tenant foundation"
 type: feat
-status: active
+status: completed
 date: 2026-05-11
+completed: 2026-05-12
 origin: docs/plans/2026-05-11-001-redesign-multi-tenancy-db-per-tenant-plan.md
 supersedes: docs/plans/2026-04-27-001-feat-shopflow-wms-phase-0-bootstrap-plan.md
+signoff: docs/phase-gates/2026-05-12-phase-0-redux-signoff.md
+tag: v0.2.0-phase-0-redux
 ---
 
 # feat: Phase-0-redux bootstrap — DB-per-tenant foundation
