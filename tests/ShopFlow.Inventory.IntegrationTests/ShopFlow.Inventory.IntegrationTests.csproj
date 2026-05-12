@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration test harness for the Inventory module against real Postgres
+    via Testcontainers (Sprint-1-redux U1-U5). Three suites:
+      • ReservationRepositoryTests  — conditional-CTE TryReserveAsync,
+        idempotency, ConfirmAsync, ReleaseAsync, ReleaseExpiredAsync.
+      • ReservationExpiryWorkerTests — multiplexed background service
+        fan-out across tenants + isolation under per-tenant failure.
+      • MultiTenantScaleGateTests    — the W3 5×1000 noisy-neighbor gate,
+        per-tenant fairness floor ≥ 0.85.
+    All tagged Category=Integration per AGENTS.md §8.61.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Inventory.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

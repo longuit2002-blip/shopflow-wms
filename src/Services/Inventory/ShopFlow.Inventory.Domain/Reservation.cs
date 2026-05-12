@@ -98,37 +98,85 @@ public sealed class Reservation : BaseEntity
     }
 
     /// <summary>
-    /// Confirm a Pending reservation (stock leaves the warehouse).
-    /// Sprint-1-redux behavior.
+    /// Confirm a Pending reservation (stock physically leaves the warehouse).
+    /// Pending → Confirmed; terminal state. Caller (repository) is responsible
+    /// for emitting the corresponding outbox row in the same transaction.
     /// </summary>
     public Result Confirm(DateTime now)
     {
-        _ = now;
-        throw new NotImplementedException(
-            "Sprint-1-redux behavior — see docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md"
-        );
+        if (Status == ReservationStatus.Confirmed)
+        {
+            return Result.Failure("already confirmed.", "reservation.already_confirmed");
+        }
+        if (Status != ReservationStatus.Pending)
+        {
+            return Result.Failure(
+                $"cannot confirm reservation in {Status} state.",
+                "reservation.invalid_state"
+            );
+        }
+
+        Status = ReservationStatus.Confirmed;
+        ConfirmedAt = now;
+        UpdatedAt = now;
+        return Result.Success();
     }
 
     /// <summary>
-    /// Release a Pending reservation (cancellation). Sprint-1-redux behavior.
+    /// Release a Pending reservation (explicit cancellation by the order owner).
+    /// Pending → Released; terminal state. Held units return to the available
+    /// pool.
     /// </summary>
     public Result Release(DateTime now)
     {
-        _ = now;
-        throw new NotImplementedException(
-            "Sprint-1-redux behavior — see docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md"
-        );
+        if (Status == ReservationStatus.Released)
+        {
+            return Result.Failure("already released.", "reservation.already_released");
+        }
+        if (Status != ReservationStatus.Pending)
+        {
+            return Result.Failure(
+                $"cannot release reservation in {Status} state.",
+                "reservation.invalid_state"
+            );
+        }
+
+        Status = ReservationStatus.Released;
+        ReleasedAt = now;
+        UpdatedAt = now;
+        return Result.Success();
     }
 
     /// <summary>
-    /// Expire a Pending reservation past its TTL. Called by
-    /// <c>ReservationExpiryWorker</c>. Sprint-1-redux behavior.
+    /// Expire a Pending reservation past its TTL — called by
+    /// <see cref="Workers.ReservationExpiryWorker"/>. Pending → Expired;
+    /// terminal state distinguished from Released so dashboards can surface
+    /// TTL-driven losses separately from explicit cancellations.
     /// </summary>
     public Result Expire(DateTime now)
     {
-        _ = now;
-        throw new NotImplementedException(
-            "Sprint-1-redux behavior — see docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md"
-        );
+        if (Status == ReservationStatus.Expired)
+        {
+            return Result.Failure("already expired.", "reservation.already_expired");
+        }
+        if (Status != ReservationStatus.Pending)
+        {
+            return Result.Failure(
+                $"cannot expire reservation in {Status} state.",
+                "reservation.invalid_state"
+            );
+        }
+        if (now < ExpiresAt)
+        {
+            return Result.Failure(
+                "reservation has not yet reached its expiry.",
+                "reservation.not_yet_expired"
+            );
+        }
+
+        Status = ReservationStatus.Expired;
+        ExpiredAt = now;
+        UpdatedAt = now;
+        return Result.Success();
     }
 }

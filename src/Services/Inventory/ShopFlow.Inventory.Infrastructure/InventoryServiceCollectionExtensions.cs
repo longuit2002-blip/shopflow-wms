@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Infrastructure.Repositories;
 using ShopFlow.Inventory.Infrastructure.Workers;
@@ -59,6 +60,10 @@ public static class InventoryServiceCollectionExtensions
         services.AddScoped<IStockItemRepository, StockItemRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
         services.AddScoped<IUnitOfWork, InventoryUnitOfWork>();
+
+        services
+            .AddOptions<InventoryOptions>()
+            .Bind(configuration.GetSection(InventoryOptions.SectionName));
 
         services.AddHostedService<ReservationExpiryWorker>();
 

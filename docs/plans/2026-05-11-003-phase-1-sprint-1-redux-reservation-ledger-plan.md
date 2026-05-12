@@ -1,7 +1,7 @@
 ---
 title: "feat: Phase-1 Sprint-1-redux — reservation ledger under DB-per-tenant"
 type: feat
-status: pending
+status: completed
 date: 2026-05-11
 origin: docs/plans/2026-05-11-001-redesign-multi-tenancy-db-per-tenant-plan.md
 supersedes: docs/plans/2026-05-10-001-feat-inventory-reservation-ledger-impl-plan.md

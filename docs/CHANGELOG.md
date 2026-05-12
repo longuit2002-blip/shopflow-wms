@@ -57,3 +57,23 @@ This file records architectural decisions that change the foundational shape of 
 **Next**: [Sprint-1-redux reservation ledger plan](plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md) cuts from this tag.
 
 ---
+
+## 2026-05-12 — Phase-1 Sprint-1-redux complete
+
+**Tag**: `v0.3.0-sprint-1-redux`. Closes [Sprint-1-redux plan](plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md) U1-U6 on branch `feat/phase-1-sprint-1-redux-reservation-ledger`. Sign-off doc: [docs/phase-gates/2026-05-12-sprint-1-redux-signoff.md](phase-gates/2026-05-12-sprint-1-redux-signoff.md).
+
+**Shipped**:
+- `ReservationRepository` hot path: `TryReserveAsync` ships the conditional-CTE INSERT pattern at READ COMMITTED — the UPDATE on `stock_items` serialises contention via the row lock; the INSERT into `reservations_ledger` is gated on the UPDATE producing a row. Idempotency layered: app-level short-circuit via `FindByOrderIdAsync` + DB-level `UNIQUE(order_id)` with `23505` catch-and-refetch.
+- Full `IReservationRepository` surface: `FindByOrderIdAsync`, `ConfirmAsync` (with NOT_FOUND / ALREADY_CONFIRMED / INVALID_STATE codes), `ReleaseAsync`, `ReleaseExpiredAsync` (multi-CTE batched UPDATE + outbox-per-row). Domain methods on `Reservation` and `StockItem` filled in for the same state machines on non-hot paths.
+- Multiplexed `ReservationExpiryWorker` — one BackgroundService visits every `Ready` tenant per tick; per-tenant scope binds `RequestContext` before resolving the repository; per-tenant exception isolation keeps healthy tenants progressing.
+- `ShopFlow.Inventory.IntegrationTests` (14 tests) — `ReservationRepositoryTests` covering happy path, exact-available, oversold, idempotency, concurrent oversell, FindByOrderId, Confirm, Release, ReleaseExpired; `ReservationExpiryWorkerTests` covering construction validation, single-tenant tick, multi-tenant fan-out, broken-tenant isolation; `MultiTenantScaleGateTests` (the W3 5×1000 fairness floor gate).
+- `ShopFlow.PropertyTests` — 5 FsCheck properties on the reservation ledger (`HappyPathConcurrency_AllSucceed`, `StrictCapacity_NoOversell`, `Idempotency_OneUniqueId`, `ExpiryReleasesActiveRows`, `InvariantHoldsForAnyOperationSequence`) wired to a real `ReservationRepository` via the `ReservationRepositoryHandle` static-slot pattern.
+- `InventoryOptions` config surface for the expiry worker (`ExpiryPollIntervalSeconds`, `ExpiryBatchSize`, `DefaultReservationTtlMinutes`).
+
+**New compounding learning**: [docs/solutions/2026-05-12-readcommitted-conditional-cte-correctness.md](solutions/2026-05-12-readcommitted-conditional-cte-correctness.md) — captures the SERIALIZABLE→ReadCommitted decision rationale so the next conditional-write surface doesn't re-derive.
+
+**Deferred** (documented in sign-off): Docker-backed measurement of W3 scale-gate p99 and fairness floor (Docker daemon not running this session); `GetActiveSumAsync` / `GetConfirmedSumAsync` read-back surface (Sprint-2-redux); multi-instance expiry worker leader election (Phase-2); `StockItemRepository` behavior (Sprint-2-redux for Inbound's GRN flow); NBomber promotion of the load harness; CSharpier formatting cleanup (carried).
+
+**Next**: Sprint-2-redux (Inbound module W4) cuts from `v0.3.0-sprint-1-redux`.
+
+---

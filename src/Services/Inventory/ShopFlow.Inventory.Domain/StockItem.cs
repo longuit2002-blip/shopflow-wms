@@ -61,54 +61,122 @@ public sealed class StockItem : BaseEntity
     }
 
     /// <summary>
-    /// Reserve <paramref name="quantity"/> units. Sprint-1-redux implements
-    /// the ledger-conditional-INSERT pattern (Tech Design v3.0 §4.4) which
-    /// makes the actual decision; this aggregate method is the API the
-    /// repository wraps. U8 throws so behavior tests stay red until the
-    /// ledger arrives.
+    /// Reserve <paramref name="quantity"/> units — moves them from
+    /// <see cref="Available"/> into <see cref="Reserved"/>. The hot-path
+    /// repository (<c>ReservationRepository.TryReserveAsync</c>) implements
+    /// the ledger-conditional-INSERT pattern in raw SQL for atomicity under
+    /// the flash-sale hot-key race; this aggregate method exists for
+    /// non-hot-path callers (admin tools, replays) where round-trip cost is
+    /// not a concern.
     /// </summary>
     public Result Reserve(Quantity quantity)
     {
-        _ = quantity;
-        throw new NotImplementedException(
-            "Sprint-1-redux behavior — see docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md"
-        );
+        ArgumentNullException.ThrowIfNull(quantity);
+
+        if (quantity.Value == 0)
+        {
+            return Result.Failure("quantity must be > 0.", "stock.quantity_zero");
+        }
+        if (Available.Value < quantity.Value)
+        {
+            return Result.Failure(
+                $"insufficient stock: available={Available.Value}, requested={quantity.Value}.",
+                "stock.insufficient"
+            );
+        }
+
+        Available = Available.Subtract(quantity);
+        Reserved = Reserved.Add(quantity);
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
     }
 
     /// <summary>
-    /// Confirm a previously pending reservation (move <c>quantity</c> from
-    /// Reserved to gone). Raises <see cref="StockReservedEvent"/> for
-    /// downstream consumers. Sprint-1-redux behavior.
+    /// Confirm a previously pending reservation — units physically leave the
+    /// warehouse. <see cref="Reserved"/> decreases; <see cref="Available"/>
+    /// is unchanged (the units were already excluded from Available at
+    /// reserve-time).
     /// </summary>
     public Result Confirm(Quantity quantity)
     {
-        _ = quantity;
-        throw new NotImplementedException(
-            "Sprint-1-redux behavior — see docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md"
+        ArgumentNullException.ThrowIfNull(quantity);
+
+        if (quantity.Value == 0)
+        {
+            return Result.Failure("quantity must be > 0.", "stock.quantity_zero");
+        }
+        if (Reserved.Value < quantity.Value)
+        {
+            return Result.Failure(
+                $"reserved underflow: reserved={Reserved.Value}, confirming={quantity.Value}.",
+                "stock.reserved_underflow"
+            );
+        }
+
+        Reserved = Reserved.Subtract(quantity);
+        UpdatedAt = DateTime.UtcNow;
+        RaiseDomainEvent(
+            new StockChangedEvent(Sku.Value, Available.Value, Reserved.Value, UpdatedAt!.Value)
         );
+        return Result.Success();
     }
 
     /// <summary>
-    /// Release a pending reservation back to Available. Sprint-1-redux behavior.
+    /// Release a pending reservation back to <see cref="Available"/> — units
+    /// stay in the warehouse, just leave the reservation hold.
     /// </summary>
     public Result Release(Quantity quantity)
     {
-        _ = quantity;
-        throw new NotImplementedException(
-            "Sprint-1-redux behavior — see docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md"
-        );
+        ArgumentNullException.ThrowIfNull(quantity);
+
+        if (quantity.Value == 0)
+        {
+            return Result.Failure("quantity must be > 0.", "stock.quantity_zero");
+        }
+        if (Reserved.Value < quantity.Value)
+        {
+            return Result.Failure(
+                $"reserved underflow: reserved={Reserved.Value}, releasing={quantity.Value}.",
+                "stock.reserved_underflow"
+            );
+        }
+
+        Reserved = Reserved.Subtract(quantity);
+        Available = Available.Add(quantity);
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
     }
 
     /// <summary>
-    /// Apply a stock adjustment (receipt, damage, cycle-count). The
-    /// reservation ledger is not involved; available and the adjustment
-    /// row are written in one transaction. Sprint-1-redux behavior.
+    /// Apply a stock adjustment (receipt, damage, cycle-count). Positive
+    /// <paramref name="delta"/> increases <see cref="Available"/>; negative
+    /// decreases. The reservation ledger is not involved — caller persists
+    /// a <see cref="StockAdjustment"/> audit row in the same transaction.
     /// </summary>
     public Result Adjust(int delta, StockAdjustmentReason reason)
     {
-        _ = (delta, reason);
-        throw new NotImplementedException(
-            "Sprint-1-redux behavior — see docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md"
-        );
+        _ = reason;
+        if (delta == 0)
+        {
+            return Result.Failure("delta must be non-zero.", "stock.adjustment_zero");
+        }
+        if (delta < 0)
+        {
+            var dec = Quantity.From(-delta);
+            if (Available.Value < dec.Value)
+            {
+                return Result.Failure(
+                    $"adjustment underflow: available={Available.Value}, delta={delta}.",
+                    "stock.adjustment_underflow"
+                );
+            }
+            Available = Available.Subtract(dec);
+        }
+        else
+        {
+            Available = Available.Add(Quantity.From(delta));
+        }
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
     }
 }

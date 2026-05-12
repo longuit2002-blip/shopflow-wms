@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    FsCheck-driven property suite for the reservation ledger spec
+    (Sprint-1-redux U4). Each test class spins one Testcontainers
+    Postgres + provisions one fresh tenant DB; the per-property handle
+    pattern (NotImplementedReservationRepository → ReservationRepositoryHandle.Current)
+    swaps in a real ReservationRepository before any FsCheck iteration
+    runs. AGENTS.md §8.57 — pinned seeds, deterministic in CI.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.PropertyTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FsCheck.Xunit" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
