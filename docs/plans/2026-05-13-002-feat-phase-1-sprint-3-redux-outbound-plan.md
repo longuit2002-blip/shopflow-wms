@@ -385,29 +385,46 @@ erDiagram
 - Modify: `src/Services/Inventory/ShopFlow.Inventory.Domain/Reservation.cs` — add `string OrderLineId { get; }` property; constructor takes it
 - Modify: `src/Services/Inventory/ShopFlow.Inventory.Infrastructure/EntityConfigurations/ReservationConfiguration.cs` — map `order_line_id` column, drop old UNIQUE index config, add composite UNIQUE
 - Modify: `src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Repositories/ReservationRepository.cs`:
-  - Implement `TryReserveLinesAsync` as a single multi-row CTE that is **all-or-nothing**: guard the UPDATE and INSERT both behind a `will_succeed` CTE that checks every line has sufficient stock BEFORE any side effect. Shape:
+  - Implement `TryReserveLinesAsync` as a single multi-row CTE that is **all-or-nothing**. **CRITICAL** — the availability predicate MUST live inside the UPDATE's WHERE clause (under the row-level lock), NOT in a pre-check CTE. See [docs/solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md](../solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md) for the full incident write-up; an earlier draft of this section had a `will_succeed` pre-check CTE that allowed oversell under READ COMMITTED concurrency. Corrected shape:
     ```sql
-    WITH desired AS (VALUES (@sku1,@lid1,@qty1), (@sku2,@lid2,@qty2), ...) d(sku, line_id, qty),
-    will_succeed AS (
-      SELECT bool_and(si.available >= d.qty) AS ok
-      FROM desired d JOIN stock_items si ON si.sku = d.sku
+    WITH desired(sku, order_line_id, qty, reservation_id) AS (VALUES (@sku1,@lid1,@qty1,@rid1), ...),
+    desired_per_sku AS (
+      SELECT sku, SUM(qty)::int AS total_qty
+        FROM desired
+       GROUP BY sku
     ),
     deducted AS (
-      UPDATE stock_items SET available = available - d.qty
-      FROM desired d
-      WHERE stock_items.sku = d.sku AND (SELECT ok FROM will_succeed)
-      RETURNING stock_items.sku
+      UPDATE stock_items si
+         SET available  = si.available - dps.total_qty,
+             reserved   = si.reserved + dps.total_qty,
+             updated_at = @p_now
+        FROM desired_per_sku dps
+       WHERE si.sku = dps.sku
+         AND si.available >= dps.total_qty            -- predicate INSIDE the UPDATE
+      RETURNING si.sku
+    ),
+    all_succeeded AS (
+      SELECT 1 AS ok
+       WHERE NOT EXISTS (                              -- every requested sku must be in `deducted`
+         SELECT 1 FROM desired_per_sku dps
+          WHERE NOT EXISTS (SELECT 1 FROM deducted d WHERE d.sku = dps.sku)
+       )
     ),
     inserted AS (
-      INSERT INTO reservations_ledger (order_id, order_line_id, sku, quantity, status, expires_at)
-      SELECT @order_id, d.line_id, d.sku, d.qty, 'Pending', @expires
-      FROM desired d
-      WHERE (SELECT ok FROM will_succeed)
-      RETURNING *
+      INSERT INTO reservations_ledger (id, sku, order_id, order_line_id, quantity, status, expires_at, created_at)
+      SELECT d.reservation_id, d.sku, @p_order, d.order_line_id, d.qty, 'Pending', @p_expires, @p_now
+        FROM desired d
+       WHERE EXISTS (SELECT 1 FROM all_succeeded)    -- atomic gate
+      RETURNING id, sku, order_line_id, quantity
     )
-    SELECT * FROM inserted;
+    SELECT id, sku, order_line_id, quantity FROM inserted;
     ```
-    If `will_succeed.ok = FALSE`, neither UPDATE nor INSERT runs — zero side effects, zero rows returned. Repository surfaces this as `Result.Failure(reservation.oversold)` with the per-line `LineOutcome` list (computed by a separate non-mutating sub-query checking each line's available vs requested). The consumer then publishes `StockReservationFailedV1` and `SaveChangesAsync` commits only the outbox row (no stock_items / reservations_ledger writes happened). Catch 23505 on composite UNIQUE → re-read existing rows for `order_id` and return them (idempotency).
+    Key properties:
+    - **Predicate in UPDATE**: the UPDATE acquires row locks, evaluates `available >= total_qty` against the post-lock committed snapshot. Concurrent transactions queue on the lock and re-evaluate under the prior commit. Standard READ COMMITTED row-level serialization (matches Sprint-1-redux single-line pattern).
+    - **`desired_per_sku` aggregation** handles same-sku-multi-line orders (e.g. kit purchases): predicate checks combined qty.
+    - **`all_succeeded` NOT-EXISTS gate**: even if `deducted` returns partial rows (some skus passed, others didn't), the INSERT is skipped. Caller transaction explicit-rollbacks → partial UPDATEs unwind via Postgres MVCC.
+    - **0-row return path**: repository explicit-rollbacks the transaction (cleanly unwinds partial UPDATEs), then opens a fresh connection to compute per-line `LineOutcome` (PASS / OVERSOLD) for the failure result. Consumer emits `StockReservationFailedV1` (which carries the diagnostic outcomes — saga compensation treats them as informational).
+    - **Idempotency** via composite UNIQUE: 23505 on `(order_id, order_line_id)` → catch → re-read existing rows for `order_id` ordered by `order_line_id` → return as success. Redelivery is a no-op.
   - Implement `ReleaseLinesAsync` as `UPDATE reservations_ledger SET status='Released', released_at=@now WHERE order_id=@order_id AND order_line_id = ANY(@line_ids) AND status='Pending' RETURNING ...` + per-row `stock_items.available += qty` (single SQL with CTE) + `AppendOutbox(StockReleasedV1 per line)`.
   - Modify `TryReserveAsync(sku, orderId, qty, ttl)`: delegate to `TryReserveLinesAsync(orderId, [new LineReservation(sku, "_default", qty)], ttl, ct)` and return the single `Reservation`. Pure forwarding wrapper.
   - Existing `ConfirmAsync(orderId)` and `ReleaseAsync(orderId)` unchanged — their `WHERE order_id = X` correctly matches N rows.
