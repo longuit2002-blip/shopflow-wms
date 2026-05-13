@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
     <ProjectReference Include="..\ShopFlow.Inbound.Application\ShopFlow.Inbound.Application.csproj" />
     <ProjectReference Include="..\ShopFlow.Inbound.Infrastructure\ShopFlow.Inbound.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
