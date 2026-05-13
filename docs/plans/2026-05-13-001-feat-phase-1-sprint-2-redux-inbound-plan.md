@@ -1,7 +1,7 @@
 ---
 title: "feat: Phase-1 Sprint-2-redux — Inbound module + Inventory bin/zone extension + real RabbitMQ"
 type: feat
-status: pending
+status: completed
 date: 2026-05-13
 origin: docs/brainstorms/2026-05-12-sprint-2-redux-inbound-requirements.md
 depends_on: docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md

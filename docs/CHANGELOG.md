@@ -77,3 +77,30 @@ This file records architectural decisions that change the foundational shape of 
 **Next**: Sprint-2-redux (Inbound module W4) cuts from `v0.3.0-sprint-1-redux`.
 
 ---
+
+## 2026-05-13 — Phase-1 Sprint-2-redux complete
+
+**Tag**: `v0.4.0-sprint-2-redux`. Closes [Sprint-2-redux plan](plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md) U1-U10 on branch `feat/phase-1-sprint-2-redux-inbound`. Sign-off: [docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md](phase-gates/2026-05-13-sprint-2-redux-signoff.md).
+
+**Shipped**:
+- Inbound module quartet: 5 domain entities (PurchaseOrder + Line, Receiving + Line, ReconciliationTicket) with full state machines, repository surface, `ConfirmReceivingLineService` orchestrator, 6-table initial migration with hand-authored attributes + `UNIQUE(receiving_id, purchase_order_line_id)` idempotency anchor.
+- Inventory schema extension: 4 new tables (zones, bins, stock_item_bins composite-PK, inbound_dedup composite-PK) + nullable `home_zone_id` FK on stock_items. Bin-aware `StockItemRepository.AdjustAtBinAsync` (UPSERT stock_items + stock_item_bins, UPDATE available + bin occupancy, INSERT audit row — all atomic in ReadCommitted transaction). `PutAwaySuggestionService` ranks top-K bin candidates by `(zone_priority, available_capacity DESC, occupancy ASC, bin name lex)`.
+- First cross-module integration event: `ShopFlow.Contracts.Inbound.InboundConfirmedV1`. `IInboundOutbox` explicit-write port (Sprint-1-redux's `AppendOutbox` pattern). `InboundConfirmedConsumer` in Inventory idempotent via `inbound_dedup` INSERT-then-catch-23505. Header-vs-payload tenant-id mismatch rejection as defense-in-depth.
+- MassTransit transport flip W6 → W4: `ShopFlowDefaultsOptions.MessageBusTransport` (`InMemory` | `RabbitMq`, default `RabbitMq`) + config override at key `MessageBus:Transport`. RabbitMQ connection from `configuration.GetConnectionString("rabbitmq")` (Aspire-injected). ADR-0002 postscript dated 2026-05-13.
+- `AddShopFlowDefaults` wired in Inbound.Api + Inventory.Api Program.cs (closes the Phase-0-redux U10 deferral). Standard middleware order: UseProblemDetails → UseTenantRouting → MapControllers.
+- HTTP surface: `PurchaseOrdersController` thin endpoints (POST/GET PO, PATCH /open + /cancel, POST /receive). Thin controllers calling services directly; MediatR layer can land on top without rework.
+- Tests: 110 unit + 52 integration green. New: 19 Inbound.UnitTests, 10 Inbound.IntegrationTests, 11 new Inventory.IntegrationTests (4 AdjustAtBin + 4 PutAwaySuggestion + 3 InboundConfirmedConsumer).
+
+**New compounding learning**: [docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md](solutions/2026-05-13-cross-module-outbox-table-name-collision.md) — both modules' migrations create `outbox_messages` in `public` schema; collision surfaces when a single tenant DB hosts both. Sprint-2.5 candidate (per-module table-name prefix `inbound_outbox_messages` / `inventory_outbox_messages` — touches Sprint-1-redux's existing references).
+
+**Deferred** (documented in sign-off):
+- U9 single-tenant-DB cross-module flow test — blocked by the outbox name collision. JSON-serialization-and-consume seam covered by U6 TestHarness tests + Sprint-1-redux's dispatcher loop validation.
+- Real RabbitMQ runtime exercise (Testcontainers RabbitMQ + dispatcher poll-loop end-to-end). Transport switch code-complete; first failure modes surface in nightly CI on Linux.
+- Reconciliation ticket resolution workflow (Phase-2 admin surfaces).
+- Aspire AppHost registration of Inbound.Api + Inventory.Api as resources (so `WithReference(rabbitmq)` injection becomes load-bearing).
+- MediatR command/handler wrappers (thin layer can land any time).
+- `StockItemRepository.FindBySkuAsync` + non-bin `AdjustAsync` (Sprint-3-redux for Outbound picking).
+
+**Next**: Sprint-2.5 (outbox table-name rename) or Sprint-3-redux (Outbound + saga) cuts from `v0.4.0-sprint-2-redux`.
+
+---

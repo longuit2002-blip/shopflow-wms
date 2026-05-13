@@ -49,9 +49,36 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 **Multi-tenancy redesign accepted (2026-05-11)**. Phase-0 (RLS-shared) and Phase-1 Sprint-1 work-in-progress are archived at `archive/phase-1-sprint-1-rls-shared` branch and `archive/v0.1.0-phase-0-rls-shared` tag. The system pivots to **database-per-tenant on shared Postgres cluster** under [ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md).
 
-**Active branch**: `feat/phase-1-sprint-1-redux-reservation-ledger` (cut from `v0.2.0-phase-0-redux`).
+**Active branch**: `feat/phase-1-sprint-2-redux-inbound` (cut from `v0.3.0-sprint-1-redux`).
 
-**Sprint-1-redux is complete.** Tag: `v0.3.0-sprint-1-redux`. Sign-off: [`docs/phase-gates/2026-05-12-sprint-1-redux-signoff.md`](./docs/phase-gates/2026-05-12-sprint-1-redux-signoff.md). The reservation ledger ships against the DB-per-tenant foundation with the conditional-CTE INSERT at READ COMMITTED — the v3.0 correction over the v2.0 SERIALIZABLE shape.
+**Sprint-2-redux is complete.** Tag: `v0.4.0-sprint-2-redux`. Sign-off: [`docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md`](./docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md). The Inbound module + Inventory bin/zone schema extension + MassTransit RabbitMQ transport flip (W6 → W4) ship together; the first cross-module write flow (Inbound → Inventory via `ShopFlow.Contracts.Inbound.InboundConfirmedV1`) is wired end-to-end at the service + consumer level.
+
+**Sprint-2-redux progress** (as of 2026-05-13):
+- ✅ U1 — Inbound module quartet scaffold (Domain/Application/Infrastructure/Api) + 6-table `InitialInboundSchema` migration
+- ✅ U2 — `PurchaseOrder` aggregate state machine + repository + 18 Domain unit tests + 4 integration tests
+- ✅ U3 — `Receiving` + `ReconciliationTicket` aggregates + `ConfirmReceivingLineService` orchestrator + 6 integration tests
+- ✅ U4 — Inventory schema extension: `zones`, `bins`, `stock_item_bins`, `home_zone_id`, `inbound_dedup` tables + entity configs + ports + repos
+- ✅ U5 — Bin-aware `StockItemRepository.AdjustAtBinAsync` (auto-create + upsert + audit in one ReadCommitted transaction) + `PutAwaySuggestionService` (top-K ranking) + put-away controller + 8 integration tests
+- ✅ U6 — `ShopFlow.Contracts.Inbound.InboundConfirmedV1` cross-module event + `IInboundOutbox` explicit-write port + `InboundConfirmedConsumer` (Inventory side, idempotent via `inbound_dedup`) + 3 consumer integration tests
+- ✅ U7 — MassTransit `MessageBusTransport` enum + config switch + `AddShopFlowDefaults` wired in Inbound.Api + Inventory.Api Program.cs + ADR-0002 W6 → W4 postscript
+- ✅ U8 — `PurchaseOrdersController` thin endpoints (POST/GET/PATCH for PO + POST /receive for the ConfirmReceivingLineService call)
+- ⚠️ U9 — Single-tenant-DB cross-module flow test **deferred**; surfaced an architecture finding (both modules' migrations create `outbox_messages` in `public` schema → collision when sharing a tenant DB). Documented as [docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md](./docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md); Sprint-2.5 candidate
+- ✅ U10 — [Sprint-2-redux sign-off](./docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md); CHANGELOG entry; README + CLAUDE current-stage update; tag `v0.4.0-sprint-2-redux`
+
+**Next implementation step**: cut a fresh branch from `v0.4.0-sprint-2-redux` and start either:
+- **Sprint-2.5** (the cross-module outbox table-name rename) — small focused unit to close the U9 gap, OR
+- **Sprint-3-redux** (W5 Outbound + fulfillment saga) — original 12-week roadmap; can run in parallel with the Sprint-2.5 fix since Outbound doesn't depend on Inbound→Inventory's flow being physically-shared-DB-safe yet
+
+**Sprint-2-redux deviations from plan file list**:
+- **U6 — Domain event path swapped for explicit `IInboundOutbox`**: making `InboundConfirmedV1` implement `IDomainEvent` would create a SharedKernel → Contracts cycle. Pivoted to the explicit-outbox-write pattern matching Sprint-1-redux's `ReservationRepository.AppendOutbox`. `InboundLineConfirmedDomainEvent` deleted; Receiving aggregate no longer raises events.
+- **U8 — MediatR command/handler wrapper deferred**: controllers call `ConfirmReceivingLineService` POCO directly. MediatR pipeline (logging/tracing/validation) is wired by `AddShopFlowDefaults` but no commands defined. Future sprint can layer command/handler on top trivially.
+- **U8 — HTTP `WebApplicationFactory` tests skipped**: covered by U2/U3/U6 integration tests at the service + repo + consumer level.
+- **U9 — Cross-module flow test deferred** (architecture finding above).
+- **U4 — Identity-column annotation fix**: Npgsql's `IdentityByDefaultColumn` annotation needs the typed enum, not a plain string — discovered when zone insert tripped NOT NULL. Documented inline in the migration; carry-forward rule for future identity columns.
+
+---
+
+**Sprint-1-redux history** (kept for context; tag `v0.3.0-sprint-1-redux`). Sign-off: [`docs/phase-gates/2026-05-12-sprint-1-redux-signoff.md`](./docs/phase-gates/2026-05-12-sprint-1-redux-signoff.md). The reservation ledger ships against the DB-per-tenant foundation with the conditional-CTE INSERT at READ COMMITTED — the v3.0 correction over the v2.0 SERIALIZABLE shape.
 
 **Sprint-1-redux progress** (as of 2026-05-12):
 - ✅ U1 — `ReservationRepository.TryReserveAsync` — conditional-CTE INSERT at ReadCommitted + 23505 idempotency + StockReservedEvent outbox
