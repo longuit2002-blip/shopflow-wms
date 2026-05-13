@@ -5,8 +5,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Domain\ShopFlow.Channel.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Application\ShopFlow.Channel.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

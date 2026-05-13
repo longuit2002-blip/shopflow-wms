@@ -47,6 +47,18 @@ public sealed class TenantRoutingMiddleware
         RequestContext requestContext
     )
     {
+        // Sprint-4 U3: webhook receivers (and any future opt-out endpoint)
+        // bypass tenant routing because the inbound request carries no
+        // X-ShopFlow-Tenant header — tenant identity is resolved later from
+        // the channel id via IChannelDirectory. The attribute is honored at
+        // either the controller or the action level via endpoint metadata.
+        var endpoint = context.GetEndpoint();
+        if (endpoint?.Metadata?.GetMetadata<SkipTenantRoutingAttribute>() is not null)
+        {
+            await _next(context);
+            return;
+        }
+
         var slugs = ExtractSlugs(context);
         var slug = ResolveSlug(slugs, out var conflict);
 

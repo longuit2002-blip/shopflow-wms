@@ -1,10 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Channel module — Application placeholder (plan U9). -->
+  <!--
+    Channel module — Application. Sprint-4 U3 wires the webhook ingress
+    orchestrator + ports. References ControlPlane.Application for the
+    IChannelDirectory port so the receiver can resolve channel_id -> tenant
+    before the tenant DbContext is opened.
+  -->
 
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Channel.Domain\ShopFlow.Channel.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Application\ShopFlow.ControlPlane.Application.csproj" />
   </ItemGroup>
 
 </Project>
