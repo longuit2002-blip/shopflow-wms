@@ -199,12 +199,15 @@ var minio = builder
 
 _ = (seq, prometheus, tempo, otelCollector, minio);
 
-// ── Mock channel servers ───────────────────────────────────────────────
-// Phase-2 Sprint-4 deliverable per plan Scope Boundaries. The AppHost
-// shape is reserved here as a comment so the future commit lands as a
-// pure addition rather than a re-shape:
-//   var shopeeMock = builder.AddNpmApp("shopee-mock", "./tools/mocks/shopee");
-//   var lazadaMock = builder.AddNpmApp("lazada-mock", "./tools/mocks/lazada");
+// ── Mock channel servers (Sprint-4 plan U7) ──────────────────────────
+// Shopee mock runs as a sibling Kestrel-hosted ASP.NET process per
+// Channel AGENTS.md §11.6 — separate process so integration tests
+// exercise real HTTP + HMAC over the wire. Lazada/TikTok/Shopify mocks
+// land in Sprint-6+ alongside their concrete adapters.
+var shopeeMock = builder
+    .AddProject<Projects.ShopFlow_Mocks_Shopee>("shopee-mock")
+    .WithExternalHttpEndpoints();
+_ = shopeeMock;
 
 await builder.Build().RunAsync().ConfigureAwait(false);
 

@@ -44,4 +44,10 @@
     <None Include="..\..\..\infrastructure\pgbouncer\pgbouncer.ini.template" Link="infrastructure\pgbouncer.ini.template" />
   </ItemGroup>
 
+  <!-- Sprint-4 U7 — Shopee mock server resource (Aspire AddProject<>). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\tools\mocks\shopee\ShopFlow.Mocks.Shopee.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
 </Project>
