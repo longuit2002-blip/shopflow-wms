@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ShopFlow.Inventory.Infrastructure;
 
 #pragma warning disable CA1707 // Identifiers should not contain underscores — EF migration class name encodes timestamp + descriptor
@@ -24,7 +25,10 @@ public sealed partial class AddBinsAndZonesAndInboundDedup : Migration
             columns: table => new
             {
                 zone_id = table.Column<long>(nullable: false)
-                    .Annotation("Npgsql:ValueGenerationStrategy", "IdentityByDefaultColumn"),
+                    .Annotation(
+                        "Npgsql:ValueGenerationStrategy",
+                        NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                    ),
                 name = table.Column<string>(maxLength: 64, nullable: false),
                 warehouse_id = table.Column<string>(maxLength: 64, nullable: false),
             },
@@ -36,7 +40,10 @@ public sealed partial class AddBinsAndZonesAndInboundDedup : Migration
             columns: table => new
             {
                 bin_id = table.Column<long>(nullable: false)
-                    .Annotation("Npgsql:ValueGenerationStrategy", "IdentityByDefaultColumn"),
+                    .Annotation(
+                        "Npgsql:ValueGenerationStrategy",
+                        NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
+                    ),
                 zone_id = table.Column<long>(nullable: false),
                 name = table.Column<string>(maxLength: 64, nullable: false),
                 capacity = table.Column<int>(nullable: false),

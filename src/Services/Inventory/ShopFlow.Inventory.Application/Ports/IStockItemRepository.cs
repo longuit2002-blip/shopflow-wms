@@ -26,9 +26,29 @@ public interface IStockItemRepository
     /// <summary>
     /// Apply a stock adjustment in the same transaction as the available
     /// update. The reason is recorded as a <c>stock_adjustments</c> row.
+    /// Sprint-3-redux body — currently NIE.
     /// </summary>
     Task<Result> AdjustAsync(
         Sku sku,
+        int delta,
+        StockAdjustmentReason reason,
+        string? note,
+        CancellationToken ct
+    );
+
+    /// <summary>
+    /// Apply a bin-targeted stock adjustment per Sprint-2-redux plan
+    /// R13-R15. UPSERTs <c>stock_items</c> for unknown SKU
+    /// (<c>available=0, reserved=0</c>) idempotently, UPSERTs
+    /// <c>stock_item_bins (sku, bin_id)</c> with the delta, updates
+    /// <c>stock_items.available</c>, and INSERTs a
+    /// <c>stock_adjustments</c> audit row. All atomic in one tenant
+    /// transaction. Returns failure on bin underflow (negative delta
+    /// exceeding current bin quantity).
+    /// </summary>
+    Task<Result> AdjustAtBinAsync(
+        Sku sku,
+        long binId,
         int delta,
         StockAdjustmentReason reason,
         string? note,

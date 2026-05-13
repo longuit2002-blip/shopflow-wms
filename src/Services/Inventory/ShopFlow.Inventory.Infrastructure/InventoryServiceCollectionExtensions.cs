@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Infrastructure.Repositories;
+using ShopFlow.Inventory.Infrastructure.Services;
 using ShopFlow.Inventory.Infrastructure.Workers;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
@@ -62,6 +63,7 @@ public static class InventoryServiceCollectionExtensions
         services.AddScoped<IBinRepository, BinRepository>();
         services.AddScoped<IStockItemBinRepository, StockItemBinRepository>();
         services.AddScoped<IInboundDedupRepository, InboundDedupRepository>();
+        services.AddScoped<IPutAwaySuggestionService, PutAwaySuggestionService>();
         services.AddScoped<IUnitOfWork, InventoryUnitOfWork>();
 
         services
