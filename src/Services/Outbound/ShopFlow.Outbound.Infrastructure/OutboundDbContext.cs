@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using ShopFlow.Outbound.Application.Sagas;
 using ShopFlow.Outbound.Domain;
 using ShopFlow.Outbound.Infrastructure.EntityConfigurations;
 using ShopFlow.SharedKernel.Infrastructure;
@@ -71,5 +72,11 @@ public sealed class OutboundDbContext : DbContext
         modelBuilder.ApplyConfiguration(new PickAssignmentConfiguration());
         modelBuilder.ApplyConfiguration(new PickerConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+
+        // U4: register the MassTransit saga state mapping so MT's EF saga
+        // repository (configured via .ExistingDbContext<OutboundDbContext>()
+        // in AddOutboundModule) finds the saga_state table. No DbSet is
+        // exposed — MT's repository owns the read/write path.
+        modelBuilder.ApplyConfiguration(new FulfillmentSagaStateConfiguration());
     }
 }

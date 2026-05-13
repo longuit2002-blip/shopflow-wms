@@ -1,9 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Outbound module — Application placeholder (plan U9). -->
+  <!--
+    Outbound module — Application layer. Sprint-3-redux U4 adds the
+    MassTransit reference so the FulfillmentSaga state machine compiles
+    in the Application project (per AGENTS.md §11.78 the state-machine
+    definition belongs in Application — it's pure orchestration on
+    domain ports + contracts). MT.EFCore stays in Infrastructure.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Outbound.Domain\ShopFlow.Outbound.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
   </ItemGroup>
 

@@ -1,9 +1,12 @@
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Outbound.Application.Ports;
+using ShopFlow.Outbound.Application.Sagas;
 using ShopFlow.Outbound.Infrastructure.Outbox;
 using ShopFlow.Outbound.Infrastructure.Repositories;
+using ShopFlow.Outbound.Infrastructure.Sagas;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
 
@@ -49,11 +52,43 @@ public static class OutboundServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, OutboundUnitOfWork>();
         services.AddScoped<IOutboundOutbox, OutboundOutbox>();
 
-        // U4 registers the FulfillmentSaga state machine + MassTransit EF saga
-        // repository against the saga_state table (the EntityFrameworkRepository
-        // binding lives here once the saga class exists). U5 registers the
-        // IPickQueue singleton + PickWaveGeneratorService hosted service. U6
-        // registers the Polly pipeline + IMockShippingProvider singleton.
+        // U4 — FulfillmentSaga state machine + MT EF saga repository
+        // against saga_state. The saga itself is registered here so the
+        // bus-level AddMassTransit() in AddShopFlowDefaults can resolve
+        // it via DI. The EntityFrameworkRepository pattern uses MT's
+        // .ExistingDbContext<OutboundDbContext>() which resolves the
+        // scoped OutboundDbContext registered above — that DbContext
+        // reads IRequestContext.DbConnectionString at construction, so
+        // when TenantBindingSagaFilter (K12 primary path) binds the
+        // tenant BEFORE the saga repo runs, the DbContext lands in the
+        // correct per-tenant DB.
+        services.AddMassTransit(bus =>
+        {
+            bus.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
+                .EntityFrameworkRepository(r =>
+                {
+                    r.ExistingDbContext<OutboundDbContext>();
+                    // Postgres-specific row-lock statement for the saga
+                    // repository's pessimistic concurrency (R5).
+                    r.UsePostgres();
+                });
+        });
+
+        // U4 K12 (primary path) — the open-generic filter is registered
+        // here as Scoped so MT's pipe-builder can resolve it per message.
+        // The bus-level wiring that attaches the filter to receive
+        // endpoints lives in the Api project's Program.cs (alongside
+        // AddShopFlowDefaults), which has access to the MassTransit
+        // bus configurator. U4's tests configure the filter directly
+        // on the in-test bus configurator.
+        services.AddScoped(typeof(TenantBindingSagaFilter<>));
+
+        // K12 fallback path — kept registered as Singleton so the
+        // factory can be swapped into the saga repo's .DatabaseFactory()
+        // pipeline if the filter path needs replacement. NOT currently
+        // wired into the repo — see TenantAwareSagaDbContextFactory's
+        // docs for the swap procedure.
+        services.AddSingleton<TenantAwareSagaDbContextFactory>();
 
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
 
