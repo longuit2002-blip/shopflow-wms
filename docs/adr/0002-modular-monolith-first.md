@@ -112,3 +112,20 @@ What is also superseded:
 The W6 mechanical split mechanics are unchanged. Each module's `*.Api` project still extracts to its own deployable host; MassTransit transport flips from in-memory to RabbitMQ. The only addition: each module's host needs to wire the same routing middleware + per-request DbContext factory. The split is even cleaner than v2.0's design because there is no shared RLS policy state to coordinate across processes.
 
 **See also**: ADR-0003, `docs/redesign/02-technical-design-document.md` §1 (multi-tenancy), §3 (system overview, modular monolith stance preserved), §8 (scale-tier roadmap with W6 split as a tier-internal event).
+
+---
+
+## Postscript — 2026-05-13 — MassTransit transport flip W6 → W4
+
+Sprint-2-redux (plan `docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md`) promotes the in-memory → RabbitMQ transport flip from W6 to **W4**. The decision pivot is captured here so the original ADR-0002 W6-only narrative isn't read in isolation.
+
+**Why the promotion**: Sprint-2-redux is the first cross-module write flow (Inbound → Inventory via `ShopFlow.Contracts.Inbound.InboundConfirmedV1`). The in-memory MassTransit transport does not exercise the failure modes — network partitions, broker downtime, message redelivery, consumer crash mid-handle — that Sprint-3-redux's fulfillment saga will absolutely depend on. Shipping real RabbitMQ in Sprint-2-redux means Sprint-3 inherits a tested production-shape broker rather than discovering its sharp edges during saga work.
+
+**Why RabbitMQ over Kafka**: ShopFlow's workload (~30 msgs/sec peak at 50 tenants, saga state-machine semantics, per-tenant routing via headers) is squarely in RabbitMQ's strength zone. Kafka would win only at 10K+ msgs/sec or if CDC event-log replay were needed — both Phase-3+ concerns. Operational simplicity matters for single-developer ops. Comparison preserved in `docs/brainstorms/2026-05-12-sprint-2-redux-inbound-requirements.md` Key Decisions.
+
+**Implementation**: `AddShopFlowDefaults` gains `ShopFlowDefaultsOptions.MessageBusTransport` (`InMemory` | `RabbitMq`, default `RabbitMq`) and a configuration override at key `MessageBus:Transport`. Production reads the connection string from `IConfiguration.GetConnectionString("rabbitmq")` (Aspire injects as `ConnectionStrings__rabbitmq` env var). Tests that don't need a real broker (most unit tests; the MassTransit TestHarness in the consumer integration tests) set `MessageBusTransport=InMemory` explicitly.
+
+**W6 mechanical split unchanged**: each module's `*.Api` still extracts to its own deployable host; routing middleware + per-request DbContext factory remain the tenant-correctness primitive. The transport flip already happened in W4 so the W6 deliverable is just the host split — no new transport work.
+
+**See also**: `docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md` U7, `src/Shared/ShopFlow.SharedKernel/Infrastructure/AddShopFlowDefaults.cs` (the switch).
+

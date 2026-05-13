@@ -1,30 +1,35 @@
+using Hellang.Middleware.ProblemDetails;
 using ShopFlow.Inventory.Infrastructure;
+using ShopFlow.SharedKernel.Infrastructure;
 
 // ─────────────────────────────────────────────────────────────────────────
-// ShopFlow.Inventory.Api — HTTP surface for the Inventory module (plan U8).
-//
-// U8 ships the composition root + a placeholder controller that returns
-// 501 Not Implemented. The real reservation / availability endpoints land
-// in Sprint-1-redux (docs/plans/2026-05-11-003-phase-1-sprint-1-redux-...).
-//
-// The composition order is canon per AGENTS.md §11.79: kernel defaults
-// first (routing middleware, IRequestContext, OutboxInterceptor wiring,
-// MediatR pipeline behaviours), then the module-specific
-// AddInventoryModule. Wrong-order registrations surface as a
-// missing-dependency exception at first request, not at startup —
-// document this here so future modules don't shuffle.
+// ShopFlow.Inventory.Api — HTTP surface for the Inventory module.
+// Composition order per AGENTS.md §11.79:
+//   1. services.AddShopFlowDefaults(configuration)  — kernel-wide
+//      cross-cutting (MediatR + behaviors, MassTransit + RabbitMQ
+//      transport, IRequestContext, OutboxInterceptor wiring,
+//      TenantRoutingMiddleware, OpenTelemetry, ProblemDetails). Sprint-2-redux
+//      U7 wires this in; the Inventory.Infrastructure assembly is scanned
+//      so InboundConfirmedConsumer is registered.
+//   2. services.AddInventoryModule(configuration)   — module specifics.
 // ─────────────────────────────────────────────────────────────────────────
 
 var builder = WebApplication.CreateBuilder(args);
 
-// U8: kernel-defaults wiring lands once SharedKernel ships AddShopFlowDefaults
-// in its public Infrastructure surface. The current SharedKernel exposes
-// the pieces (TenantRoutingMiddleware, IRequestContext, etc.) individually;
-// U9-U10 introduce a single composition entry point.
-
+builder.Services.AddShopFlowDefaults(
+    builder.Configuration,
+    configure: o => o.ServiceName = "shopflow-inventory",
+    assembliesToScan: new[]
+    {
+        typeof(ShopFlow.Inventory.Application.InventoryOptions).Assembly,
+        typeof(ShopFlow.Inventory.Infrastructure.InventoryDbContext).Assembly,
+    }
+);
 builder.Services.AddInventoryModule(builder.Configuration);
 builder.Services.AddControllers();
 
 var app = builder.Build();
+app.UseProblemDetails();
+app.UseTenantRouting();
 app.MapControllers();
 await app.RunAsync().ConfigureAwait(false);

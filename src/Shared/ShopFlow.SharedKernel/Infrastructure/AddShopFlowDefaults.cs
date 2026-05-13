@@ -119,7 +119,20 @@ public static class ShopFlowDefaultsExtensions
         // ---- FluentValidation ----------------------------------------------
         services.AddValidatorsFromAssemblies(assembliesToScan, includeInternalTypes: true);
 
-        // ---- MassTransit (W1: in-memory; W6: RabbitMQ via ADR-0002) --------
+        // ---- MassTransit (Sprint-2-redux U7 promotes RabbitMQ from W6 → W4) -
+        // Transport selection precedence:
+        //   1. configuration value "MessageBus:Transport" ("InMemory" or "RabbitMq")
+        //   2. options.MessageBusTransport (defaults to RabbitMq)
+        // Production reads the connection string from
+        // configuration.GetConnectionString("rabbitmq") (Aspire injects as
+        // ConnectionStrings__rabbitmq env var). Tests that don't need a real
+        // broker pass MessageBusTransport=InMemory via the configure callback.
+        // See docs/adr/0002-… postscript for the W6 → W4 rationale.
+        var configuredTransport = configuration.GetValue<string>("MessageBus:Transport");
+        var transport = !string.IsNullOrWhiteSpace(configuredTransport)
+            ? Enum.Parse<MessageBusTransport>(configuredTransport, ignoreCase: true)
+            : options.MessageBusTransport;
+
         services.AddMassTransit(bus =>
         {
             foreach (var asm in assembliesToScan)
@@ -127,12 +140,30 @@ public static class ShopFlowDefaultsExtensions
                 bus.AddConsumers(asm);
                 bus.AddSagaStateMachines(asm);
             }
-            bus.UsingInMemory(
-                (context, cfg) =>
-                {
-                    cfg.ConfigureEndpoints(context);
-                }
-            );
+
+            if (transport == MessageBusTransport.RabbitMq)
+            {
+                bus.UsingRabbitMq(
+                    (context, cfg) =>
+                    {
+                        var rabbitConn = configuration.GetConnectionString("rabbitmq");
+                        if (!string.IsNullOrWhiteSpace(rabbitConn))
+                        {
+                            cfg.Host(rabbitConn);
+                        }
+                        cfg.ConfigureEndpoints(context);
+                    }
+                );
+            }
+            else
+            {
+                bus.UsingInMemory(
+                    (context, cfg) =>
+                    {
+                        cfg.ConfigureEndpoints(context);
+                    }
+                );
+            }
         });
 
         // ---- ProblemDetails -------------------------------------------------
@@ -164,6 +195,15 @@ public static class ShopFlowDefaultsExtensions
 }
 
 /// <summary>
+/// MassTransit transport selection per Sprint-2-redux plan R12.
+/// </summary>
+public enum MessageBusTransport
+{
+    InMemory = 0,
+    RabbitMq = 1,
+}
+
+/// <summary>
 /// Knobs the consumer can tune when calling
 /// <see cref="ShopFlowDefaultsExtensions.AddShopFlowDefaults"/>.
 /// </summary>
@@ -181,4 +221,13 @@ public sealed class ShopFlowDefaultsOptions
     /// Intended for development environments only.
     /// </summary>
     public bool IncludeExceptionDetails { get; set; }
+
+    /// <summary>
+    /// MassTransit transport selection per Sprint-2-redux plan R12.
+    /// Default <see cref="MessageBusTransport.RabbitMq"/>. Tests that
+    /// don't need a real broker should set this to
+    /// <see cref="MessageBusTransport.InMemory"/>. Configuration value
+    /// <c>MessageBus:Transport</c> (when present) overrides this.
+    /// </summary>
+    public MessageBusTransport MessageBusTransport { get; set; } = MessageBusTransport.RabbitMq;
 }
