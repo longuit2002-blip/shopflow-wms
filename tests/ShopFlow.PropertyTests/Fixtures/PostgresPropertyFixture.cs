@@ -101,7 +101,7 @@ public sealed class PostgresPropertyFixture : IAsyncLifetime
         {
             truncate.CommandText = """
                 DELETE FROM reservations_ledger;
-                DELETE FROM outbox_messages;
+                DELETE FROM inventory_outbox_messages;
                 DELETE FROM stock_items;
                 """;
             await truncate.ExecuteNonQueryAsync();

@@ -5,18 +5,21 @@ using ShopFlow.SharedKernel.Infrastructure;
 namespace ShopFlow.Inbound.Infrastructure.EntityConfigurations;
 
 /// <summary>
-/// Fluent map for the Inbound module's per-tenant <c>outbox_messages</c>
-/// table. Mirrors the Inventory configuration shape — the
-/// <see cref="OutboxMessage"/> type itself lives in the SharedKernel, but
-/// each module owns its own EF configuration (per AGENTS.md §11.80
-/// DbContext-per-module). The multiplexed dispatcher consumes this table
-/// per-tenant via <c>MultiplexedOutboxDispatcher&lt;InboundDbContext&gt;</c>.
+/// Fluent map for the Inbound module's per-tenant
+/// <c>inbound_outbox_messages</c> table. Per-module prefix required
+/// because both Inbound and Inventory modules share one physical
+/// tenant DB (ADR-0003) — a single <c>outbox_messages</c> would
+/// collide. Sprint-2.5 finding documented at
+/// <c>docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md</c>.
+/// The <see cref="MultiplexedOutboxDispatcher{TContext}"/> resolves the
+/// table via EF's entity-config-driven <c>DbSet&lt;OutboxMessage&gt;</c>
+/// — no dispatcher change required.
 /// </summary>
 internal sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<OutboxMessage>
 {
     public void Configure(EntityTypeBuilder<OutboxMessage> builder)
     {
-        builder.ToTable("outbox_messages");
+        builder.ToTable("inbound_outbox_messages");
 
         builder.HasKey(o => o.Id).HasName("pk_outbox_messages");
 

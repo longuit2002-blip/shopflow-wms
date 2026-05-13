@@ -115,8 +115,15 @@ public sealed partial class InitialInventorySchema : Migration
             columns: new[] { "sku", "created_at" }
         );
 
+        // Module-prefixed outbox table per Sprint-2.5 — required because
+        // Inbound + Inventory share one physical tenant DB (ADR-0003).
+        // PK + index names also prefixed for symmetry. See
+        // docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md.
+        // Edited in-place vs the original Phase-0-redux U8 ship because no
+        // production tenants have been provisioned against the prior name;
+        // a rename migration is unnecessary.
         mb.CreateTable(
-            name: "outbox_messages",
+            name: "inventory_outbox_messages",
             columns: table => new
             {
                 id = table.Column<Guid>(nullable: false),
@@ -129,19 +136,19 @@ public sealed partial class InitialInventorySchema : Migration
                 retry_count = table.Column<int>(nullable: false),
                 last_error = table.Column<string>(maxLength: 2048, nullable: true),
             },
-            constraints: table => table.PrimaryKey("pk_outbox_messages", x => x.id)
+            constraints: table => table.PrimaryKey("pk_inventory_outbox_messages", x => x.id)
         );
 
         mb.CreateIndex(
-            name: "ix_outbox_messages_pending",
-            table: "outbox_messages",
+            name: "ix_inventory_outbox_messages_pending",
+            table: "inventory_outbox_messages",
             columns: new[] { "processed_at", "created_at" }
         );
     }
 
     protected override void Down(MigrationBuilder mb)
     {
-        mb.DropTable(name: "outbox_messages");
+        mb.DropTable(name: "inventory_outbox_messages");
         mb.DropTable(name: "stock_adjustments");
         mb.DropTable(name: "reservations_ledger");
         mb.DropTable(name: "stock_items");

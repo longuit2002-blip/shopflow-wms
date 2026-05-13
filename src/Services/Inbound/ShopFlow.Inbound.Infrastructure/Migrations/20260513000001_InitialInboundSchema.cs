@@ -168,8 +168,12 @@ public sealed partial class InitialInboundSchema : Migration
             columns: new[] { "status", "occurred_at" }
         );
 
+        // Module-prefixed outbox table per Sprint-2.5 — required because
+        // Inbound + Inventory share one physical tenant DB (ADR-0003).
+        // PK + index names also prefixed for symmetry. See
+        // docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md.
         mb.CreateTable(
-            name: "outbox_messages",
+            name: "inbound_outbox_messages",
             columns: table => new
             {
                 id = table.Column<Guid>(nullable: false),
@@ -182,19 +186,19 @@ public sealed partial class InitialInboundSchema : Migration
                 retry_count = table.Column<int>(nullable: false),
                 last_error = table.Column<string>(maxLength: 2048, nullable: true),
             },
-            constraints: table => table.PrimaryKey("pk_outbox_messages", x => x.id)
+            constraints: table => table.PrimaryKey("pk_inbound_outbox_messages", x => x.id)
         );
 
         mb.CreateIndex(
-            name: "ix_outbox_messages_pending",
-            table: "outbox_messages",
+            name: "ix_inbound_outbox_messages_pending",
+            table: "inbound_outbox_messages",
             columns: new[] { "processed_at", "created_at" }
         );
     }
 
     protected override void Down(MigrationBuilder mb)
     {
-        mb.DropTable(name: "outbox_messages");
+        mb.DropTable(name: "inbound_outbox_messages");
         mb.DropTable(name: "reconciliation_tickets");
         mb.DropTable(name: "receiving_lines");
         mb.DropTable(name: "receivings");

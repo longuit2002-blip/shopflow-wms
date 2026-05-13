@@ -90,7 +90,7 @@ public sealed class MigrationSmokeTests
                 "receivings",
                 "receiving_lines",
                 "reconciliation_tickets",
-                "outbox_messages",
+                "inbound_outbox_messages",
             }
         );
         await AssertConstraintsExistAsync(
@@ -102,7 +102,7 @@ public sealed class MigrationSmokeTests
                 "pk_receivings",
                 "pk_receiving_lines",
                 "pk_reconciliation_tickets",
-                "pk_outbox_messages",
+                "pk_inbound_outbox_messages",
                 "fk_po_lines_purchase_orders",
                 "fk_receivings_purchase_orders",
                 "fk_receiving_lines_receivings",
@@ -142,7 +142,7 @@ public sealed class MigrationSmokeTests
                 "stock_items",
                 "reservations_ledger",
                 "stock_adjustments",
-                "outbox_messages",
+                "inventory_outbox_messages",
                 "zones",
                 "bins",
                 "stock_item_bins",
@@ -156,7 +156,7 @@ public sealed class MigrationSmokeTests
                 "pk_stock_items",
                 "pk_reservations_ledger",
                 "pk_stock_adjustments",
-                "pk_outbox_messages",
+                "pk_inventory_outbox_messages",
                 "fk_reservations_stock_items_sku",
                 "fk_stock_adjustments_stock_items_sku",
                 "pk_zones",

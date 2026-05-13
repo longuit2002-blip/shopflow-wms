@@ -248,7 +248,7 @@ public sealed class ReservationExpiryWorkerTests
         await using var conn = new NpgsqlConnection(tenant.ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM outbox_messages WHERE event_type LIKE @p";
+        cmd.CommandText = "SELECT COUNT(*) FROM inventory_outbox_messages WHERE event_type LIKE @p";
         cmd.Parameters.AddWithValue("p", typePrefix + "%");
         var scalar = (long)(await cmd.ExecuteScalarAsync())!;
         return (int)scalar;
@@ -262,7 +262,7 @@ public sealed class ReservationExpiryWorkerTests
         await using var conn = new NpgsqlConnection(tenant.ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM outbox_messages WHERE payload::text LIKE @p";
+        cmd.CommandText = "SELECT COUNT(*) FROM inventory_outbox_messages WHERE payload::text LIKE @p";
         cmd.Parameters.AddWithValue("p", "%" + payloadSubstring + "%");
         var scalar = (long)(await cmd.ExecuteScalarAsync())!;
         return (int)scalar;
