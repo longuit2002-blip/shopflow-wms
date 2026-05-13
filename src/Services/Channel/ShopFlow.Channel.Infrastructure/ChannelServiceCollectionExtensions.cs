@@ -91,6 +91,13 @@ public static class ChannelServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
+        // ---- K13 Send-routing for cross-module commands (Sprint-4 U4/U8) ----
+        // OrderImportedV1 is a command (point-to-point) consumed by Outbound's
+        // OrderImportedConsumer — Send semantics. Default destination is
+        // "order-imported-v1" (kebab-cased CLR type name); the consumer
+        // registers on the matching MT endpoint.
+        services.AddOutboxRoute<ShopFlow.Contracts.Channel.OrderImportedV1>(SendKind.Send);
+
         // ---- Outbox dispatcher (Sprint-1-redux pattern, Channel module) ----
         services.AddHostedService<MultiplexedOutboxDispatcher<ChannelDbContext>>();
 
