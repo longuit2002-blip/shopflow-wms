@@ -11,6 +11,8 @@
     <ProjectReference Include="..\ShopFlow.Channel.Application\ShopFlow.Channel.Application.csproj" />
     <ProjectReference Include="..\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <!-- Sprint-4 U9: ControlPlane impls of ITenantCatalog + IChannelDirectory. -->
+    <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

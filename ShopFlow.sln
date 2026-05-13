@@ -117,6 +117,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "shopee", "shopee", "{124136
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Mocks.Shopee", "tools\mocks\shopee\ShopFlow.Mocks.Shopee.csproj", "{E372147F-0960-4746-870D-240F4615D08A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Channel.IntegrationTests", "tests\ShopFlow.Channel.IntegrationTests\ShopFlow.Channel.IntegrationTests.csproj", "{FB114250-0A67-46F0-A189-4C039E512DC5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -667,6 +669,18 @@ Global
 		{E372147F-0960-4746-870D-240F4615D08A}.Release|x64.Build.0 = Release|Any CPU
 		{E372147F-0960-4746-870D-240F4615D08A}.Release|x86.ActiveCfg = Release|Any CPU
 		{E372147F-0960-4746-870D-240F4615D08A}.Release|x86.Build.0 = Release|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Debug|x64.Build.0 = Debug|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Debug|x86.Build.0 = Debug|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Release|x64.ActiveCfg = Release|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Release|x64.Build.0 = Release|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Release|x86.ActiveCfg = Release|Any CPU
+		{FB114250-0A67-46F0-A189-4C039E512DC5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -726,5 +740,6 @@ Global
 		{09743D8C-1ECD-59AE-B1D7-E08988F9BCE2} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{12413645-97CE-D2F4-2460-02DBA9158333} = {09743D8C-1ECD-59AE-B1D7-E08988F9BCE2}
 		{E372147F-0960-4746-870D-240F4615D08A} = {12413645-97CE-D2F4-2460-02DBA9158333}
+		{FB114250-0A67-46F0-A189-4C039E512DC5} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

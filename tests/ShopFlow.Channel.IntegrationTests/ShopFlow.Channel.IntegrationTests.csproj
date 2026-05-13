@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sprint-4 plan U9 — Channel module integration test harness. Runs in CI
+    against Testcontainers Postgres + an in-process Kestrel-hosted
+    Channel.Api via WebApplicationFactory. Two suite shapes:
+
+      • MultiTenantWebhookScaleGateTests (Category=Load): 5 tenants × 200
+        webhooks/s × 5s burst; p99 < 200ms; fairness ≥ 0.85; 100-replay
+        idempotency. Wall-time measurement deferred to nightly CI per
+        Sprint-1/3 precedent (Docker daemon not running on this dev
+        machine).
+
+      • WebhookReceiverIntegrationTests (Category=Integration): single-
+        tenant webhook -> receiver -> webhook_events insert + outbox row
+        round-trip. Replay returns isDuplicate=true with NO second outbox.
+        Cross-tenant signature mismatch -> 401.
+
+    Both share the PostgresFixture / TenantHarness shape from
+    Outbound/Inventory integration tests. Sprint-4 ships the project skel
+    + the scale-gate skeleton; the harness body is deferred to a
+    follow-up (sign-off documents).
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Channel.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Api\ShopFlow.Channel.Api.csproj" />
+    <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
