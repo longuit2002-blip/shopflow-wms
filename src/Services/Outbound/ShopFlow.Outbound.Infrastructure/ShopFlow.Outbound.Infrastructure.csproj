@@ -1,13 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Outbound module — Infrastructure placeholder (plan U9). Ships a stub
-    OutboundDbContext so the module shape compiles. Schema + repositories
-    land in Phase-1 sprint 3 (saga-driven fulfillment pipeline
-    Reserve → Pick → Pack → Ship per Tech Design v3.0 §9).
+    Outbound module — Infrastructure. Sprint-3-redux U1 ships the
+    OutboundDbContext + initial schema (orders / order_lines / pick_waves /
+    pick_assignments / pickers / saga_state / outbound_outbox_messages) +
+    AddOutboundModule composition root. MassTransit.EntityFrameworkCore is
+    a prerequisite for U4's saga repository (K15 smoke build verifies the
+    MT 8.3.4 + EF Core 9 binding here before U4 starts).
   -->
 
   <ItemGroup>
+    <PackageReference Include="MassTransit.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />

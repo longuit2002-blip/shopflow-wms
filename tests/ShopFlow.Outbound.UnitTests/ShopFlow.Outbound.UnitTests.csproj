@@ -7,6 +7,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Domain\ShopFlow.Outbound.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Infrastructure\ShopFlow.Outbound.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

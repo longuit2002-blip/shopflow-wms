@@ -3,6 +3,7 @@ using Npgsql;
 using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Inbound.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
+using ShopFlow.Outbound.Infrastructure;
 
 namespace ShopFlow.SharedKernel.IntegrationTests;
 
@@ -117,6 +118,74 @@ public sealed class MigrationSmokeTests
                 "ix_purchase_orders_status",
             }
         );
+    }
+
+    [Fact]
+    public async Task OutboundMigration_AppliesAndLeavesNamedObjects()
+    {
+        var dbName = "smoke_outbound_" + Guid.NewGuid().ToString("N")[..8];
+        var connStr = await _postgres.CreateDatabaseAsync(dbName);
+
+        var options = new DbContextOptionsBuilder<OutboundDbContext>()
+            .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.Outbound.Infrastructure"))
+            .Options;
+
+        await using (var ctx = new OutboundDbContext(options))
+        {
+            await ctx.Database.MigrateAsync();
+        }
+
+        await AssertHistoryAppliedAsync(connStr);
+        await AssertTablesExistAsync(
+            connStr,
+            new[]
+            {
+                "orders",
+                "order_lines",
+                "pick_waves",
+                "pick_assignments",
+                "pickers",
+                "saga_state",
+                "outbound_outbox_messages",
+            }
+        );
+        await AssertConstraintsExistAsync(
+            connStr,
+            new[]
+            {
+                "pk_orders",
+                "pk_order_lines",
+                "pk_pick_waves",
+                "pk_pick_assignments",
+                "pk_pickers",
+                "pk_saga_state",
+                "pk_outbound_outbox_messages",
+                "fk_order_lines_orders",
+                "fk_pick_assignments_pick_waves",
+                "fk_pick_assignments_orders",
+            }
+        );
+        await AssertIndexesExistAsync(
+            connStr,
+            new[]
+            {
+                "ux_orders_channel_external_order_id",
+                "ix_orders_status",
+                "ix_order_lines_order_id_sku",
+                "ix_pick_assignments_order_id",
+                "ix_outbound_outbox_messages_pending",
+            }
+        );
+
+        // saga_state column names are quoted PascalCase deliberately so
+        // MassTransit's out-of-the-box EF saga repository (U4) binds to them
+        // without per-column configuration. PostgreSQL preserves case for
+        // quoted identifiers, so information_schema.columns reflects the
+        // exact PascalCase strings used in the CREATE TABLE.
+        await AssertColumnExistsAsync(connStr, "saga_state", "CorrelationId");
+        await AssertColumnExistsAsync(connStr, "saga_state", "CurrentState");
+        await AssertColumnExistsAsync(connStr, "saga_state", "RowVersion");
+        await AssertColumnExistsAsync(connStr, "saga_state", "UpdatedAt");
     }
 
     [Fact]

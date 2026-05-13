@@ -27,6 +27,8 @@
     <PackageVersion Include="FluentValidation" Version="11.10.0" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />
     <PackageVersion Include="MassTransit" Version="8.3.4" />
+    <!-- MassTransit.EntityFrameworkCore added Sprint-3-redux U1 (K15) for the saga EF repository wired in U4. -->
+    <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.3.4" />
     <PackageVersion Include="MassTransit.RabbitMQ" Version="8.3.4" />
     <PackageVersion Include="MediatR" Version="12.4.1" />
   </ItemGroup>
