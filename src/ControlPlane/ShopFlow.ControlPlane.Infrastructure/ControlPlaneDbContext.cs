@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using ShopFlow.ControlPlane.Domain;
 using ShopFlow.ControlPlane.Infrastructure.EntityConfigurations;
 
@@ -24,6 +25,24 @@ public sealed class ControlPlaneDbContext : DbContext
 {
     public ControlPlaneDbContext(DbContextOptions<ControlPlaneDbContext> options)
         : base(options) { }
+
+    /// <summary>
+    /// Suppress EF Core 9's <see cref="RelationalEventId.PendingModelChangesWarning"/>.
+    /// Hand-authored migrations (AGENTS.md §3.23) ship without the
+    /// <c>ControlPlaneDbContextModelSnapshot.cs</c> that EF generates via
+    /// <c>dotnet ef migrations add</c>; without that snapshot EF compares
+    /// the runtime model against an empty baseline and treats the entire
+    /// model as "pending changes". Schema correctness is enforced by
+    /// <c>MigrationSmokeTests</c>. See
+    /// <c>docs/solutions/2026-05-13-ef9-pendingmodelchangeswarning-with-hand-authored-migrations.md</c>.
+    /// </summary>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder.ConfigureWarnings(w =>
+            w.Ignore(RelationalEventId.PendingModelChangesWarning)
+        );
+    }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
 

@@ -44,6 +44,21 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         return (repo, db);
     }
 
+    /// <summary>
+    /// Fetch a single <see cref="StockItem"/> by SKU string. EF can't
+    /// translate <c>s.Sku.Value == "..."</c> because <see cref="Sku"/> is a
+    /// value-object property under <c>HasConversion</c>, and its
+    /// <c>operator ==</c> overload (from <c>ValueObject</c>) doesn't
+    /// translate either. The test fixture has at most a handful of rows
+    /// per tenant DB, so materialising once and filtering in C# is both
+    /// correct and cheap.
+    /// </summary>
+    private static async Task<StockItem> GetStockAsync(InventoryDbContext db, string sku)
+    {
+        var rows = await db.StockItems.AsNoTracking().ToListAsync();
+        return rows.Single(s => s.Sku.Value == sku);
+    }
+
     [Fact]
     public async Task TryReserve_HappyPath_CreatesPendingRow_AndEmitsOutbox()
     {
@@ -62,7 +77,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         result.Value!.Status.Should().Be(ReservationStatus.Pending);
         result.Value.Quantity.Value.Should().Be(10);
 
-        var stockRow = await db.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+        var stockRow = await GetStockAsync(db, Sku100);
         stockRow.Available.Value.Should().Be(90);
         stockRow.Reserved.Value.Should().Be(10);
 
@@ -89,7 +104,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
 
         result.IsSuccess.Should().BeTrue();
 
-        var stockRow = await db.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+        var stockRow = await GetStockAsync(db, Sku100);
         stockRow.Available.Value.Should().Be(0);
         stockRow.Reserved.Value.Should().Be(100);
     }
@@ -111,7 +126,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("reservation.insufficient_stock");
 
-        var stockRow = await db.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+        var stockRow = await GetStockAsync(db, Sku100);
         stockRow.Available.Value.Should().Be(100);
         stockRow.Reserved.Value.Should().Be(0);
 
@@ -150,7 +165,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
             var ledgerCount = await db1.Reservations.CountAsync(r => r.OrderId == "ORDER-IDEMP");
             ledgerCount.Should().Be(1);
 
-            var stockRow = await db1.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+            var stockRow = await GetStockAsync(db1, Sku100);
             stockRow.Available.Value.Should().Be(95);
             stockRow.Reserved.Value.Should().Be(5);
         }
@@ -205,9 +220,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         (successCount + oversoldCount).Should().Be(callers);
         successCount.Should().BeLessThanOrEqualTo(16);
 
-        var stockRow = await db0
-            .StockItems.AsNoTracking()
-            .FirstAsync(s => s.Sku.Value == "HOT-1000");
+        var stockRow = await GetStockAsync(db0, "HOT-1000");
         // Available + Reserved must equal initial total — invariant of TryReserve.
         (stockRow.Available.Value + stockRow.Reserved.Value).Should().Be(1000);
         // Reserved must equal successes × qtyEach.
@@ -264,7 +277,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         row.Status.Should().Be(ReservationStatus.Confirmed);
         row.ConfirmedAt.Should().NotBeNull();
 
-        var stock = await db.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+        var stock = await GetStockAsync(db, Sku100);
         stock.Available.Value.Should().Be(93);
         stock.Reserved.Value.Should().Be(0);
 
@@ -322,7 +335,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         var result = await repo.ReleaseAsync("ORDER-REL", CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        var stock = await db.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+        var stock = await GetStockAsync(db, Sku100);
         stock.Available.Value.Should().Be(100);
         stock.Reserved.Value.Should().Be(0);
     }
@@ -364,7 +377,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
 
         released.Should().Be(3);
 
-        var stock = await db.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+        var stock = await GetStockAsync(db, Sku100);
         stock.Available.Value.Should().Be(100);
         stock.Reserved.Value.Should().Be(0);
 
@@ -395,7 +408,7 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         var released = await repo.ReleaseExpiredAsync(DateTime.UtcNow, 100, CancellationToken.None);
 
         released.Should().Be(0);
-        var stock = await db.StockItems.AsNoTracking().FirstAsync(s => s.Sku.Value == Sku100);
+        var stock = await GetStockAsync(db, Sku100);
         stock.Reserved.Value.Should().Be(2);
         var releaseEvents = await db
             .OutboxMessages.AsNoTracking()
@@ -413,11 +426,11 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         DateTime expiresAt
     )
     {
-        await using var conn = (NpgsqlConnection)db.Database.GetDbConnection();
-        if (conn.State != System.Data.ConnectionState.Open)
-        {
-            await conn.OpenAsync();
-        }
+        // Open a fresh standalone connection — `await using` on
+        // db.Database.GetDbConnection() would dispose EF's owned connection
+        // and break the surrounding DbContext.
+        await using var conn = new NpgsqlConnection(db.Database.GetConnectionString());
+        await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
             INSERT INTO reservations_ledger

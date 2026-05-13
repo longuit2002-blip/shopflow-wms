@@ -32,10 +32,11 @@ public sealed class PerRequestDbContextFactory<TContext> : IDbContextFactory<TCo
     public TContext CreateDbContext()
     {
         var connectionString = _requestContext.DbConnectionString;
-        var builder = new DbContextOptionsBuilder<TContext>().UseNpgsql(
-            connectionString,
-            npg => npg.MigrationsHistoryTable("__ef_migrations_history", "public")
-        );
+        // Use EF Core's default Npgsql migrations-history table name
+        // (__EFMigrationsHistory). shopflow-migrate (the production
+        // migration runner) also leaves this at the default, so every
+        // consumer of a tenant DB resolves to the same history table.
+        var builder = new DbContextOptionsBuilder<TContext>().UseNpgsql(connectionString);
 
         var ctx =
             Activator.CreateInstance(typeof(TContext), builder.Options) as TContext

@@ -29,6 +29,7 @@ internal static class TenantHarness
 
         var latencies = new double[callCount];
         var outcomes = new ReserveOutcome[callCount];
+        var errors = new string?[callCount];
 
         var sw = Stopwatch.StartNew();
         var tasks = new Task[callCount];
@@ -57,16 +58,25 @@ internal static class TenantHarness
                             .ConfigureAwait(false);
                         perCall.Stop();
                         latencies[i] = perCall.Elapsed.TotalMilliseconds;
-                        outcomes[i] = result.IsSuccess
-                            ? ReserveOutcome.Success
-                            : result.ErrorCode == "reservation.insufficient_stock"
-                                ? ReserveOutcome.Oversold
-                                : ReserveOutcome.OtherFailure;
+                        if (result.IsSuccess)
+                        {
+                            outcomes[i] = ReserveOutcome.Success;
+                        }
+                        else if (result.ErrorCode == "reservation.insufficient_stock")
+                        {
+                            outcomes[i] = ReserveOutcome.Oversold;
+                        }
+                        else
+                        {
+                            outcomes[i] = ReserveOutcome.OtherFailure;
+                            errors[i] = result.ErrorCode ?? result.Error;
+                        }
                     }
-                    catch
+                    catch (Exception ex)
                     {
                         latencies[i] = -1;
                         outcomes[i] = ReserveOutcome.Exception;
+                        errors[i] = $"{ex.GetType().Name}: {ex.Message}";
                     }
                     finally
                     {
@@ -84,6 +94,7 @@ internal static class TenantHarness
             TenantSlug: tenant.Info.Slug,
             Latencies: latencies,
             Outcomes: outcomes,
+            Errors: errors,
             TotalDuration: sw.Elapsed
         );
     }
@@ -101,6 +112,7 @@ internal sealed record TenantRunResult(
     string TenantSlug,
     double[] Latencies,
     ReserveOutcome[] Outcomes,
+    string?[] Errors,
     TimeSpan TotalDuration
 )
 {
@@ -120,5 +132,20 @@ internal sealed record TenantRunResult(
                 .ToArray();
             return FairnessCalculator.Percentile(successLatencies, 99);
         }
+    }
+
+    /// <summary>
+    /// Top-K most common error labels (code or exception type) across non-
+    /// success / non-oversold outcomes. Use to diagnose what's really
+    /// failing under contention.
+    /// </summary>
+    public IEnumerable<(string Label, int Count)> TopErrors(int k)
+    {
+        return Errors
+            .Where(e => e is not null)
+            .GroupBy(e => e!)
+            .Select(g => (Label: g.Key, Count: g.Count()))
+            .OrderByDescending(t => t.Count)
+            .Take(k);
     }
 }

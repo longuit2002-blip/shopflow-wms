@@ -110,15 +110,20 @@ public sealed class MigrationSmokeTests
 
     private static async Task AssertHistoryAppliedAsync(string connStr)
     {
+        // EF Core's default Npgsql migrations-history table name is
+        // "__EFMigrationsHistory" (PascalCase, quoted because of the case).
+        // shopflow-migrate (production migration runner) and the test
+        // fixtures both leave this at the default — see
+        // docs/solutions/2026-05-13-ef9-pendingmodelchangeswarning-with-hand-authored-migrations.md.
         await using var conn = new NpgsqlConnection(connStr);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM __ef_migrations_history";
+        cmd.CommandText = "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"";
         var count = (long)(await cmd.ExecuteScalarAsync())!;
         count.Should()
             .BeGreaterThanOrEqualTo(
                 1,
-                "MigrateAsync() must record at least one row in __ef_migrations_history "
+                "MigrateAsync() must record at least one row in __EFMigrationsHistory "
                     + "— silent no-op detection per docs/solutions/2026-05-10-ef-migration-needs-attributes.md"
             );
     }

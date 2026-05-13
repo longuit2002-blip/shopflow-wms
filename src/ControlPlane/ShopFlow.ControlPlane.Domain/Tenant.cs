@@ -23,9 +23,27 @@ namespace ShopFlow.ControlPlane.Domain;
 /// <para>Invalid transitions return <see cref="Result.Failure"/> rather than
 /// throwing — they are expected outcomes (re-provision races, archive of an
 /// already-archived tenant). AGENTS.md §4.24.</para>
+///
+/// <para>Inherits <see cref="BaseEntity"/> rather than <see cref="AggregateRoot"/>
+/// because the inherited <c>byte[] RowVersion</c> on <see cref="AggregateRoot"/>
+/// is incompatible with the Postgres <c>xid</c> column type the migration
+/// ships (<c>row_version xid NOT NULL DEFAULT (txid_current())::text::xid</c>).
+/// <see cref="Tenant"/> declares its own <see cref="uint"/> RowVersion to
+/// match. Same deviation as <c>StockItem</c> (Phase-0-redux U8); the inherited
+/// domain-event buffer + Created/Updated stamps from <see cref="BaseEntity"/>
+/// survive.</para>
 /// </remarks>
-public sealed class Tenant : AggregateRoot
+public sealed class Tenant : BaseEntity
 {
+    /// <summary>
+    /// Postgres <c>xid</c> row-version token for optimistic concurrency.
+    /// EF treats this as the concurrency token; conflicts surface as
+    /// <c>DbUpdateConcurrencyException</c>. See entity configuration for the
+    /// column type and default mapping.
+    /// </summary>
+    public uint RowVersion { get; private set; }
+
+
     /// <summary>
     /// URL-safe short identifier, unique per cluster. Drives PgBouncer pool
     /// keys, subdomain routing, and the <c>shopflow_t_&lt;slug&gt;</c>

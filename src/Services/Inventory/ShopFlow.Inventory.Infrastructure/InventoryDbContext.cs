@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using ShopFlow.Inventory.Domain;
 using ShopFlow.Inventory.Infrastructure.EntityConfigurations;
 using ShopFlow.SharedKernel.Infrastructure;
@@ -29,6 +30,27 @@ public sealed class InventoryDbContext : DbContext
 {
     public InventoryDbContext(DbContextOptions<InventoryDbContext> options)
         : base(options) { }
+
+    /// <summary>
+    /// Suppress EF Core 9's <see cref="RelationalEventId.PendingModelChangesWarning"/>.
+    /// Hand-authored migrations (AGENTS.md §3.23) do not ship the
+    /// <c>InventoryDbContextModelSnapshot.cs</c> file that EF generates via
+    /// <c>dotnet ef migrations add</c>; without that snapshot, EF compares
+    /// the runtime model against an empty baseline and surfaces the entire
+    /// model as "pending changes". The warning is a structural false
+    /// positive under the hand-authored pattern, not a real signal of drift.
+    /// Schema correctness is enforced by the integration smoke tests
+    /// (<c>MigrationSmokeTests</c>) which assert named tables / constraints /
+    /// indexes after <c>MigrateAsync()</c>. See
+    /// <c>docs/solutions/2026-05-13-ef9-pendingmodelchangeswarning-with-hand-authored-migrations.md</c>.
+    /// </summary>
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        base.OnConfiguring(optionsBuilder);
+        optionsBuilder.ConfigureWarnings(w =>
+            w.Ignore(RelationalEventId.PendingModelChangesWarning)
+        );
+    }
 
     public DbSet<StockItem> StockItems => Set<StockItem>();
 
