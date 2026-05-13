@@ -92,58 +92,159 @@ public sealed class PurchaseOrder : BaseEntity
     }
 
     /// <summary>
-    /// Draft → Open. Sprint-2-redux U2 body.
+    /// Draft → Open. Stamps <see cref="OpenedAt"/>.
     /// </summary>
     public Result Open(DateTime now)
     {
-        _ = now;
-        throw new NotImplementedException(
-            "Sprint-2-redux U2 behavior — see docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md"
-        );
+        if (Status == PurchaseOrderStatus.Open)
+        {
+            return Result.Failure("already open.", "po.already_open");
+        }
+        if (Status != PurchaseOrderStatus.Draft)
+        {
+            return Result.Failure(
+                $"cannot open PO in {Status} state; only Draft is openable.",
+                "po.invalid_state"
+            );
+        }
+        Status = PurchaseOrderStatus.Open;
+        OpenedAt = now;
+        UpdatedAt = now;
+        return Result.Success();
     }
 
     /// <summary>
-    /// Open → PartiallyReceived. Sprint-2-redux U2 body.
+    /// Open → PartiallyReceived. Idempotent in the sense that a second
+    /// call from already-PartiallyReceived is a no-op success.
     /// </summary>
     public Result MarkPartiallyReceived()
     {
-        throw new NotImplementedException(
-            "Sprint-2-redux U2 behavior — see docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md"
-        );
+        if (Status == PurchaseOrderStatus.PartiallyReceived)
+        {
+            return Result.Success();
+        }
+        if (Status != PurchaseOrderStatus.Open)
+        {
+            return Result.Failure(
+                $"cannot mark partially-received from {Status}; only Open is eligible.",
+                "po.invalid_state"
+            );
+        }
+        Status = PurchaseOrderStatus.PartiallyReceived;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
     }
 
     /// <summary>
-    /// Open or PartiallyReceived → Closed. Sprint-2-redux U2 body.
+    /// Open or PartiallyReceived → Closed. Requires every line fully
+    /// received (received_qty &gt;= expected_qty); overage counts as
+    /// fully received because the reconciliation ticket has captured
+    /// the surplus per Sprint-2-redux plan R8.
     /// </summary>
     public Result Close(DateTime now)
     {
-        _ = now;
-        throw new NotImplementedException(
-            "Sprint-2-redux U2 behavior — see docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md"
-        );
+        if (Status == PurchaseOrderStatus.Closed)
+        {
+            return Result.Failure("already closed.", "po.already_closed");
+        }
+        if (
+            Status != PurchaseOrderStatus.Open
+            && Status != PurchaseOrderStatus.PartiallyReceived
+        )
+        {
+            return Result.Failure(
+                $"cannot close PO in {Status} state.",
+                "po.invalid_state"
+            );
+        }
+        if (_lines.Any(l => l.ReceivedQty < l.ExpectedQty))
+        {
+            return Result.Failure(
+                "cannot close PO with under-received lines.",
+                "po.not_fully_received"
+            );
+        }
+        Status = PurchaseOrderStatus.Closed;
+        ClosedAt = now;
+        UpdatedAt = now;
+        return Result.Success();
     }
 
     /// <summary>
-    /// Draft or Open → Cancelled. Sprint-2-redux U2 body.
+    /// Draft or Open → Cancelled. Records the reason on the aggregate.
     /// </summary>
     public Result Cancel(string reason, DateTime now)
     {
-        _ = (reason, now);
-        throw new NotImplementedException(
-            "Sprint-2-redux U2 behavior — see docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md"
-        );
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            return Result.Failure(
+                "cancellation reason is required.",
+                "po.cancel_reason_required"
+            );
+        }
+        if (Status == PurchaseOrderStatus.Cancelled)
+        {
+            return Result.Failure("already cancelled.", "po.already_cancelled");
+        }
+        if (Status != PurchaseOrderStatus.Draft && Status != PurchaseOrderStatus.Open)
+        {
+            return Result.Failure(
+                $"cannot cancel PO in {Status} state.",
+                "po.invalid_state"
+            );
+        }
+        Status = PurchaseOrderStatus.Cancelled;
+        CancellationReason = reason.Trim();
+        CancelledAt = now;
+        UpdatedAt = now;
+        return Result.Success();
     }
 
     /// <summary>
     /// Apply a receiving to one line; updates the line's <c>ReceivedQty</c>
-    /// and recomputes the PO status. Called by U3's Receiving flow.
-    /// Sprint-2-redux U2/U3 body.
+    /// and recomputes the PO status per Sprint-2-redux plan R8. Auto-
+    /// transitions:
+    /// <list type="bullet">
+    ///   <item><description>Open → PartiallyReceived when any line has received_qty &gt; 0 and at least one is still under-received.</description></item>
+    ///   <item><description>PartiallyReceived → Closed when every line has received_qty &gt;= expected_qty.</description></item>
+    /// </list>
+    /// Overage counts as fully received per R8.
     /// </summary>
     public Result RecordLineReceipt(Guid lineId, int actualQty, DateTime now)
     {
-        _ = (lineId, actualQty, now);
-        throw new NotImplementedException(
-            "Sprint-2-redux U2/U3 behavior — see docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md"
-        );
+        if (Status != PurchaseOrderStatus.Open && Status != PurchaseOrderStatus.PartiallyReceived)
+        {
+            return Result.Failure(
+                $"cannot receive against PO in {Status} state.",
+                "po.invalid_state"
+            );
+        }
+        var line = _lines.FirstOrDefault(l => l.Id == lineId);
+        if (line is null)
+        {
+            return Result.Failure(
+                $"line {lineId} not found on PO {Id}.",
+                "po.line_not_found"
+            );
+        }
+        var receipt = line.RecordReceipt(actualQty, now);
+        if (!receipt.IsSuccess)
+        {
+            return receipt;
+        }
+
+        var allFullyReceived = _lines.All(l => l.ReceivedQty >= l.ExpectedQty);
+        var anyReceived = _lines.Any(l => l.ReceivedQty > 0);
+        if (allFullyReceived)
+        {
+            Status = PurchaseOrderStatus.Closed;
+            ClosedAt = now;
+        }
+        else if (anyReceived && Status == PurchaseOrderStatus.Open)
+        {
+            Status = PurchaseOrderStatus.PartiallyReceived;
+        }
+        UpdatedAt = now;
+        return Result.Success();
     }
 }

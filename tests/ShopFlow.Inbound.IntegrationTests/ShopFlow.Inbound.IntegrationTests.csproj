@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration test harness for the Inbound module (Sprint-2-redux). Uses
+    Testcontainers Postgres + per-test tenant DB provisioning, mirroring
+    the Inventory.IntegrationTests pattern.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Inbound.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Application\ShopFlow.Inbound.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Infrastructure\ShopFlow.Inbound.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

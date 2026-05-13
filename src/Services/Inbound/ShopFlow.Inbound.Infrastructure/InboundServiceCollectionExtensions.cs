@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ShopFlow.Inbound.Application.Ports;
+using ShopFlow.Inbound.Infrastructure.Repositories;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
 
@@ -39,6 +41,9 @@ public static class InboundServiceCollectionExtensions
                 .Options;
             return new InboundDbContext(options);
         });
+
+        services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IUnitOfWork, InboundUnitOfWork>();
 
         services.AddHostedService<MultiplexedOutboxDispatcher<InboundDbContext>>();
 

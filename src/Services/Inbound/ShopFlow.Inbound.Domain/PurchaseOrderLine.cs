@@ -58,13 +58,22 @@ public sealed class PurchaseOrderLine : BaseEntity
 
     /// <summary>
     /// Apply receipt. Invoked only via <c>PurchaseOrder.RecordLineReceipt</c>.
-    /// Sprint-2-redux U3 body.
+    /// Adds <paramref name="actualQty"/> to <see cref="ReceivedQty"/> (the
+    /// running total across all receivings against this line). Overage —
+    /// running total &gt; <see cref="ExpectedQty"/> — is allowed; the
+    /// reconciliation ticket flow (U3) captures the surplus.
     /// </summary>
     internal Result RecordReceipt(int actualQty, DateTime now)
     {
-        _ = (actualQty, now);
-        throw new NotImplementedException(
-            "Sprint-2-redux U3 behavior — see docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md"
-        );
+        if (actualQty < 0)
+        {
+            return Result.Failure(
+                "actual_qty must be >= 0.",
+                "po_line.actual_qty_negative"
+            );
+        }
+        ReceivedQty = checked(ReceivedQty + actualQty);
+        UpdatedAt = now;
+        return Result.Success();
     }
 }
