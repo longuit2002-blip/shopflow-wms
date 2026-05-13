@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using ShopFlow.ControlPlane.Infrastructure;
+using ShopFlow.Inbound.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
 
 namespace ShopFlow.SharedKernel.IntegrationTests;
@@ -61,6 +62,60 @@ public sealed class MigrationSmokeTests
         await AssertIndexesExistAsync(
             connStr,
             new[] { "ux_tenants_slug", "ux_tenants_db_name" }
+        );
+    }
+
+    [Fact]
+    public async Task InboundMigration_AppliesAndLeavesNamedObjects()
+    {
+        var dbName = "smoke_inbound_" + Guid.NewGuid().ToString("N")[..8];
+        var connStr = await _postgres.CreateDatabaseAsync(dbName);
+
+        var options = new DbContextOptionsBuilder<InboundDbContext>()
+            .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.Inbound.Infrastructure"))
+            .Options;
+
+        await using (var ctx = new InboundDbContext(options))
+        {
+            await ctx.Database.MigrateAsync();
+        }
+
+        await AssertHistoryAppliedAsync(connStr);
+        await AssertTablesExistAsync(
+            connStr,
+            new[]
+            {
+                "purchase_orders",
+                "purchase_order_lines",
+                "receivings",
+                "receiving_lines",
+                "reconciliation_tickets",
+                "outbox_messages",
+            }
+        );
+        await AssertConstraintsExistAsync(
+            connStr,
+            new[]
+            {
+                "pk_purchase_orders",
+                "pk_purchase_order_lines",
+                "pk_receivings",
+                "pk_receiving_lines",
+                "pk_reconciliation_tickets",
+                "pk_outbox_messages",
+                "fk_po_lines_purchase_orders",
+                "fk_receivings_purchase_orders",
+                "fk_receiving_lines_receivings",
+            }
+        );
+        await AssertIndexesExistAsync(
+            connStr,
+            new[]
+            {
+                "ux_receiving_lines_receiving_line",
+                "ix_reconciliation_tickets_status_occurred_at",
+                "ix_purchase_orders_status",
+            }
         );
     }
 

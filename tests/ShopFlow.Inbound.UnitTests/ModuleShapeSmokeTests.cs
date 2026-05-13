@@ -1,20 +1,19 @@
-using ShopFlow.Inbound.Domain;
-using ShopFlow.Inbound.Application;
+using ShopFlow.Inbound.Infrastructure;
 
 namespace ShopFlow.Inbound.UnitTests;
 
 /// <summary>
-/// Smoke test guarding the U9 module-shape lock. As soon as the first
-/// real type lands in Phase-1+, replace these with real coverage and
-/// delete the marker classes; the test compile-time-fails the moment
-/// the marker is removed, which is the prompt to write real tests.
+/// Smoke test guarding the Inbound module shape. Asserts the composition
+/// entry point exposes its <c>ModuleName</c> constant per AGENTS.md §11.79.
+/// Real Domain + Application behavior tests live in
+/// <c>tests/ShopFlow.Inbound.UnitTests/Domain/</c> +
+/// <c>tests/ShopFlow.Inbound.IntegrationTests/</c> as they land per Sprint-2-redux U2-U9.
 /// </summary>
 public sealed class ModuleShapeSmokeTests
 {
     [Fact]
-    public void DomainAndApplication_HavePlaceholders_WithMatchingModuleName()
+    public void InboundServiceCollectionExtensions_ExposesExpectedModuleName()
     {
-        InboundModuleMarker.ModuleName.Should().Be("Inbound");
-        InboundApplicationMarker.ModuleName.Should().Be("Inbound");
+        InboundServiceCollectionExtensions.ModuleName.Should().Be("Inbound");
     }
 }
