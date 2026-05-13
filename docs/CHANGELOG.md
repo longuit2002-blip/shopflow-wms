@@ -124,3 +124,36 @@ This file records architectural decisions that change the foundational shape of 
 **Next**: Sprint-3-redux (Outbound + fulfillment saga, W5) cuts from `v0.4.1-sprint-2.5`.
 
 ---
+
+## 2026-05-13 — Phase-1 Sprint-3-redux complete
+
+**Tag**: `v0.5.0-sprint-3-redux`. Closes Phase-1's customer funnel — Inventory holds stock (Sprint-1-redux), Inbound fills it (Sprint-2-redux), Outbound drains it (Sprint-3-redux). Branch `feat/phase-1-sprint-3-redux-outbound` cut from `v0.4.1-sprint-2.5`. Sign-off: [docs/phase-gates/2026-05-13-sprint-3-redux-signoff.md](phase-gates/2026-05-13-sprint-3-redux-signoff.md).
+
+**Shipped**:
+- **Outbound module quartet**: Domain/Application/Infrastructure/Api with `Order` + `OrderLine` + `PickWave` + `PickAssignment` + `Picker` aggregates, `IOrderRepository` + `IUnitOfWork` + `IOutboundOutbox` + `IPickQueue` + `IPickWaveRepository` + `IPickerRepository` + `IMockShippingProvider` ports, idempotent `POST /api/outbound/orders` + `GET /api/outbound/orders/{id}` + 4 saga-driving endpoints (`confirm-pick` / `confirm-pack` / `confirm-ship` / `mark-pick-failed`).
+- **`FulfillmentSaga` MassTransit state machine**: 11 states (Initial → AwaitingReservation → Reserved → AwaitingPick → Picked → Packed → AwaitingShip → Shipped terminal / CompensatingReservation → Cancelled terminal); EF saga repository against `saga_state` table; **K12 per-tenant DbContext binding** via `TenantBindingSagaFilter<T>` — saga's writes always land in the right tenant DB (`SagaPerTenantBindingTests` proves zero cross-contamination across two provisioned tenants).
+- **K15 verified**: `MassTransit.EntityFrameworkCore` 8.3.4 + EF Core 9 bind cleanly; no Redis saga-repo fallback needed.
+- **Inventory schema extension**: `reservations_ledger` gains `order_line_id text NOT NULL` column; UNIQUE moves from `(order_id)` to `(order_id, order_line_id)` — supports multi-line orders atomically. Sprint-1-redux single-line callers use sentinel `'_default'` (backwards-compat).
+- **`IReservationRepository` multi-line ports**: `TryReserveLinesAsync` (atomic multi-row CTE; all-or-nothing across N lines per order) + `ReleaseLinesAsync` (partial-set release for saga compensation). Existing `TryReserveAsync` becomes a backwards-compat wrapper. `ConfirmAsync`/`ReleaseAsync` SQL rewritten to per-sku aggregation for same-sku-multi-line correctness.
+- **9 cross-module contracts**: `ShopFlow.Contracts.{Outbound,Inventory}.*` — `OrderPlacedV1`, `TrackingPushedV1`, `ReserveStockV1`, `ConfirmStockV1`, `ReleaseStockV1`, `StockReservedV1`, `StockReservationFailedV1`, `StockConfirmedV1`, `StockReleasedV1`.
+- **3 Inventory consumers** (`ReserveStockConsumer`, `ConfirmStockConsumer`, `ReleaseStockConsumer`) wrap the extended `ReservationRepository`; auto-registered via `AddConsumers(asm)` in `AddShopFlowDefaults`'s assembly scan; emit result events via `inventory_outbox_messages`.
+- **`IPickQueue` + `PickWaveGeneratorService`**: per-tenant `ConcurrentDictionary<Guid, Channel<PickRequestV1>>` with bounded capacity 1000; `PeriodicTimer(30s)` BackgroundService drains channels, batches by `(tenant_id, shipping_profile)`, emits `PickWave` rows when window ages past 15 min OR `max_wave_size=50`; round-robin picker assignment via deterministic cursor.
+- **Mocked shipping carrier**: `MockShippingProvider` with 1-3s configurable delay + Polly v8 `ResiliencePipelineBuilder` retry (3 retries × 200ms constant backoff) + 5% transient-fail injection; `ChannelTrackingConsumer` stub for `TrackingPushedV1` (moves to Channel module in Phase-2 Sprint-4).
+- **Saga compensation path**: Set-based dedup on `StockReleasedV1` via `ReleasedLineSkus` HashSet on saga state — counter `LinesAwaitingRelease` decrements only on first sight per line; protects against MassTransit at-least-once redelivery driving the counter negative. `OrderCancelledConsumer` propagates saga's terminal Cancelled state to the Order row (R3 eventual-consistency).
+- **W5 scale gate** (`Category=Load`): `MultiTenantOutboundScaleGateTests` — 2 tests, 2000 orders × 3 tenants. Operator-pipeline path (saga bypassed — documented limitation; see sign-off). Dev-laptop measurements: Shipped p99 247-332ms/tenant; Cancelled p99 112-131ms/tenant; fairness floor 0.918-0.979 (Shipped) and 0.861-0.898 (Cancelled-variant). Production CI re-validates nightly.
+- **4 per-PR integration test classes**: `SagaHappyPathTests` (full saga happy path + idempotent duplicate POST), `SagaCompensationFlowTests` (Path A empty-set + Path B pick-failure), `CrossModuleReservationFlowTests` (Outbound + Inventory on one DB — real `ReserveStockConsumer` + `ConfirmStockConsumer` against real ledger), `PickWaveBatchingFlowTests` (50 orders → 2 waves by shipping_profile, round-robin picker). 7 tests in ~3s when sharing the test collection container.
+- Tests: ~270 non-load unit + ~120 integration + 4 load = ~390 tests at sprint close.
+
+**New `docs/solutions/` entries**:
+- [docs/solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md](solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md) — caught by Sprint-1-redux's existing concurrent-oversell test when U3 first attempted the K11 pseudocode. The plan's pre-check `will_succeed` CTE was unsafe under READ COMMITTED concurrency; corrected pattern moves the predicate INSIDE the UPDATE.
+
+**Carry-forward rules**:
+- Any conditional CTE under READ COMMITTED that gates a state transition must embed the predicate inside the UPDATE WHERE clause. Pre-check CTEs (factored for readability) break the snapshot guarantee under concurrency.
+- Multi-row extensions of single-row patterns need fresh concurrency review — the single-line shape's correctness doesn't extend automatically.
+- The K13 `OutboxDispatcher.Publish`-for-commands shape is accepted for Sprint-3-redux's modular-monolith stance. Phase-2 W6 mechanical split MUST add envelope-type → endpoint routing in `OutboxDispatcher` before deploying commands across process boundaries.
+
+**Documented limitation**: U8's W5 scale gate bypasses the saga (operator-pipeline measurement only). Saga correctness validated at unit + integration scale by U4/U7/U9 tests; full-saga-throughput-under-load is a Phase-2 production-CI measurement gap.
+
+**Next**: Phase-2 Sprint-4 (Channel Connections + webhook idempotency) cuts from `v0.5.0-sprint-3-redux`. K13's envelope-type → endpoint routing in `OutboxDispatcher` is a Phase-2 prerequisite for the W6 mechanical split.
+
+---

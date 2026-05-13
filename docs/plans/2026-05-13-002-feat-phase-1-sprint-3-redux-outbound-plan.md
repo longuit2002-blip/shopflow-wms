@@ -1,10 +1,13 @@
 ---
 title: "feat: Phase-1 Sprint-3-redux — Outbound module + fulfillment saga + mocked carrier"
 type: feat
-status: pending
+status: completed
 date: 2026-05-13
+completed: 2026-05-13
 origin: docs/brainstorms/2026-05-13-sprint-3-redux-outbound-requirements.md
 depends_on: docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md
+signoff: docs/phase-gates/2026-05-13-sprint-3-redux-signoff.md
+tag: v0.5.0-sprint-3-redux
 ---
 
 # feat: Phase-1 Sprint-3-redux — Outbound module + fulfillment saga + mocked carrier

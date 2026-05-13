@@ -49,17 +49,43 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 **Multi-tenancy redesign accepted (2026-05-11)**. Phase-0 (RLS-shared) and Phase-1 Sprint-1 work-in-progress are archived at `archive/phase-1-sprint-1-rls-shared` branch and `archive/v0.1.0-phase-0-rls-shared` tag. The system pivots to **database-per-tenant on shared Postgres cluster** under [ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md).
 
-**Active branch**: `feat/phase-1-sprint-2.5-outbox-rename` (cut from `v0.4.0-sprint-2-redux`).
+**Active branch**: `feat/phase-1-sprint-3-redux-outbound` (cut from `v0.4.1-sprint-2.5`).
 
-**Sprint-2.5 is complete.** Tag: `v0.4.1-sprint-2.5`. Sign-off: [`docs/phase-gates/2026-05-13-sprint-2.5-signoff.md`](./docs/phase-gates/2026-05-13-sprint-2.5-signoff.md). Closes the Sprint-2-redux U9 deferral: per-module outbox table-name prefix (`inbound_outbox_messages` / `inventory_outbox_messages`) unblocks single-physical-tenant-DB cross-module flow. Two cross-module flow integration tests landed against shared Testcontainers Postgres. Surfaced + fixed a latent JSON-options bug in the dispatcher pipeline (camelCase serialise vs case-sensitive deserialise) via `OutboxJsonOptions.Default` in SharedKernel.
+**Sprint-3-redux is complete.** Tag: `v0.5.0-sprint-3-redux`. Sign-off: [`docs/phase-gates/2026-05-13-sprint-3-redux-signoff.md`](./docs/phase-gates/2026-05-13-sprint-3-redux-signoff.md). **Closes Phase-1's customer funnel** — Inventory holds stock (Sprint-1-redux), Inbound fills it (Sprint-2-redux), Outbound drains it (Sprint-3-redux). The Outbound module ships the full fulfillment saga (MassTransit state machine, 11 states, EF saga repository with K12 per-tenant DbContext binding), 9 cross-module contracts, 3 new Inventory consumers wrapping the extended `ReservationRepository` (`TryReserveLinesAsync` + `ReleaseLinesAsync`), `IPickQueue` per-tenant `Channel<PickRequestV1>` + `PickWaveGeneratorService`, mocked shipping carrier with Polly v8 retry, pick-failure compensation, and the W5 scale gate (operator-pipeline measurement). K11 multi-row CTE concurrency fix landed as institutional learning. K15 MT.EFCore 8.3.4 + EF Core 9 binding verified.
+
+**Sprint-3-redux progress** (as of 2026-05-13):
+- ✅ U1 — Outbound module quartet scaffold + `InitialOutboundSchema` 7-table migration + K15 MT.EFCore 8.3.4 + EF Core 9 smoke build PASS
+- ✅ U2 — `Order` + `OrderLine` aggregate + repository + `IUnitOfWork` + `IOutboundOutbox` + idempotent `POST /orders` + `GET /orders/{id}` (29 Order unit + 5 OrderRepository + 8 OrdersController integration tests)
+- ✅ U3 — Inventory schema extension (`reservations_ledger` + `order_line_id` + composite UNIQUE); `IReservationRepository` gains `TryReserveLinesAsync` (atomic multi-row CTE) + `ReleaseLinesAsync`; 9 cross-module contracts (`OrderPlacedV1`, `TrackingPushedV1`, `ReserveStockV1`, `ConfirmStockV1`, `ReleaseStockV1`, `StockReservedV1`, `StockReservationFailedV1`, `StockConfirmedV1`, `StockReleasedV1`); 3 Inventory consumers (ReserveStock / ConfirmStock / ReleaseStock). **K11 CTE concurrency defect caught + fixed** (predicate must live inside UPDATE, not in pre-check CTE — see `docs/solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md`).
+- ✅ U4 — `FulfillmentSaga` state machine (11 states) + EF saga repository on `saga_state` + **K12 per-tenant DbContext binding** via `TenantBindingSagaFilter<T>` (primary path) + `TenantAwareSagaDbContextFactory<FulfillmentSagaState>` (registered fallback); test-first cadence caught MT 8.x publish-DSL trap
+- ✅ U5 — `IPickQueue` per-tenant `Channel<PickRequestV1>` (bounded 1000) + `PickWaveGeneratorService` (PeriodicTimer 30s tick; 15-min window batching by `(tenant_id, shipping_profile)`; round-robin picker via deterministic cursor); saga `Reserved` Then-handler writes PickRequest + chains TransitionTo(AwaitingPick)
+- ✅ U6 — `confirm-pick` + `confirm-pack` (with weight-warning) + `confirm-ship` endpoints (501 stubs replaced); `IMockShippingProvider` (1-3s delay + 5% transient-fail + Polly v8 `ResiliencePipelineBuilder` retry); `ChannelTrackingConsumer` stub; AE5/AE6/AE7 covered (14 PackShipEndpointTests + 9 MockShippingProviderTests + 2 ChannelTrackingConsumerTests)
+- ✅ U7 — `mark-pick-failed` endpoint + saga `CompensatingReservation` body (Path A atomic-fail empty-set short-circuit; Path B pick-fail publish `ReleaseStockV1`); Set-based dedup on `StockReleasedV1` via `ReleasedLineSkus` HashSet; `OrderCancelledConsumer` propagates saga terminal state to Order row (7 unit + 3 integration tests)
+- ⚠️ U8 — `MultiTenantOutboundScaleGateTests` (2 tests, `Category=Load`): 2000 orders × 3 tenants. **Saga path bypassed** — operator-pipeline measurement only. Dev-laptop Shipped p99 247-332ms, Cancelled p99 112-131ms, fairness floor 0.918-0.979 (all well within R17 targets and ≥ 0.85 threshold). Real-saga-throughput-under-load is a Phase-2 production-CI measurement gap.
+- ✅ U9 — Per-PR integration tests close U8's saga-bypass gap: `SagaHappyPathTests` (2) + `SagaCompensationFlowTests` (2) + `CrossModuleReservationFlowTests` (2 — real both-modules-one-DB round-trip) + `PickWaveBatchingFlowTests` (1). 7 tests in ~3s.
+- ✅ U10 — [Sprint-3-redux sign-off](./docs/phase-gates/2026-05-13-sprint-3-redux-signoff.md); CHANGELOG entry; README + CLAUDE update; tag `v0.5.0-sprint-3-redux`
+
+**Next implementation step**: cut a fresh branch from `v0.5.0-sprint-3-redux` and start **Phase-2 Sprint-4** (Channel Connections + webhook idempotency). K13 envelope-type → endpoint routing in `OutboxDispatcher` is a Phase-2 prerequisite for the W6 mechanical split.
+
+**Sprint-3-redux deviations from plan file list**:
+- **K11 CTE concurrency correction (U3)**: plan pseudocode's `will_succeed` pre-check CTE was unsafe under READ COMMITTED — caught by Sprint-1-redux's existing concurrent-oversell test. Corrected pattern (predicate in UPDATE + `all_succeeded` NOT-EXISTS gate) shipped + documented as institutional learning. Plan K11 prose updated.
+- **U8 saga bypass**: scale gate's auto-driver writes `Order.status` directly instead of routing through the saga's OrderPlacedV1 → ReserveStockV1 → StockReservedV1 → AwaitingPick chain. Measures HTTP+DB-write throughput, not full saga throughput. Saga correctness gated by U4/U7/U9 integration tests; full-saga-under-load deferred to production CI.
+- **U8 mock-carrier delay shortened** (5-20ms vs production 1-3s) for bounded scale-gate wall-time; real-delay path covered by `MockShippingProviderTests` at unit scale.
+- **U8 warm-up phase + `NpgsqlConnection.ClearAllPools()` between tests** for repeatable runs (Postgres `max_connections=100` cap with 3 tenants).
+- **U9 PickWaveBatchingFlowTests seeds PickRequests directly** instead of driving 50 sagas (45s → 383ms on dev hardware); AE4 invariant unchanged.
+- **U1 saga_state inlined extension**: U4's per-state context columns (`tenant_id`, `shipping_profile`, `line_count`, `reserved_line_skus`, etc.) added inline to the U1 migration (not a follow-on migration). Safe because migration hadn't tagged or applied anywhere yet.
+- **MT 8.x publish DSL**: `Publish(ctx => new T(...))` works inside `Initially`; `PublishAsync(ctx.Init<T>(new {...}))` silently fails. Caught by test-first cadence in U4.
+- **K13 W6 deferral**: `OutboxDispatcher.Publish`-for-commands accepted as Sprint-3-redux trade-off (modular monolith). W6 split needs envelope-type → endpoint routing — Phase-2 prerequisite tracked.
+
+---
+
+**Sprint-2.5 history** (kept for context; tag `v0.4.1-sprint-2.5`). Sign-off: [`docs/phase-gates/2026-05-13-sprint-2.5-signoff.md`](./docs/phase-gates/2026-05-13-sprint-2.5-signoff.md). Closes the Sprint-2-redux U9 deferral: per-module outbox table-name prefix (`inbound_outbox_messages` / `inventory_outbox_messages`) unblocks single-physical-tenant-DB cross-module flow. Two cross-module flow integration tests landed against shared Testcontainers Postgres. Surfaced + fixed a latent JSON-options bug in the dispatcher pipeline (camelCase serialise vs case-sensitive deserialise) via `OutboxJsonOptions.Default` in SharedKernel.
 
 **Sprint-2.5 progress** (as of 2026-05-13):
 - ✅ U1 — Inbound `outbox_messages` → `inbound_outbox_messages` (entity config + migration + smoke test)
 - ✅ U2 — Inventory `outbox_messages` → `inventory_outbox_messages` (entity config + Phase-0-redux U8 migration edited in-place + smoke test + raw-SQL test fixtures)
 - ✅ U3 — `InboundToInventoryFlowTests` (2 tests) lands against single shared tenant DB; `ShopFlow.SharedKernel.Infrastructure.OutboxJsonOptions.Default` centralises JSON options across 4 call sites (OutboxInterceptor, MultiplexedOutboxDispatcher, InboundOutbox, ReservationRepository)
 - ✅ U4 — [Sprint-2.5 sign-off](./docs/phase-gates/2026-05-13-sprint-2.5-signoff.md); CHANGELOG + tag `v0.4.1-sprint-2.5`
-
-**Next implementation step**: cut a fresh branch from `v0.4.1-sprint-2.5` and start **Sprint-3-redux** (W5 Outbound + fulfillment saga). Plan still to be written.
 
 ---
 
