@@ -7,6 +7,7 @@ using ShopFlow.Outbound.Application.Sagas;
 using ShopFlow.Outbound.Infrastructure.Outbox;
 using ShopFlow.Outbound.Infrastructure.Repositories;
 using ShopFlow.Outbound.Infrastructure.Sagas;
+using ShopFlow.Outbound.Infrastructure.Workers;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
 
@@ -52,6 +53,15 @@ public static class OutboundServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, OutboundUnitOfWork>();
         services.AddScoped<IOutboundOutbox, OutboundOutbox>();
 
+        // U5 — pick wave generator dependencies. PickQueue is Singleton
+        // so the per-tenant Channel registry survives across consume
+        // scopes (saga writers + generator reader share the same
+        // channels). PickWaveRepository + PickerRepository are Scoped
+        // because they read/write through the per-tenant OutboundDbContext.
+        services.AddSingleton<IPickQueue, PickQueue.PickQueue>();
+        services.AddScoped<IPickWaveRepository, PickWaveRepository>();
+        services.AddScoped<IPickerRepository, PickerRepository>();
+
         // U4 — FulfillmentSaga state machine + MT EF saga repository
         // against saga_state. The saga itself is registered here so the
         // bus-level AddMassTransit() in AddShopFlowDefaults can resolve
@@ -93,6 +103,11 @@ public static class OutboundServiceCollectionExtensions
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
 
         services.AddHostedService<MultiplexedOutboxDispatcher<OutboundDbContext>>();
+
+        // U5 — pick wave generator hosted service. Single-instance per
+        // Phase-1 modular monolith host; Phase-2 multi-instance leader
+        // election is tracked in the plan's risk row.
+        services.AddHostedService<PickWaveGeneratorService>();
 
         return services;
     }

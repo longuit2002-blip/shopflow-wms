@@ -7,8 +7,9 @@ namespace ShopFlow.Outbound.Domain;
 /// tenant via raw SQL. Phase-3+ adds workload tracking columns.
 /// </summary>
 /// <remarks>
-/// U1 ships the type shape. Not a domain aggregate — no behavior, just
-/// reference data the assignment service reads.
+/// Not a domain aggregate — pure reference data the assignment service
+/// reads. The factory exists so test code and seed scripts construct
+/// pickers without reflection over the private ctor.
 /// </remarks>
 public sealed class Picker
 {
@@ -17,4 +18,24 @@ public sealed class Picker
     public string DisplayName { get; private set; } = string.Empty;
 
     private Picker() { }
+
+    /// <summary>
+    /// Build a picker reference-data row.
+    /// </summary>
+    public static Picker Create(string pickerId, string displayName)
+    {
+        if (string.IsNullOrWhiteSpace(pickerId))
+        {
+            throw new ArgumentException("picker_id is required.", nameof(pickerId));
+        }
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            throw new ArgumentException("display_name is required.", nameof(displayName));
+        }
+        return new Picker
+        {
+            PickerId = pickerId.Trim(),
+            DisplayName = displayName.Trim(),
+        };
+    }
 }

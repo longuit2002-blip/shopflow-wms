@@ -5,8 +5,10 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using ShopFlow.Contracts.Inventory;
 using ShopFlow.Contracts.Outbound;
+using ShopFlow.Outbound.Application.Ports;
 using ShopFlow.Outbound.Application.Sagas;
 using ShopFlow.Outbound.Application.Sagas.Events;
+using PickQueueImpl = ShopFlow.Outbound.Infrastructure.PickQueue.PickQueue;
 
 namespace ShopFlow.Outbound.UnitTests.Sagas;
 
@@ -46,6 +48,13 @@ public sealed class FulfillmentSagaTests
     {
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
+
+        // U5 — IPickQueue Singleton: the StockReserved Then handler
+        // resolves IPickQueue via GetPayload<IServiceProvider>() and
+        // writes a PickRequestV1 envelope on the way to AwaitingPick.
+        // The unit tests don't read the channel, but the resolution
+        // must succeed so the saga commit completes.
+        services.AddSingleton<IPickQueue, PickQueueImpl>();
 
         services.AddMassTransitTestHarness(cfg =>
         {
@@ -106,12 +115,18 @@ public sealed class FulfillmentSagaTests
     }
 
     [Fact]
-    public async Task StockReservedV1_FromAwaitingReservation_TransitionsToReserved()
+    public async Task StockReservedV1_FromAwaitingReservation_TransitionsThroughReservedToAwaitingPick()
     {
+        // U5 — the StockReserved Then handler writes a PickRequestV1 to
+        // IPickQueue and chains TransitionTo(AwaitingPick), so the saga
+        // flows AwaitingReservation → Reserved → AwaitingPick on the
+        // same envelope. The final state is AwaitingPick; Reserved is
+        // transient.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
         var sagaHarness =
             sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var queue = sp.GetRequiredService<IPickQueue>();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -134,13 +149,28 @@ public sealed class FulfillmentSagaTests
         );
         await harness.Bus.Publish(reserved);
 
-        var inReserved = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Reserved);
-        inReserved.Should().NotBeNull("the saga should transition to Reserved on StockReservedV1");
+        var inAwaitingPick = await sagaHarness.Exists(
+            orderId,
+            sagaHarness.StateMachine.AwaitingPick
+        );
+        inAwaitingPick
+            .Should()
+            .NotBeNull(
+                "U5 chains StockReserved → Reserved → AwaitingPick in the same Then handler"
+            );
 
         // The saga state captures the reserved line ids for U7 compensation.
         var sagaInstance = sagaHarness.Created.Contains(orderId)!;
         sagaInstance.ReservedLineSkus.Should().Contain("L1");
         sagaInstance.ReservedLineSkus.Should().Contain("L2");
+
+        // U5 — the PickRequestV1 envelope landed on the tenant's queue.
+        var reader = queue.GetReader(tenantId);
+        reader.TryRead(out var item).Should().BeTrue("the saga must write a PickRequestV1 to the queue");
+        item!.OrderId.Should().Be(orderId);
+        item.TenantId.Should().Be(tenantId);
+        item.ShippingProfile.Should().Be("standard");
+        item.LineCount.Should().Be(2);
     }
 
     [Fact]

@@ -1,6 +1,8 @@
 using MassTransit;
+using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Contracts.Inventory;
 using ShopFlow.Contracts.Outbound;
+using ShopFlow.Outbound.Application.Ports;
 using ShopFlow.Outbound.Application.Sagas.Events;
 
 namespace ShopFlow.Outbound.Application.Sagas;
@@ -14,13 +16,14 @@ namespace ShopFlow.Outbound.Application.Sagas;
 /// (not one per line).
 /// </summary>
 /// <remarks>
-/// <para>This unit ships the saga skeleton — happy-path
+/// <para>U4 shipped the saga skeleton — happy-path
 /// <c>OrderPlacedV1 → AwaitingReservation → Reserved</c> and the
-/// compensation entry on <c>StockReservationFailedV1</c>. U5 wires the
-/// <c>IPickQueue</c> write that drives <c>Reserved → AwaitingPick</c>;
-/// U6 wires controllers that publish the in-process Pick/Pack/Ship
-/// events; U7 fills in the compensation body
-/// (CompensatingReservation → Cancelled via <c>StockReleasedV1</c>
+/// compensation entry on <c>StockReservationFailedV1</c>. U5 chained
+/// the <c>Reserved → AwaitingPick</c> auto-transition with an
+/// <c>IPickQueue.GetWriter(tenantId).WriteAsync</c> back-pressuring
+/// write in the same Then handler. U6 wires controllers that publish
+/// the in-process Pick/Pack/Ship events; U7 fills in the compensation
+/// body (CompensatingReservation → Cancelled via <c>StockReleasedV1</c>
 /// arrivals with Set-based dedup).</para>
 ///
 /// <para>State-machine DSL note: each <see cref="MassTransitStateMachine{T}.Event{TMessage}"/>
@@ -95,10 +98,52 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.LinesAwaitingRelease = ctx.Message.LineOutcomes.Count;
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
-                .TransitionTo(Reserved),
-            // TODO U5: chain Reserved → AwaitingPick auto-transition with
-            // IPickQueue.GetWriter(tenantId).TryWrite(new PickRequestV1(...))
-            // in the same Then handler above. For U4 the saga parks at Reserved.
+                .TransitionTo(Reserved)
+                // U5 — Reserved → AwaitingPick auto-transition. The Then
+                // handler below writes one PickRequestV1 envelope to the
+                // tenant's in-process Channel via IPickQueue, then the
+                // chained TransitionTo(AwaitingPick) moves the state
+                // machine forward in the same saga commit. Both effects
+                // ride the message scope: the channel write is in-process
+                // (no transactional coupling to the saga's DB row, which
+                // is fine because the pick generator is at-most-once on
+                // each PickRequestV1 and the saga's state column is the
+                // authoritative pointer to AwaitingPick).
+                .ThenAsync(async ctx =>
+                {
+                    // GetPayload<IServiceProvider> resolves the MT message
+                    // scope DI — the IPickQueue is registered as Singleton
+                    // (see AddOutboundModule) so the same registry is
+                    // shared across consume scopes.
+                    var sp = ctx.GetPayload<IServiceProvider>();
+                    var queue = sp.GetRequiredService<IPickQueue>();
+
+                    var request = new PickRequestV1(
+                        OrderId: ctx.Saga.CorrelationId,
+                        TenantId: ctx.Saga.TenantId,
+                        ShippingProfile: ctx.Saga.ShippingProfile,
+                        // DateTime.UtcNow is acceptable per the plan U5
+                        // approach: the channel write is in-process, not a
+                        // persisted timestamp; the wave generator reads
+                        // EnqueuedAt to compute the sliding window's age.
+                        // Tests inject a FakeTimeProvider on the generator
+                        // side; here the saga has no TimeProvider seam
+                        // (would require taking a DI dependency on the
+                        // state machine class itself, which is global and
+                        // singleton-shaped).
+                        EnqueuedAt: DateTime.UtcNow,
+                        LineCount: ctx.Saga.LineCount
+                    );
+
+                    var writer = queue.GetWriter(ctx.Saga.TenantId);
+                    // WriteAsync back-pressures when the bounded channel
+                    // is full — correctness wins over latency per the
+                    // hard non-negotiable. The CancellationToken comes
+                    // from the message context so the saga middleware's
+                    // shutdown path bubbles cleanly.
+                    await writer.WriteAsync(request, ctx.CancellationToken).ConfigureAwait(false);
+                })
+                .TransitionTo(AwaitingPick),
             When(StockReservationFailedEvent)
                 .Then(ctx =>
                 {
@@ -114,15 +159,16 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                 .TransitionTo(CompensatingReservation)
         );
 
-        // ---- Reserved transitions (mostly U5/U7 territory) ---------------
-        // U5 will add: TransitionTo(AwaitingPick) chained off StockReserved Then.
-        // U7 will add: When(StockReservationFailedEvent) handler in Reserved
-        //   state (race: concurrent failure-on-other-line after success).
-        // For U4 the Reserved state exists but has no inbound transitions
-        // from outside (PickConfirmed during Reserved is out-of-band and
-        // ignored — MT default behavior).
+        // ---- Reserved transitions ----------------------------------------
+        // U5 chained Reserved → AwaitingPick on the StockReserved Then
+        // handler above — the state machine flows through Reserved as a
+        // transient state, never parking there. The state property is
+        // kept so MT's state column has a legal value mid-transition + so
+        // U7 can add a When(StockReservationFailedEvent) handler in
+        // Reserved state for the race case (concurrent failure-on-other-
+        // line after success) without re-introducing the state.
 
-        // ---- AwaitingPick transitions (U5/U7 territory) ------------------
+        // ---- AwaitingPick transitions (U7 fleshes out compensation) -----
         During(
             AwaitingPick,
             When(PickConfirmed)
