@@ -59,6 +59,9 @@ public static class InventoryServiceCollectionExtensions
 
         services.AddScoped<IStockItemRepository, StockItemRepository>();
         services.AddScoped<IReservationRepository, ReservationRepository>();
+        services.AddScoped<IBinRepository, BinRepository>();
+        services.AddScoped<IStockItemBinRepository, StockItemBinRepository>();
+        services.AddScoped<IInboundDedupRepository, InboundDedupRepository>();
         services.AddScoped<IUnitOfWork, InventoryUnitOfWork>();
 
         services

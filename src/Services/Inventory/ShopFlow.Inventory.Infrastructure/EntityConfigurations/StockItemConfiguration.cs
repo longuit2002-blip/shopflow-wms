@@ -50,5 +50,14 @@ internal sealed class StockItemConfiguration : IEntityTypeConfiguration<StockIte
             .IsRowVersion()
             .HasColumnType("xid")
             .HasDefaultValueSql("(txid_current())::text::xid");
+
+        builder.Property(s => s.HomeZoneId).HasColumnName("home_zone_id");
+
+        builder
+            .HasOne<Zone>()
+            .WithMany()
+            .HasForeignKey(s => s.HomeZoneId)
+            .HasConstraintName("fk_stock_items_zones")
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

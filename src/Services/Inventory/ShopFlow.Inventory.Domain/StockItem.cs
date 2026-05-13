@@ -45,6 +45,13 @@ public sealed class StockItem : BaseEntity
 
     public uint RowVersion { get; private set; }
 
+    /// <summary>
+    /// Optional FK to <see cref="Zone.ZoneId"/>. When set, the put-away
+    /// suggestion service ranks bins in this zone first. Sprint-2-redux
+    /// plan R13; settable via <see cref="SetHomeZone"/>.
+    /// </summary>
+    public long? HomeZoneId { get; private set; }
+
     private StockItem() { }
 
     public static StockItem Create(Sku sku, Quantity initialAvailable)
@@ -58,6 +65,15 @@ public sealed class StockItem : BaseEntity
             Available = initialAvailable,
             Reserved = Quantity.Zero,
         };
+    }
+
+    /// <summary>
+    /// Assign or change the SKU's home zone for put-away ranking purposes.
+    /// </summary>
+    public void SetHomeZone(long? zoneId)
+    {
+        HomeZoneId = zoneId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>

@@ -143,6 +143,10 @@ public sealed class MigrationSmokeTests
                 "reservations_ledger",
                 "stock_adjustments",
                 "outbox_messages",
+                "zones",
+                "bins",
+                "stock_item_bins",
+                "inbound_dedup",
             }
         );
         await AssertConstraintsExistAsync(
@@ -155,12 +159,44 @@ public sealed class MigrationSmokeTests
                 "pk_outbox_messages",
                 "fk_reservations_stock_items_sku",
                 "fk_stock_adjustments_stock_items_sku",
+                "pk_zones",
+                "pk_bins",
+                "fk_bins_zones",
+                "pk_stock_item_bins",
+                "fk_stock_item_bins_stock_items",
+                "fk_stock_item_bins_bins",
+                "pk_inbound_dedup",
+                "fk_stock_items_zones",
             }
         );
         await AssertIndexesExistAsync(
             connStr,
-            new[] { "ux_reservations_order_id", "ix_reservations_status_expires_at" }
+            new[]
+            {
+                "ux_reservations_order_id",
+                "ix_reservations_status_expires_at",
+                "ix_bins_zone_id",
+            }
         );
+        await AssertColumnExistsAsync(connStr, "stock_items", "home_zone_id");
+    }
+
+    private static async Task AssertColumnExistsAsync(
+        string connStr,
+        string tableName,
+        string columnName
+    )
+    {
+        await using var conn = new NpgsqlConnection(connStr);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            "SELECT COUNT(*) FROM information_schema.columns "
+            + "WHERE table_name = @t AND column_name = @c";
+        cmd.Parameters.AddWithValue("t", tableName);
+        cmd.Parameters.AddWithValue("c", columnName);
+        var count = (long)(await cmd.ExecuteScalarAsync())!;
+        count.Should().Be(1, $"expected column '{columnName}' on table '{tableName}' to exist");
     }
 
     private static async Task AssertHistoryAppliedAsync(string connStr)

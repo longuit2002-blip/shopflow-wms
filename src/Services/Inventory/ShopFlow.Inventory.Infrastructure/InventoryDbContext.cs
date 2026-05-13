@@ -60,6 +60,14 @@ public sealed class InventoryDbContext : DbContext
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    public DbSet<Zone> Zones => Set<Zone>();
+
+    public DbSet<Bin> Bins => Set<Bin>();
+
+    public DbSet<StockItemBin> StockItemBins => Set<StockItemBin>();
+
+    public DbSet<InboundDedup> InboundDedup => Set<InboundDedup>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -68,5 +76,9 @@ public sealed class InventoryDbContext : DbContext
         modelBuilder.ApplyConfiguration(new ReservationConfiguration());
         modelBuilder.ApplyConfiguration(new StockAdjustmentConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new ZoneConfiguration());
+        modelBuilder.ApplyConfiguration(new BinConfiguration());
+        modelBuilder.ApplyConfiguration(new StockItemBinConfiguration());
+        modelBuilder.ApplyConfiguration(new InboundDedupConfiguration());
     }
 }
