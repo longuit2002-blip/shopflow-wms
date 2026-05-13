@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using ShopFlow.Contracts.Outbound;
 using ShopFlow.Outbound.Api.Contracts;
 using ShopFlow.Outbound.Application.Ports;
 using ShopFlow.Outbound.Domain;
+using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Outbound.Api.Controllers;
@@ -37,30 +39,32 @@ namespace ShopFlow.Outbound.Api.Controllers;
 public sealed class OrdersController : ControllerBase
 {
     /// <summary>
-    /// Provisional wire-format event type for <c>OrderPlacedV1</c>. U3
-    /// replaces this with the canonical
-    /// <c>typeof(ShopFlow.Contracts.Outbound.OrderPlacedV1).AssemblyQualifiedName</c>.
+    /// Canonical wire-format event type for <c>OrderPlacedV1</c>. Sprint-3-redux
+    /// U3 landed the contract type; this is its assembly-qualified name
+    /// (the form the dispatcher's <c>Type.GetType</c> reads at dispatch
+    /// time).
     /// </summary>
-    // TODO(U3): swap for ShopFlow.Contracts.Outbound.OrderPlacedV1's
-    // AssemblyQualifiedName once the contract type lands.
-    internal const string OrderPlacedV1EventType =
-        "ShopFlow.Contracts.Outbound.OrderPlacedV1, ShopFlow.Contracts";
+    internal static readonly string OrderPlacedV1EventType =
+        typeof(OrderPlacedV1).AssemblyQualifiedName!;
 
     private readonly IOrderRepository _orderRepo;
     private readonly IUnitOfWork _uow;
     private readonly IOutboundOutbox _outbox;
+    private readonly IRequestContext _requestContext;
     private readonly TimeProvider _clock;
 
     public OrdersController(
         IOrderRepository orderRepo,
         IUnitOfWork uow,
         IOutboundOutbox outbox,
+        IRequestContext requestContext,
         TimeProvider clock
     )
     {
         _orderRepo = orderRepo;
         _uow = uow;
         _outbox = outbox;
+        _requestContext = requestContext;
         _clock = clock;
     }
 
@@ -103,28 +107,26 @@ public sealed class OrdersController : ControllerBase
         var order = orderResult.Value!;
         await _orderRepo.AddAsync(order, ct).ConfigureAwait(false);
 
-        // TODO(U3): swap the anonymous stub payload for the canonical
-        // ShopFlow.Contracts.Outbound.OrderPlacedV1 record once the
-        // contract type ships. The wire-format JSON is stable across
-        // the swap because OutboxJsonOptions.Default uses camelCase
-        // property naming and the field set is the same.
+        // Sprint-3-redux U3: use the canonical OrderPlacedV1 contract type.
+        // The wire-format JSON is unchanged from U2's anonymous stub —
+        // OutboxJsonOptions.Default's camelCase naming + identical field
+        // set means downstream consumers see the same bytes.
         var placedAt = _clock.GetUtcNow().UtcDateTime;
-        var placedPayload = new
-        {
-            OrderId = order.Id,
-            ChannelExternalOrderId = order.ChannelExternalOrderId,
-            ShippingProfile = order.ShippingProfile,
-            Lines = order
-                .Lines.Select(l => new
-                {
-                    OrderLineId = l.Id,
-                    Sku = l.Sku,
-                    Qty = l.Qty,
-                    ExpectedWeight = l.ExpectedWeight,
-                })
+        var placedPayload = new OrderPlacedV1(
+            OrderId: order.Id,
+            TenantId: _requestContext.TenantId,
+            ChannelExternalOrderId: order.ChannelExternalOrderId,
+            ShippingProfile: order.ShippingProfile,
+            Lines: order
+                .Lines.Select(l => new OrderPlacedLineV1(
+                    OrderLineId: l.Id.ToString(),
+                    Sku: l.Sku,
+                    Qty: l.Qty,
+                    ExpectedWeight: l.ExpectedWeight
+                ))
                 .ToArray(),
-            OccurredAt = placedAt,
-        };
+            OccurredAt: placedAt
+        );
         await _outbox
             .AppendAsync(OrderPlacedV1EventType, placedPayload, ct)
             .ConfigureAwait(false);

@@ -11,6 +11,7 @@
     <ProjectReference Include="..\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
     <ProjectReference Include="..\ShopFlow.Outbound.Infrastructure\ShopFlow.Outbound.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

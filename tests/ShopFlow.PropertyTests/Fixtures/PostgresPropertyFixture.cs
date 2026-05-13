@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Domain;
 using ShopFlow.Inventory.Infrastructure;
@@ -141,6 +142,13 @@ public sealed class PostgresPropertyFixture : IAsyncLifetime
             CancellationToken ct
         ) => RunAsync(repo => repo.TryReserveAsync(sku, orderId, quantity, ttl, ct));
 
+        public Task<TryReserveLinesResult> TryReserveLinesAsync(
+            string orderId,
+            IReadOnlyList<LineReservation> lines,
+            TimeSpan ttl,
+            CancellationToken ct
+        ) => RunAsync(repo => repo.TryReserveLinesAsync(orderId, lines, ttl, ct));
+
         public Task<Reservation?> FindByOrderIdAsync(string orderId, CancellationToken ct) =>
             RunAsync(repo => repo.FindByOrderIdAsync(orderId, ct));
 
@@ -149,6 +157,12 @@ public sealed class PostgresPropertyFixture : IAsyncLifetime
 
         public Task<Result> ReleaseAsync(string orderId, CancellationToken ct) =>
             RunAsync(repo => repo.ReleaseAsync(orderId, ct));
+
+        public Task<ReleaseLinesResult> ReleaseLinesAsync(
+            string orderId,
+            IReadOnlyList<string> orderLineIds,
+            CancellationToken ct
+        ) => RunAsync(repo => repo.ReleaseLinesAsync(orderId, orderLineIds, ct));
 
         public Task<int> ReleaseExpiredAsync(DateTime now, int batchSize, CancellationToken ct) =>
             RunAsync(repo => repo.ReleaseExpiredAsync(now, batchSize, ct));

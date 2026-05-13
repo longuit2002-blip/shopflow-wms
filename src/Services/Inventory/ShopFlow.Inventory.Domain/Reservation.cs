@@ -23,9 +23,26 @@ namespace ShopFlow.Inventory.Domain;
 /// </remarks>
 public sealed class Reservation : BaseEntity
 {
+    /// <summary>
+    /// Default line id stamped on single-line reservations from the
+    /// Sprint-1-redux <see cref="IReservationRepository"/> wrapper path so
+    /// the composite UNIQUE <c>(order_id, order_line_id)</c> (per K10/K11)
+    /// still anchors idempotency for legacy callers. Multi-line orders
+    /// (Sprint-3-redux) pass Outbound's <c>order_lines.id</c> string instead.
+    /// </summary>
+    public const string DefaultOrderLineId = "_default";
+
     public Sku Sku { get; private set; } = default!;
 
     public string OrderId { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Per-line id under <see cref="OrderId"/>, per K10/K11. Defaults to
+    /// <see cref="DefaultOrderLineId"/> for single-line Sprint-1-redux
+    /// callers; multi-line Sprint-3-redux callers pass the Outbound
+    /// <c>order_lines.id</c> stringified.
+    /// </summary>
+    public string OrderLineId { get; private set; } = DefaultOrderLineId;
 
     public Quantity Quantity { get; private set; } = Quantity.Zero;
 
@@ -49,15 +66,23 @@ public sealed class Reservation : BaseEntity
     /// <summary>
     /// Build a Pending reservation. Validation only — the conditional INSERT
     /// against the ledger (which decides whether sufficient stock exists)
-    /// lives in the repository (<c>IReservationRepository.TryReserveAsync</c>)
-    /// and is Sprint-1-redux.
+    /// lives in the repository (<c>IReservationRepository.TryReserveAsync</c>
+    /// or its multi-line variant <c>TryReserveLinesAsync</c>) and is
+    /// Sprint-1-redux / Sprint-3-redux U3.
     /// </summary>
+    /// <remarks>
+    /// <paramref name="orderLineId"/> defaults to
+    /// <see cref="DefaultOrderLineId"/> for the single-line wrapper path so
+    /// pre-Sprint-3 callers keep working without changes; Sprint-3-redux
+    /// multi-line orders pass each line's Outbound <c>order_lines.id</c>.
+    /// </remarks>
     public static Result<Reservation> Create(
         Sku sku,
         string orderId,
         Quantity quantity,
         TimeSpan ttl,
-        DateTime now
+        DateTime now,
+        string? orderLineId = null
     )
     {
         ArgumentNullException.ThrowIfNull(sku);
@@ -85,11 +110,16 @@ public sealed class Reservation : BaseEntity
             );
         }
 
+        var resolvedLineId = string.IsNullOrWhiteSpace(orderLineId)
+            ? DefaultOrderLineId
+            : orderLineId.Trim();
+
         return Result<Reservation>.Success(
             new Reservation
             {
                 Sku = sku,
                 OrderId = orderId.Trim(),
+                OrderLineId = resolvedLineId,
                 Quantity = quantity,
                 Status = ReservationStatus.Pending,
                 ExpiresAt = now + ttl,

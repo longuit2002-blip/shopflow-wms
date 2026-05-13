@@ -246,6 +246,7 @@ public sealed class OrdersControllerTests : IAsyncLifetime
             orderRepo: new OrderRepository(db),
             uow: new OutboundUnitOfWork(db),
             outbox: outbox,
+            requestContext: rc,
             clock: new FakeClock(FixedNow)
         );
         return new ControllerHarness(controller, db);

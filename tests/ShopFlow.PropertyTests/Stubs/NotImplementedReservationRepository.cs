@@ -1,3 +1,4 @@
+using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Domain;
 using ShopFlow.SharedKernel.Domain;
@@ -33,6 +34,13 @@ public sealed class NotImplementedReservationRepository : IReservationRepository
         CancellationToken ct
     ) => Live.TryReserveAsync(sku, orderId, quantity, ttl, ct);
 
+    public Task<TryReserveLinesResult> TryReserveLinesAsync(
+        string orderId,
+        IReadOnlyList<LineReservation> lines,
+        TimeSpan ttl,
+        CancellationToken ct
+    ) => Live.TryReserveLinesAsync(orderId, lines, ttl, ct);
+
     public Task<Reservation?> FindByOrderIdAsync(string orderId, CancellationToken ct) =>
         Live.FindByOrderIdAsync(orderId, ct);
 
@@ -41,6 +49,12 @@ public sealed class NotImplementedReservationRepository : IReservationRepository
 
     public Task<Result> ReleaseAsync(string orderId, CancellationToken ct) =>
         Live.ReleaseAsync(orderId, ct);
+
+    public Task<ReleaseLinesResult> ReleaseLinesAsync(
+        string orderId,
+        IReadOnlyList<string> orderLineIds,
+        CancellationToken ct
+    ) => Live.ReleaseLinesAsync(orderId, orderLineIds, ct);
 
     public Task<int> ReleaseExpiredAsync(DateTime now, int batchSize, CancellationToken ct) =>
         Live.ReleaseExpiredAsync(now, batchSize, ct);

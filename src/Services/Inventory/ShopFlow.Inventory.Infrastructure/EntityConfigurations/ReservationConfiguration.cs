@@ -6,11 +6,14 @@ namespace ShopFlow.Inventory.Infrastructure.EntityConfigurations;
 
 /// <summary>
 /// Fluent map for <c>reservations_ledger</c> per Tech Design v3.0 §4.2.
-/// The load-bearing index is <c>ux_reservations_order_id</c> —
-/// <c>UNIQUE(order_id)</c>, NOT <c>UNIQUE(tenant_id, order_id)</c>, per
-/// ADR-0003. Idempotent retries on the same <c>order_id</c> are caught at
-/// the index level; the application layer surfaces them as the existing
-/// reservation row.
+/// The load-bearing index is the composite
+/// <c>ux_reservations_order_id_line</c> —
+/// <c>UNIQUE(order_id, order_line_id)</c>, per Sprint-3-redux K10 (was
+/// <c>UNIQUE(order_id)</c> in Sprint-1-redux). Idempotent retries on the
+/// same <c>(order_id, order_line_id)</c> tuple are caught at the index
+/// level; the application layer surfaces them as the existing reservation
+/// row. Per ADR-0003 there is no <c>tenant_id</c> on the row — the
+/// database identity IS the tenant boundary.
 /// </summary>
 internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reservation>
 {
@@ -37,10 +40,18 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
             .HasMaxLength(128)
             .IsRequired();
 
+        // Sprint-3-redux K10: per-line id under order_id; defaults to
+        // '_default' for legacy single-line shape via the migration default
+        // + the Domain layer's DefaultOrderLineId constant.
         builder
-            .HasIndex(r => r.OrderId)
+            .Property(r => r.OrderLineId)
+            .HasColumnName("order_line_id")
+            .IsRequired();
+
+        builder
+            .HasIndex("OrderId", "OrderLineId")
             .IsUnique()
-            .HasDatabaseName("ux_reservations_order_id");
+            .HasDatabaseName("ux_reservations_order_id_line");
 
         builder
             .Property(r => r.Quantity)

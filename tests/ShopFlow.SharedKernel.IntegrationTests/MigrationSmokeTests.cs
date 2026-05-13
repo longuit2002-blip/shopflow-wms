@@ -238,16 +238,20 @@ public sealed class MigrationSmokeTests
                 "fk_stock_items_zones",
             }
         );
+        // Sprint-3-redux U3/K10: idempotency anchor moved from
+        // UNIQUE(order_id) to UNIQUE(order_id, order_line_id). The old
+        // index is dropped; the composite one is the load-bearing assertion.
         await AssertIndexesExistAsync(
             connStr,
             new[]
             {
-                "ux_reservations_order_id",
+                "ux_reservations_order_id_line",
                 "ix_reservations_status_expires_at",
                 "ix_bins_zone_id",
             }
         );
         await AssertColumnExistsAsync(connStr, "stock_items", "home_zone_id");
+        await AssertColumnExistsAsync(connStr, "reservations_ledger", "order_line_id");
     }
 
     private static async Task AssertColumnExistsAsync(
