@@ -38,6 +38,7 @@
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Infrastructure\ShopFlow.Inbound.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Infrastructure\ShopFlow.Outbound.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

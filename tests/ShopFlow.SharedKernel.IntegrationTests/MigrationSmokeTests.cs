@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using ShopFlow.Channel.Infrastructure;
 using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Inbound.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
@@ -252,6 +253,54 @@ public sealed class MigrationSmokeTests
         );
         await AssertColumnExistsAsync(connStr, "stock_items", "home_zone_id");
         await AssertColumnExistsAsync(connStr, "reservations_ledger", "order_line_id");
+    }
+
+    [Fact]
+    public async Task ChannelMigration_AppliesAndLeavesNamedObjects()
+    {
+        var dbName = "smoke_channel_" + Guid.NewGuid().ToString("N")[..8];
+        var connStr = await _postgres.CreateDatabaseAsync(dbName);
+
+        var options = new DbContextOptionsBuilder<ChannelDbContext>()
+            .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.Channel.Infrastructure"))
+            .Options;
+
+        await using (var ctx = new ChannelDbContext(options))
+        {
+            await ctx.Database.MigrateAsync();
+        }
+
+        await AssertHistoryAppliedAsync(connStr);
+        await AssertTablesExistAsync(
+            connStr,
+            new[]
+            {
+                "channels",
+                "webhook_events",
+                "product_mappings",
+                "channel_outbox_messages",
+            }
+        );
+        await AssertConstraintsExistAsync(
+            connStr,
+            new[]
+            {
+                "pk_channels",
+                "pk_webhook_events",
+                "pk_product_mappings",
+                "pk_channel_outbox_messages",
+                "ck_product_mappings_method",
+            }
+        );
+        await AssertIndexesExistAsync(
+            connStr,
+            new[]
+            {
+                "ux_webhook_events_channel_provider_event",
+                "ux_product_mappings_channel_external_sku",
+                "ix_channel_outbox_messages_pending",
+            }
+        );
     }
 
     private static async Task AssertColumnExistsAsync(
