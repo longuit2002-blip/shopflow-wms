@@ -121,6 +121,11 @@ public sealed class MultiplexedOutboxDispatcher<TContext> : BackgroundService
 
         var factory = tenantScope.ServiceProvider.GetRequiredService<IDbContextFactory<TContext>>();
         var publisher = tenantScope.ServiceProvider.GetRequiredService<IPublishEndpoint>();
+        // Sprint-4 U4 (K13 close): registry-driven envelope-type → endpoint
+        // routing. Unregistered types resolve to OutboxRoute.PublishDefault
+        // so existing Sprint-1/2/3 paths are unchanged.
+        var routeRegistry = tenantScope.ServiceProvider.GetRequiredService<IOutboxRouteRegistry>();
+        var sendProvider = tenantScope.ServiceProvider.GetRequiredService<ISendEndpointProvider>();
 
         await using var db = factory.CreateDbContext();
 
@@ -152,22 +157,46 @@ public sealed class MultiplexedOutboxDispatcher<TContext> : BackgroundService
                         $"Outbox row {message.Id} payload deserialised to null for type '{eventType}'."
                     );
 
-                await publisher
-                    .Publish(
-                        payload,
-                        eventType,
-                        sendCtx =>
-                        {
-                            sendCtx.Headers.Set("tenant_id", tenant.Id.ToString());
-                            sendCtx.Headers.Set("tenant_slug", tenant.Slug);
-                            if (message.TraceId is not null)
-                            {
-                                sendCtx.Headers.Set("correlation_id", message.TraceId);
-                            }
-                        },
-                        ct
-                    )
-                    .ConfigureAwait(false);
+                var route = routeRegistry.Resolve(eventType);
+
+                Action<PublishContext> stampHeaders = sendCtx =>
+                {
+                    sendCtx.Headers.Set("tenant_id", tenant.Id.ToString());
+                    sendCtx.Headers.Set("tenant_slug", tenant.Slug);
+                    if (message.TraceId is not null)
+                    {
+                        sendCtx.Headers.Set("correlation_id", message.TraceId);
+                    }
+                };
+                Action<SendContext> stampSendHeaders = sendCtx =>
+                {
+                    sendCtx.Headers.Set("tenant_id", tenant.Id.ToString());
+                    sendCtx.Headers.Set("tenant_slug", tenant.Slug);
+                    if (message.TraceId is not null)
+                    {
+                        sendCtx.Headers.Set("correlation_id", message.TraceId);
+                    }
+                };
+
+                if (route.Kind == SendKind.Send)
+                {
+                    // Point-to-point command — K13 close. Default destination
+                    // is kebab-case(typeName); explicit RoutingKey overrides.
+                    var destinationName = route.RoutingKey ?? ToKebabCase(eventType.Name);
+                    var destinationUri = new Uri($"queue:{destinationName}");
+                    var endpoint = await sendProvider
+                        .GetSendEndpoint(destinationUri)
+                        .ConfigureAwait(false);
+                    await endpoint
+                        .Send(payload, eventType, stampSendHeaders, ct)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    await publisher
+                        .Publish(payload, eventType, stampHeaders, ct)
+                        .ConfigureAwait(false);
+                }
 
                 message.ProcessedAt = DateTime.UtcNow;
             }
@@ -186,5 +215,30 @@ public sealed class MultiplexedOutboxDispatcher<TContext> : BackgroundService
         }
 
         await db.SaveChangesAsync(ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sprint-4 U4: default destination name for a Send-routed type is the
+    /// kebab-case of the CLR type name. <c>OrderImportedV1</c> →
+    /// <c>"order-imported-v1"</c>. Modules override via
+    /// <c>AddOutboxRoute&lt;T&gt;(SendKind.Send, "custom-queue")</c>.
+    /// </summary>
+    private static string ToKebabCase(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return string.Empty;
+        }
+        var sb = new System.Text.StringBuilder(name.Length + 8);
+        for (var i = 0; i < name.Length; i++)
+        {
+            var c = name[i];
+            if (i > 0 && char.IsUpper(c) && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1])))
+            {
+                sb.Append('-');
+            }
+            sb.Append(char.ToLowerInvariant(c));
+        }
+        return sb.ToString();
     }
 }

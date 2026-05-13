@@ -54,6 +54,38 @@ public static class ShopFlowDefaultsExtensions
     /// </summary>
     public const string DefaultServiceName = "shopflow-service";
 
+    /// <summary>
+    /// Sprint-4 U4 (K13 close): register a CLR-type → <see cref="OutboxRoute"/>
+    /// binding so <see cref="MultiplexedOutboxDispatcher{TContext}"/> sends
+    /// (vs publishes) the matching outbox rows. Default destination name is
+    /// kebab-case of the CLR type; pass an explicit <paramref name="destination"/>
+    /// to override. Last-write-wins across module composition order.
+    /// </summary>
+    public static IServiceCollection AddOutboxRoute<TMessage>(
+        this IServiceCollection services,
+        SendKind kind,
+        string? destination = null
+    )
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        // Ensure the registry singleton exists even if AddShopFlowDefaults
+        // hasn't run yet (test composition order tolerance).
+        services.TryAddSingleton<OutboxRouteRegistry>();
+        services.TryAddSingleton<IOutboxRouteRegistry>(sp =>
+            sp.GetRequiredService<OutboxRouteRegistry>()
+        );
+
+        // Seed the registry via DI enumeration — the registry's
+        // constructor receives every registered OutboxRouteSeed at first
+        // resolution and applies them last-write-wins.
+        services.AddSingleton(
+            new OutboxRouteSeed(typeof(TMessage), new OutboxRoute(kind, RoutingKey: destination))
+        );
+
+        return services;
+    }
+
     public static IServiceCollection AddShopFlowDefaults(
         this IServiceCollection services,
         IConfiguration configuration,
@@ -77,6 +109,14 @@ public static class ShopFlowDefaultsExtensions
         // ---- Request context (per ADR-0003 — replaces TenancyInterceptor) ----
         services.AddScoped<RequestContext>();
         services.AddScoped<IRequestContext>(sp => sp.GetRequiredService<RequestContext>());
+
+        // ---- Outbox route registry (Sprint-4 U4 / K13 close) ----
+        // Singleton — populated by per-module AddOutboxRoute<T>(...) calls at
+        // composition time, consumed by MultiplexedOutboxDispatcher per row.
+        services.TryAddSingleton<OutboxRouteRegistry>();
+        services.TryAddSingleton<IOutboxRouteRegistry>(sp =>
+            sp.GetRequiredService<OutboxRouteRegistry>()
+        );
 
         // ---- Per-request DbContext factory (open generic) -------------------
         // Resolves the connection string from IRequestContext at every Create()
