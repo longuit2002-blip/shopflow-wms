@@ -1,10 +1,12 @@
 using System.Text.Json;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using ShopFlow.Outbound.Api.Contracts;
 using ShopFlow.Outbound.Api.Controllers;
 using ShopFlow.Outbound.Application.Ports;
+using ShopFlow.Outbound.Domain;
 using ShopFlow.Outbound.Infrastructure;
 using ShopFlow.Outbound.Infrastructure.Outbox;
 using ShopFlow.Outbound.Infrastructure.Repositories;
@@ -247,9 +249,93 @@ public sealed class OrdersControllerTests : IAsyncLifetime
             uow: new OutboundUnitOfWork(db),
             outbox: outbox,
             requestContext: rc,
-            clock: new FakeClock(FixedNow)
+            clock: new FakeClock(FixedNow),
+            publishEndpoint: new NoopPublishEndpoint(),
+            shippingProvider: new UnusedMockShippingProvider()
         );
         return new ControllerHarness(controller, db);
+    }
+
+    /// <summary>
+    /// No-op IPublishEndpoint for the U2 tests (which only exercise
+    /// POST + GET — neither path publishes saga events). U6's tests
+    /// wire a real-ish endpoint for the confirm-pick / pack / ship flow.
+    /// </summary>
+    private sealed class NoopPublishEndpoint : IPublishEndpoint
+    {
+        public Task Publish<T>(T message, CancellationToken cancellationToken = default)
+            where T : class => Task.CompletedTask;
+
+        public Task Publish<T>(
+            T message,
+            IPipe<PublishContext<T>> publishPipe,
+            CancellationToken cancellationToken = default
+        )
+            where T : class => Task.CompletedTask;
+
+        public Task Publish<T>(
+            T message,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        )
+            where T : class => Task.CompletedTask;
+
+        public Task Publish(object message, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task Publish(
+            object message,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task Publish(
+            object message,
+            Type messageType,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task Publish(
+            object message,
+            Type messageType,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task Publish<T>(
+            object values,
+            CancellationToken cancellationToken = default
+        )
+            where T : class => Task.CompletedTask;
+
+        public Task Publish<T>(
+            object values,
+            IPipe<PublishContext<T>> publishPipe,
+            CancellationToken cancellationToken = default
+        )
+            where T : class => Task.CompletedTask;
+
+        public Task Publish<T>(
+            object values,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        )
+            where T : class => Task.CompletedTask;
+
+        public ConnectHandle ConnectPublishObserver(IPublishObserver observer) =>
+            throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// IMockShippingProvider that throws if called — U2 tests never
+    /// reach the ship path so any call is a test-wiring bug.
+    /// </summary>
+    private sealed class UnusedMockShippingProvider : IMockShippingProvider
+    {
+        public Task<ShippingLabel> CreateLabelAsync(Order order, CancellationToken ct) =>
+            throw new InvalidOperationException(
+                "U2 OrdersControllerTests should not call the shipping provider."
+            );
     }
 
     private static void AssertProblemWithCode(

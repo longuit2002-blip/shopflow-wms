@@ -31,6 +31,14 @@
     <PackageVersion Include="MassTransit.EntityFrameworkCore" Version="8.3.4" />
     <PackageVersion Include="MassTransit.RabbitMQ" Version="8.3.4" />
     <PackageVersion Include="MediatR" Version="12.4.1" />
+    <!--
+      Polly v8 — resilience pipeline for the mocked shipping carrier
+      (Sprint-3-redux U6, K5). The v8 ResiliencePipelineBuilder API
+      replaces the v7 Policy.Handle<T>().WaitAndRetryAsync(...) DSL.
+      Wired into IMockShippingProvider with a 3-retry constant-backoff
+      pipeline keyed on TransientShippingException.
+    -->
+    <PackageVersion Include="Polly" Version="8.4.2" />
   </ItemGroup>
 
   <ItemGroup Label="Infrastructure — EF Core + Npgsql">

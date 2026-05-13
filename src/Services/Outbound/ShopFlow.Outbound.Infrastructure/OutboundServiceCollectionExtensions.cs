@@ -2,11 +2,14 @@ using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Polly;
+using Polly.Retry;
 using ShopFlow.Outbound.Application.Ports;
 using ShopFlow.Outbound.Application.Sagas;
 using ShopFlow.Outbound.Infrastructure.Outbox;
 using ShopFlow.Outbound.Infrastructure.Repositories;
 using ShopFlow.Outbound.Infrastructure.Sagas;
+using ShopFlow.Outbound.Infrastructure.Shipping;
 using ShopFlow.Outbound.Infrastructure.Workers;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
@@ -108,6 +111,36 @@ public static class OutboundServiceCollectionExtensions
         // Phase-1 modular monolith host; Phase-2 multi-instance leader
         // election is tracked in the plan's risk row.
         services.AddHostedService<PickWaveGeneratorService>();
+
+        // U6 — IMockShippingProvider Singleton + Polly v8 ResiliencePipeline.
+        // Build the pipeline once at composition time; the pipeline itself
+        // is thread-safe so a single instance is shared across all carrier
+        // calls. Strategy: 3 retries on TransientShippingException with
+        // 200 ms constant backoff (per plan U6 Approach + K5). Polly v8's
+        // ResiliencePipelineBuilder is the canonical replacement for v7's
+        // Policy.Handle<T>().WaitAndRetryAsync(...) DSL.
+        services.AddSingleton<ResiliencePipeline>(_ =>
+            new ResiliencePipelineBuilder()
+                .AddRetry(
+                    new RetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                        Delay = TimeSpan.FromMilliseconds(200),
+                        BackoffType = DelayBackoffType.Constant,
+                        ShouldHandle = new PredicateBuilder().Handle<TransientShippingException>(),
+                    }
+                )
+                .Build()
+        );
+        services.AddSingleton<IMockShippingProvider>(sp =>
+            new MockShippingProvider(sp.GetRequiredService<ResiliencePipeline>())
+        );
+
+        // U6 — ChannelTrackingConsumer auto-registered via AddConsumers(asm)
+        // in the kernel-wide AddShopFlowDefaults MassTransit configuration
+        // (the Infrastructure assembly is one of the scanned assemblies).
+        // No explicit registration needed; Phase-2 Sprint-4 relocates the
+        // consumer to ShopFlow.Channel.Infrastructure with a real adapter.
 
         return services;
     }
