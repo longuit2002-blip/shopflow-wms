@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration test harness for the Outbound module (Sprint-3-redux U2).
+    Uses Testcontainers Postgres + per-test tenant DB provisioning,
+    mirroring the Inbound.IntegrationTests pattern.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Outbound.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Domain\ShopFlow.Outbound.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Infrastructure\ShopFlow.Outbound.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Api\ShopFlow.Outbound.Api.csproj" />
+  </ItemGroup>
+
+</Project>

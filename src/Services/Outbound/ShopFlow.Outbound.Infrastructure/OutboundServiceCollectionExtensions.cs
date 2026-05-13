@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ShopFlow.Outbound.Application.Ports;
+using ShopFlow.Outbound.Infrastructure.Outbox;
+using ShopFlow.Outbound.Infrastructure.Repositories;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
 
@@ -11,8 +14,9 @@ namespace ShopFlow.Outbound.Infrastructure;
 /// Api project's <c>Program.cs</c> calls
 /// <c>services.AddShopFlowDefaults(...)</c> first (kernel concerns) and
 /// then <c>services.AddOutboundModule(configuration)</c> from here. U1
-/// ships the scaffold + DbContext registration + outbox dispatcher
-/// hosted service; repositories + saga + handlers land in U2/U4/U5/U6.
+/// shipped the scaffold + DbContext registration + outbox dispatcher
+/// hosted service; U2 wires the Order repository + UnitOfWork +
+/// IOutboundOutbox; saga + pick queue + mock carrier land in U4/U5/U6.
 /// </summary>
 public static class OutboundServiceCollectionExtensions
 {
@@ -41,13 +45,15 @@ public static class OutboundServiceCollectionExtensions
             return new OutboundDbContext(options);
         });
 
-        // U2+ register IOrderRepository / IPickWaveRepository / IUnitOfWork /
-        // IOutboundOutbox here. U4 registers the FulfillmentSaga state machine
-        // + MassTransit EF saga repository against the saga_state table (the
-        // EntityFrameworkRepository binding lives here once the saga class
-        // exists). U5 registers the IPickQueue singleton +
-        // PickWaveGeneratorService hosted service. U6 registers the Polly
-        // pipeline + IMockShippingProvider singleton.
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IUnitOfWork, OutboundUnitOfWork>();
+        services.AddScoped<IOutboundOutbox, OutboundOutbox>();
+
+        // U4 registers the FulfillmentSaga state machine + MassTransit EF saga
+        // repository against the saga_state table (the EntityFrameworkRepository
+        // binding lives here once the saga class exists). U5 registers the
+        // IPickQueue singleton + PickWaveGeneratorService hosted service. U6
+        // registers the Polly pipeline + IMockShippingProvider singleton.
 
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);
 
