@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(perl -i -pe 's|await db\\\\.StockItems\\\\.AsNoTracking\\\\\\(\\\\\\)\\\\.FirstAsync\\\\\\(s => s\\\\.Sku\\\\.Value == Sku100\\\\\\);|await GetStockAsync\\(db, Sku100\\);|g; s|await db1\\\\.StockItems\\\\.AsNoTracking\\\\\\(\\\\\\)\\\\.FirstAsync\\\\\\(s => s\\\\.Sku\\\\.Value == Sku100\\\\\\);|await GetStockAsync\\(db1, Sku100\\);|g; s|await db0\\\\s*\\\\n\\\\s*\\\\.StockItems\\\\.AsNoTracking\\\\\\(\\\\\\)\\\\s*\\\\n\\\\s*\\\\.FirstAsync\\\\\\(s => s\\\\.Sku\\\\.Value == \"HOT-1000\"\\\\\\);|await GetStockAsync\\(db0, \"HOT-1000\"\\);|gs' tests/ShopFlow.Inventory.IntegrationTests/ReservationRepositoryTests.cs)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git commit -m 'docs\\(sprint-4\\): U10 sign-off + CHANGELOG + README + CLAUDE update *)"
     ]
   }
 }
