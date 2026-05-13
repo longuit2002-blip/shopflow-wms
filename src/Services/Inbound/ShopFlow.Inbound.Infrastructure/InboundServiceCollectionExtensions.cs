@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Inbound.Application.Ports;
 using ShopFlow.Inbound.Application.Services;
+using ShopFlow.Inbound.Infrastructure.Outbox;
 using ShopFlow.Inbound.Infrastructure.Repositories;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
@@ -46,6 +47,7 @@ public static class InboundServiceCollectionExtensions
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<IReceivingRepository, ReceivingRepository>();
         services.AddScoped<IReconciliationTicketRepository, ReconciliationTicketRepository>();
+        services.AddScoped<IInboundOutbox, InboundOutbox>();
         services.AddScoped<IUnitOfWork, InboundUnitOfWork>();
         services.AddScoped<ConfirmReceivingLineService>();
 

@@ -19,12 +19,14 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="MassTransit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
     <ProjectReference Include="..\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

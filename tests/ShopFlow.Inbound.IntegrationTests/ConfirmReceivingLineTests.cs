@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using ShopFlow.Inbound.Application.Services;
 using ShopFlow.Inbound.Domain;
 using ShopFlow.Inbound.Infrastructure;
+using ShopFlow.Inbound.Infrastructure.Outbox;
 using ShopFlow.Inbound.Infrastructure.Repositories;
 using ShopFlow.SharedKernel.Application;
-using ShopFlow.SharedKernel.Infrastructure;
 
 namespace ShopFlow.Inbound.IntegrationTests;
 
@@ -47,31 +47,21 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
         return po;
     }
 
-    private ConfirmReceivingLineService BuildService(InboundDbContext db)
+    private (ConfirmReceivingLineService Service, RequestContext Rc) BuildService(
+        InboundDbContext db
+    )
     {
         var rc = _tenant.BuildRequestContext();
-        return new ConfirmReceivingLineService(
+        var service = new ConfirmReceivingLineService(
             poRepo: new PurchaseOrderRepository(db),
             receivingRepo: new ReceivingRepository(db),
             ticketRepo: new ReconciliationTicketRepository(db),
+            outbox: new InboundOutbox(db, rc),
+            requestContext: rc,
             uow: new InboundUnitOfWork(db),
             clock: FixedClock
         );
-    }
-
-    private InboundDbContext BuildDbWithOutboxInterceptor()
-    {
-        // Mirror the production pipeline: when the kernel composition runs,
-        // the OutboxInterceptor is added via AddDbContext interceptor wiring.
-        // The U1 InboundDbContext doesn't apply interceptors via DI yet (U7
-        // wires the kernel defaults). For now, attach the interceptor by
-        // hand so the cross-module event lands in outbox_messages.
-        var rc = _tenant.BuildRequestContext();
-        var interceptor = new OutboxInterceptor(rc);
-        var optionsBuilder = new DbContextOptionsBuilder<InboundDbContext>()
-            .UseNpgsql(_tenant.ConnectionString)
-            .AddInterceptors(interceptor);
-        return new InboundDbContext(optionsBuilder.Options);
+        return (service, rc);
     }
 
     [Fact]
@@ -80,8 +70,8 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
         var po = await SeedOpenPoAsync(("SKU-A", 100), ("SKU-B", 50));
         var lineA = po.Lines.First(l => l.Sku == "SKU-A");
 
-        await using var db = BuildDbWithOutboxInterceptor();
-        var svc = BuildService(db);
+        await using var db = new InboundDbContext(_tenant.Options);
+        var (svc, _) = BuildService(db);
 
         var result = await svc.ConfirmAsync(
             purchaseOrderId: po.Id,
@@ -111,7 +101,7 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
         ticketCount.Should().Be(1);
 
         var outboxCount = await verifyDb.OutboxMessages.CountAsync(o =>
-            o.EventType.StartsWith("ShopFlow.Inbound.Domain.Events.InboundLineConfirmedDomainEvent")
+            o.EventType.StartsWith("ShopFlow.Contracts.Inbound.InboundConfirmedV1")
         );
         outboxCount.Should().Be(1);
     }
@@ -122,8 +112,8 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
         var po = await SeedOpenPoAsync(("SKU-EXACT", 25));
         var line = po.Lines.Single();
 
-        await using var db = BuildDbWithOutboxInterceptor();
-        var svc = BuildService(db);
+        await using var db = new InboundDbContext(_tenant.Options);
+        var (svc, _) = BuildService(db);
 
         var result = await svc.ConfirmAsync(
             purchaseOrderId: po.Id,
@@ -155,8 +145,8 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
         var po = await SeedOpenPoAsync(("SKU-OVER", 100));
         var line = po.Lines.Single();
 
-        await using var db = BuildDbWithOutboxInterceptor();
-        var svc = BuildService(db);
+        await using var db = new InboundDbContext(_tenant.Options);
+        var (svc, _) = BuildService(db);
 
         var result = await svc.ConfirmAsync(
             purchaseOrderId: po.Id,
@@ -206,8 +196,8 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
             await setupDb.SaveChangesAsync();
         }
 
-        await using var db = BuildDbWithOutboxInterceptor();
-        var svc = BuildService(db);
+        await using var db = new InboundDbContext(_tenant.Options);
+        var (svc, _) = BuildService(db);
 
         var result = await svc.ConfirmAsync(
             purchaseOrderId: po.Id,
@@ -227,8 +217,8 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
     [Fact]
     public async Task UnknownPo_FailsWithNotFound()
     {
-        await using var db = BuildDbWithOutboxInterceptor();
-        var svc = BuildService(db);
+        await using var db = new InboundDbContext(_tenant.Options);
+        var (svc, _) = BuildService(db);
 
         var result = await svc.ConfirmAsync(
             purchaseOrderId: Guid.NewGuid(),
@@ -251,8 +241,8 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
         var po = await SeedOpenPoAsync(("SKU-IDEMP", 50));
         var line = po.Lines.Single();
 
-        await using var db = BuildDbWithOutboxInterceptor();
-        var svc = BuildService(db);
+        await using var db = new InboundDbContext(_tenant.Options);
+        var (svc, _) = BuildService(db);
 
         var first = await svc.ConfirmAsync(
             po.Id,
@@ -267,8 +257,8 @@ public sealed class ConfirmReceivingLineTests : IAsyncLifetime
         first.IsSuccess.Should().BeTrue();
         var receivingId = first.Value!.ReceivingId;
 
-        await using var db2 = BuildDbWithOutboxInterceptor();
-        var svc2 = BuildService(db2);
+        await using var db2 = new InboundDbContext(_tenant.Options);
+        var (svc2, _) = BuildService(db2);
         var second = await svc2.ConfirmAsync(
             po.Id,
             receivingId,

@@ -1,10 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- Inbound module — Application placeholder (plan U9). -->
+  <!--
+    Inbound module — Application layer. Sprint-2-redux U6 references
+    ShopFlow.Contracts so the per-line confirmation service can emit the
+    cross-module InboundConfirmedV1 integration event directly into the
+    outbox table.
+  -->
 
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

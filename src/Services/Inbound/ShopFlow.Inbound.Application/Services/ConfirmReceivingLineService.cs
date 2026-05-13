@@ -1,5 +1,7 @@
+using ShopFlow.Contracts.Inbound;
 using ShopFlow.Inbound.Application.Ports;
 using ShopFlow.Inbound.Domain;
+using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Inbound.Application.Services;
@@ -27,6 +29,8 @@ public sealed class ConfirmReceivingLineService
     private readonly IPurchaseOrderRepository _poRepo;
     private readonly IReceivingRepository _receivingRepo;
     private readonly IReconciliationTicketRepository _ticketRepo;
+    private readonly IInboundOutbox _outbox;
+    private readonly IRequestContext _requestContext;
     private readonly IUnitOfWork _uow;
     private readonly TimeProvider _clock;
 
@@ -34,6 +38,8 @@ public sealed class ConfirmReceivingLineService
         IPurchaseOrderRepository poRepo,
         IReceivingRepository receivingRepo,
         IReconciliationTicketRepository ticketRepo,
+        IInboundOutbox outbox,
+        IRequestContext requestContext,
         IUnitOfWork uow,
         TimeProvider clock
     )
@@ -41,6 +47,8 @@ public sealed class ConfirmReceivingLineService
         _poRepo = poRepo;
         _receivingRepo = receivingRepo;
         _ticketRepo = ticketRepo;
+        _outbox = outbox;
+        _requestContext = requestContext;
         _uow = uow;
         _clock = clock;
     }
@@ -182,6 +190,24 @@ public sealed class ConfirmReceivingLineService
             await _ticketRepo.AddAsync(ticketResult.Value!, ct).ConfigureAwait(false);
             ticketCreated = true;
         }
+
+        // Write the cross-module integration event explicitly into the
+        // outbox. Lives in the same SaveChanges transaction as the
+        // business writes above; the multiplexed dispatcher publishes
+        // through MassTransit once the row commits.
+        _outbox.Enqueue(
+            new InboundConfirmedV1(
+                PurchaseOrderId: purchaseOrderId,
+                PurchaseOrderLineId: purchaseOrderLineId,
+                ReceivingId: receiving.Id,
+                Sku: poLine.Sku,
+                ActualQuantity: actualQty,
+                BinId: actualBinId,
+                TenantId: _requestContext.TenantId,
+                OccurredAt: nowUtc
+            ),
+            nowUtc
+        );
 
         await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

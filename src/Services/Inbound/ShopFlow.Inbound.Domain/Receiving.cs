@@ -1,4 +1,3 @@
-using ShopFlow.Inbound.Domain.Events;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Inbound.Domain;
@@ -107,17 +106,13 @@ public sealed class Receiving : BaseEntity
         _lines.Add(lineResult.Value!);
         UpdatedAt = DateTime.UtcNow;
 
-        RaiseDomainEvent(
-            new InboundLineConfirmedDomainEvent(
-                PurchaseOrderId: PurchaseOrderId,
-                PurchaseOrderLineId: purchaseOrderLineId,
-                ReceivingId: Id,
-                Sku: sku.Trim(),
-                ActualQuantity: actualQty,
-                BinId: actualBinId,
-                OccurredAt: OccurredAt
-            )
-        );
+        // No domain event raised here. The cross-module
+        // InboundConfirmedV1 is written explicitly to the outbox by
+        // ConfirmReceivingLineService via IInboundOutbox — the contract
+        // type lives in ShopFlow.Contracts which cannot depend on
+        // ShopFlow.SharedKernel's IDomainEvent (cycle), so the
+        // OutboxInterceptor harvesting path doesn't apply here. Same
+        // pattern as Sprint-1-redux's ReservationRepository.
 
         return lineResult;
     }
