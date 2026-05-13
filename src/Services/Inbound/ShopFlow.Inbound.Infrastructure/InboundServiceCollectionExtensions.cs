@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Inbound.Application.Ports;
+using ShopFlow.Inbound.Application.Services;
 using ShopFlow.Inbound.Infrastructure.Repositories;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Infrastructure;
@@ -43,10 +44,36 @@ public static class InboundServiceCollectionExtensions
         });
 
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IReceivingRepository, ReceivingRepository>();
+        services.AddScoped<IReconciliationTicketRepository, ReconciliationTicketRepository>();
         services.AddScoped<IUnitOfWork, InboundUnitOfWork>();
+        services.AddScoped<ConfirmReceivingLineService>();
+
+        services.TryAddSingleton<TimeProvider>(TimeProvider.System);
 
         services.AddHostedService<MultiplexedOutboxDispatcher<InboundDbContext>>();
 
         return services;
+    }
+}
+
+file static class ServiceCollectionExtensions
+{
+    /// <summary>
+    /// Mirrors the Inventory pattern: only register the instance if no
+    /// existing registration is present. The OOTB
+    /// <c>Microsoft.Extensions.DependencyInjection.Extensions.TryAddSingleton</c>
+    /// takes an implementation type, not an instance.
+    /// </summary>
+    public static void TryAddSingleton<TService>(
+        this IServiceCollection services,
+        TService instance
+    )
+        where TService : class
+    {
+        if (!services.Any(d => d.ServiceType == typeof(TService)))
+        {
+            services.AddSingleton(instance);
+        }
     }
 }

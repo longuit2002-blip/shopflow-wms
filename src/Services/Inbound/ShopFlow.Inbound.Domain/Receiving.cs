@@ -1,3 +1,4 @@
+using ShopFlow.Inbound.Domain.Events;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Inbound.Domain;
@@ -58,18 +59,66 @@ public sealed class Receiving : BaseEntity
     }
 
     /// <summary>
-    /// Confirm one line in the session. Sprint-2-redux U3 body.
+    /// Confirm one line in the session. Records the receiving-line row,
+    /// raises <see cref="InboundLineConfirmedDomainEvent"/> for the
+    /// OutboxInterceptor to harvest. The caller is responsible for
+    /// invoking <c>PurchaseOrder.RecordLineReceipt</c> separately (handler
+    /// orchestrates both aggregates in the same transaction) and for
+    /// creating a <see cref="ReconciliationTicket"/> if
+    /// <paramref name="actualQty"/> differs from the expected qty on the PO
+    /// line. <paramref name="sku"/> is carried in so the event payload is
+    /// self-contained without a navigation chase on the consumer side.
     /// </summary>
-    public Result AddConfirmedLine(
+    public Result<ReceivingLine> AddConfirmedLine(
         Guid purchaseOrderLineId,
         int actualQty,
         long suggestedBinId,
-        long actualBinId
+        long actualBinId,
+        string sku
     )
     {
-        _ = (purchaseOrderLineId, actualQty, suggestedBinId, actualBinId);
-        throw new NotImplementedException(
-            "Sprint-2-redux U3 behavior — see docs/plans/2026-05-13-001-feat-phase-1-sprint-2-redux-inbound-plan.md"
+        if (string.IsNullOrWhiteSpace(sku))
+        {
+            return Result<ReceivingLine>.Failure(
+                "sku is required.",
+                "receiving.sku_required"
+            );
+        }
+        if (_lines.Any(l => l.PurchaseOrderLineId == purchaseOrderLineId))
+        {
+            return Result<ReceivingLine>.Failure(
+                $"line {purchaseOrderLineId} already confirmed in this receiving.",
+                "receiving.line_already_confirmed"
+            );
+        }
+
+        var lineResult = ReceivingLine.Create(
+            Id,
+            purchaseOrderLineId,
+            actualQty,
+            suggestedBinId,
+            actualBinId
         );
+        if (!lineResult.IsSuccess)
+        {
+            return lineResult;
+        }
+
+        _lines.Add(lineResult.Value!);
+        UpdatedAt = DateTime.UtcNow;
+
+        RaiseDomainEvent(
+            new InboundLineConfirmedDomainEvent(
+                PurchaseOrderId: PurchaseOrderId,
+                PurchaseOrderLineId: purchaseOrderLineId,
+                ReceivingId: Id,
+                Sku: sku.Trim(),
+                ActualQuantity: actualQty,
+                BinId: actualBinId,
+                OccurredAt: OccurredAt
+            )
+        );
+
+        return lineResult;
     }
 }
