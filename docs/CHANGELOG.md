@@ -104,3 +104,23 @@ This file records architectural decisions that change the foundational shape of 
 **Next**: Sprint-2.5 (outbox table-name rename) or Sprint-3-redux (Outbound + saga) cuts from `v0.4.0-sprint-2-redux`.
 
 ---
+
+## 2026-05-13 — Phase-1 Sprint-2.5 complete
+
+**Tag**: `v0.4.1-sprint-2.5`. Closes the Sprint-2-redux U9 deferral. Branch `feat/phase-1-sprint-2.5-outbox-rename` cut from `v0.4.0-sprint-2-redux`. Sign-off: [docs/phase-gates/2026-05-13-sprint-2.5-signoff.md](phase-gates/2026-05-13-sprint-2.5-signoff.md).
+
+**Shipped**:
+- Per-module outbox table-name prefix: `inbound_outbox_messages` + `inventory_outbox_messages` (replaces shared `outbox_messages`). EF entity configs + migrations updated; Phase-0-redux U8 Inventory migration edited in-place (no production data yet).
+- 2 cross-module flow integration tests in `tests/ShopFlow.Inbound.IntegrationTests/InboundToInventoryFlowTests.cs` exercising the full Inbound → outbox → MassTransit publish → InboundConfirmedConsumer → Inventory stock pipeline against a single shared Testcontainers Postgres DB. The U9 deferred-from-Sprint-2-redux gap is now closed.
+- `ShopFlow.SharedKernel.Infrastructure.OutboxJsonOptions.Default`: single source of truth for outbox JSON serialization (CamelCase + case-insensitive deserialize). Consolidated 4 private options (OutboxInterceptor, MultiplexedOutboxDispatcher, InboundOutbox, ReservationRepository). Fix for a latent Sprint-1-redux ship that didn't surface until a real consumer round-tripped a serialized payload.
+- Tests: 110 unit (unchanged) + 54 integration (+2 cross-module flow).
+
+**Resolved learnings**: [docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md](solutions/2026-05-13-cross-module-outbox-table-name-collision.md) marked resolved with backreference to the sign-off.
+
+**Carry-forward rules**:
+- Hand-authored module migrations may be edited in-place ONLY before any production tenant has been provisioned against them. After production application, the rename / structural changes require a separate timestamped migration.
+- All outbox JSON serialize / deserialize must go through `OutboxJsonOptions.Default`. Private options on the writer side without matching options on the reader side = silent payload corruption.
+
+**Next**: Sprint-3-redux (Outbound + fulfillment saga, W5) cuts from `v0.4.1-sprint-2.5`.
+
+---

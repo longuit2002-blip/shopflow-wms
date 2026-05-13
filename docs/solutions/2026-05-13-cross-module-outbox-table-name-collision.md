@@ -1,9 +1,15 @@
 ---
 title: "Cross-module outbox-table name collision in shared tenant DB"
 date: 2026-05-13
-status: open-known-issue
-tags: [adr-0003, outbox, multi-module, sprint-2-redux, sprint-2.5-candidate]
+status: resolved-2026-05-13
+resolved-in: docs/phase-gates/2026-05-13-sprint-2.5-signoff.md
+tags: [adr-0003, outbox, multi-module, sprint-2-redux, sprint-2.5]
 ---
+
+> **Resolved Sprint-2.5 (tag `v0.4.1-sprint-2.5`)**: both modules' outbox tables renamed to `inbound_outbox_messages` / `inventory_outbox_messages`. Cross-module flow test landed (`tests/ShopFlow.Inbound.IntegrationTests/InboundToInventoryFlowTests.cs`). A second latent bug surfaced while writing the test: outbox writers serialised with camelCase but the dispatcher deserialised with default (case-sensitive) options — fixed by centralising `ShopFlow.SharedKernel.Infrastructure.OutboxJsonOptions.Default`. The historical write-up below is preserved for context.
+
+---
+
 
 # Cross-module outbox-table name collision in shared tenant DB
 

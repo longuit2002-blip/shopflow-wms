@@ -49,9 +49,21 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 **Multi-tenancy redesign accepted (2026-05-11)**. Phase-0 (RLS-shared) and Phase-1 Sprint-1 work-in-progress are archived at `archive/phase-1-sprint-1-rls-shared` branch and `archive/v0.1.0-phase-0-rls-shared` tag. The system pivots to **database-per-tenant on shared Postgres cluster** under [ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md).
 
-**Active branch**: `feat/phase-1-sprint-2-redux-inbound` (cut from `v0.3.0-sprint-1-redux`).
+**Active branch**: `feat/phase-1-sprint-2.5-outbox-rename` (cut from `v0.4.0-sprint-2-redux`).
 
-**Sprint-2-redux is complete.** Tag: `v0.4.0-sprint-2-redux`. Sign-off: [`docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md`](./docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md). The Inbound module + Inventory bin/zone schema extension + MassTransit RabbitMQ transport flip (W6 → W4) ship together; the first cross-module write flow (Inbound → Inventory via `ShopFlow.Contracts.Inbound.InboundConfirmedV1`) is wired end-to-end at the service + consumer level.
+**Sprint-2.5 is complete.** Tag: `v0.4.1-sprint-2.5`. Sign-off: [`docs/phase-gates/2026-05-13-sprint-2.5-signoff.md`](./docs/phase-gates/2026-05-13-sprint-2.5-signoff.md). Closes the Sprint-2-redux U9 deferral: per-module outbox table-name prefix (`inbound_outbox_messages` / `inventory_outbox_messages`) unblocks single-physical-tenant-DB cross-module flow. Two cross-module flow integration tests landed against shared Testcontainers Postgres. Surfaced + fixed a latent JSON-options bug in the dispatcher pipeline (camelCase serialise vs case-sensitive deserialise) via `OutboxJsonOptions.Default` in SharedKernel.
+
+**Sprint-2.5 progress** (as of 2026-05-13):
+- ✅ U1 — Inbound `outbox_messages` → `inbound_outbox_messages` (entity config + migration + smoke test)
+- ✅ U2 — Inventory `outbox_messages` → `inventory_outbox_messages` (entity config + Phase-0-redux U8 migration edited in-place + smoke test + raw-SQL test fixtures)
+- ✅ U3 — `InboundToInventoryFlowTests` (2 tests) lands against single shared tenant DB; `ShopFlow.SharedKernel.Infrastructure.OutboxJsonOptions.Default` centralises JSON options across 4 call sites (OutboxInterceptor, MultiplexedOutboxDispatcher, InboundOutbox, ReservationRepository)
+- ✅ U4 — [Sprint-2.5 sign-off](./docs/phase-gates/2026-05-13-sprint-2.5-signoff.md); CHANGELOG + tag `v0.4.1-sprint-2.5`
+
+**Next implementation step**: cut a fresh branch from `v0.4.1-sprint-2.5` and start **Sprint-3-redux** (W5 Outbound + fulfillment saga). Plan still to be written.
+
+---
+
+**Sprint-2-redux history** (kept for context; tag `v0.4.0-sprint-2-redux`). Sign-off: [`docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md`](./docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md). The Inbound module + Inventory bin/zone schema extension + MassTransit RabbitMQ transport flip (W6 → W4) ship together; the first cross-module write flow (Inbound → Inventory via `ShopFlow.Contracts.Inbound.InboundConfirmedV1`) is wired end-to-end at the service + consumer level.
 
 **Sprint-2-redux progress** (as of 2026-05-13):
 - ✅ U1 — Inbound module quartet scaffold (Domain/Application/Infrastructure/Api) + 6-table `InitialInboundSchema` migration
