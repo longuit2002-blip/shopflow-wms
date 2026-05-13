@@ -147,7 +147,7 @@ public sealed class MultiplexedOutboxDispatcher<TContext> : BackgroundService
                     );
 
                 var payload =
-                    JsonSerializer.Deserialize(message.Payload, eventType)
+                    JsonSerializer.Deserialize(message.Payload, eventType, OutboxJsonOptions.Default)
                     ?? throw new InvalidOperationException(
                         $"Outbox row {message.Id} payload deserialised to null for type '{eventType}'."
                     );

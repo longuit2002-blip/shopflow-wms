@@ -56,12 +56,6 @@ namespace ShopFlow.Inventory.Infrastructure.Repositories;
 /// </remarks>
 public sealed class ReservationRepository : IReservationRepository
 {
-    private static readonly JsonSerializerOptions OutboxJsonOptions = new()
-    {
-        WriteIndented = false,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private readonly InventoryDbContext _db;
     private readonly TimeProvider _clock;
     private readonly IRequestContext _requestContext;
@@ -582,7 +576,7 @@ public sealed class ReservationRepository : IReservationRepository
                 Id = Guid.NewGuid(),
                 TenantId = _requestContext.TenantId,
                 EventType = ev.GetType().AssemblyQualifiedName!,
-                Payload = JsonSerializer.Serialize(ev, ev.GetType(), OutboxJsonOptions),
+                Payload = JsonSerializer.Serialize(ev, ev.GetType(), OutboxJsonOptions.Default),
                 TraceId = traceId,
                 CreatedAt = occurredAt,
             }

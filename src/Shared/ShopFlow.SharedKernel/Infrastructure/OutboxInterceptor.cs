@@ -34,12 +34,6 @@ namespace ShopFlow.SharedKernel.Infrastructure;
 /// </remarks>
 public sealed class OutboxInterceptor : SaveChangesInterceptor
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
-    {
-        WriteIndented = false,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private readonly IRequestContext _requestContext;
 
     public OutboxInterceptor(IRequestContext requestContext)
@@ -98,7 +92,7 @@ public sealed class OutboxInterceptor : SaveChangesInterceptor
                         Id = Guid.NewGuid(),
                         TenantId = tenantId,
                         EventType = ev.GetType().AssemblyQualifiedName!,
-                        Payload = JsonSerializer.Serialize(ev, ev.GetType(), SerializerOptions),
+                        Payload = JsonSerializer.Serialize(ev, ev.GetType(), OutboxJsonOptions.Default),
                         TraceId = traceId,
                         CreatedAt = DateTime.UtcNow,
                     }

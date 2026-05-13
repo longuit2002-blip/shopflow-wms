@@ -15,12 +15,6 @@ namespace ShopFlow.Inbound.Infrastructure.Outbox;
 /// </summary>
 public sealed class InboundOutbox : IInboundOutbox
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        WriteIndented = false,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     private readonly InboundDbContext _db;
     private readonly IRequestContext _requestContext;
 
@@ -41,7 +35,11 @@ public sealed class InboundOutbox : IInboundOutbox
                 Id = Guid.NewGuid(),
                 TenantId = _requestContext.TenantId,
                 EventType = typeof(T).AssemblyQualifiedName!,
-                Payload = JsonSerializer.Serialize(integrationEvent, typeof(T), JsonOptions),
+                Payload = JsonSerializer.Serialize(
+                    integrationEvent,
+                    typeof(T),
+                    OutboxJsonOptions.Default
+                ),
                 TraceId = traceId,
                 CreatedAt = occurredAt,
             }
