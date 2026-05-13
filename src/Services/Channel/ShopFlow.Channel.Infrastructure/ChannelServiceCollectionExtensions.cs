@@ -58,6 +58,10 @@ public static class ChannelServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IngestWebhookService>();
 
+        // ---- Product mapping (U6) ----
+        services.AddScoped<IProductMappingRepository, ProductMappingRepository>();
+        services.AddScoped<IProductMappingService, Mapping.HybridProductMappingService>();
+
         // ---- Signature verification (U3) ----
         services.AddSingleton<ISignatureVerifier, ShopeeSignatureVerifier>();
         services.AddSingleton<ISignatureVerifierFactory, SignatureVerifierFactory>();
