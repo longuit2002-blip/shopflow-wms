@@ -12,13 +12,17 @@
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="MassTransit" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Application\ShopFlow.Inbound.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Infrastructure\ShopFlow.Inbound.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
