@@ -78,6 +78,12 @@
       changes between MEH 9.0 and 10.0 in the surfaces we use).
     -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.7" />
+    <!--
+      Microsoft.Extensions.Http — IHttpClientFactory + typed HttpClient
+      registration. Sprint-4 U5 added for ShopeeAdapter outbound HTTP.
+      10.0.x to align with Microsoft.Extensions.Hosting floor.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup Label="API stack — ASP.NET extras">
