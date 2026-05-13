@@ -206,12 +206,40 @@ public sealed class Order : BaseEntity
     }
 
     /// <summary>
-    /// Reserved → CompensatingReservation. Entry point for the saga's
-    /// compensation path (U7). The saga publishes <c>ReleaseStockV1</c>
-    /// from this state.
+    /// Reserved OR AwaitingPick → CompensatingReservation. Entry point for
+    /// the saga's compensation path (U7). The saga publishes
+    /// <c>ReleaseStockV1</c> from this state. Two callers:
     /// </summary>
+    /// <remarks>
+    /// <para><c>Reserved</c> pre-state is the legacy hook from the
+    /// <c>StockReservationFailedV1</c> race in <c>AwaitingReservation</c>
+    /// — kept for completeness even though that path now flows through
+    /// the saga only (Order stays in <c>AwaitingReservation</c> when the
+    /// atomic-CTE failure arrives; U7's saga path A short-circuits the
+    /// CompensatingReservation state and drives the Order to
+    /// <c>Cancelled</c> via the in-process <c>OrderCancelled</c> event).</para>
+    ///
+    /// <para><c>AwaitingPick</c> pre-state is the U7 pick-failure path:
+    /// <c>POST /mark-pick-failed</c> calls this method to record the
+    /// Order's compensating intent BEFORE publishing the saga's
+    /// <c>PickFailed</c> event. The Order stays in
+    /// <c>CompensatingReservation</c> until the saga's compensation
+    /// completes and the <c>OrderCancelled</c> consumer flips it to
+    /// <c>Cancelled</c> (R3 eventual-consistency boundary).</para>
+    /// </remarks>
     public Result MarkCompensatingReservation()
-        => TransitionFrom(OrderStatus.Reserved, OrderStatus.CompensatingReservation);
+    {
+        if (Status != OrderStatus.Reserved && Status != OrderStatus.AwaitingPick)
+        {
+            return Result.Failure(
+                $"cannot transition from {Status} to CompensatingReservation; required pre-state Reserved or AwaitingPick.",
+                "order.invalid_state"
+            );
+        }
+        Status = OrderStatus.CompensatingReservation;
+        UpdatedAt = DateTime.UtcNow;
+        return Result.Success();
+    }
 
     /// <summary>
     /// CompensatingReservation or AwaitingReservation → Cancelled.

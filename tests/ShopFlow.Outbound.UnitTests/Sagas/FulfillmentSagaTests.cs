@@ -174,8 +174,17 @@ public sealed class FulfillmentSagaTests
     }
 
     [Fact]
-    public async Task StockReservationFailedV1_FromAwaitingReservation_TransitionsToCompensatingReservation()
+    public async Task StockReservationFailedV1_FromAwaitingReservation_ShortCircuitsThroughCompensatingReservationToCancelled()
     {
+        // U7 Path A — atomic-CTE failure inserted 0 ledger rows, so
+        // ReservedLineSkus = "" and LinesAwaitingRelease = 0. The
+        // CompensatingReservation on-enter activity fires
+        // TransitionTo(Cancelled) immediately on the IfElse Then-branch
+        // ("release the empty set" is a no-op). The saga therefore races
+        // through CompensatingReservation in the same commit and lands at
+        // Cancelled. Pre-U7 this test asserted CompensatingReservation as
+        // the final state; U7's correct behavior is the short-circuit
+        // because the saga has nothing to wait for.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
         var sagaHarness =
@@ -202,14 +211,14 @@ public sealed class FulfillmentSagaTests
         );
         await harness.Bus.Publish(failed);
 
-        var compensating = await sagaHarness.Exists(
+        var cancelled = await sagaHarness.Exists(
             orderId,
-            sagaHarness.StateMachine.CompensatingReservation
+            sagaHarness.StateMachine.Cancelled
         );
-        compensating
+        cancelled
             .Should()
             .NotBeNull(
-                "the saga should transition to CompensatingReservation on StockReservationFailedV1"
+                "U7 Path A short-circuits CompensatingReservation → Cancelled when there is nothing to release"
             );
     }
 

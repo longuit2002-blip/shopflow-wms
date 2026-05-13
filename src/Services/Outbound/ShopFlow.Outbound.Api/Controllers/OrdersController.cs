@@ -216,16 +216,68 @@ public sealed class OrdersController : ControllerBase
         return Ok(Map(order));
     }
 
+    /// <summary>
+    /// U7 — operator reports the order cannot be picked (typically a
+    /// physical stock discrepancy discovered at the bin). Order moves
+    /// AwaitingPick → CompensatingReservation; the saga's
+    /// <see cref="PickFailed"/> handler transitions to its own
+    /// CompensatingReservation state and publishes
+    /// <c>ReleaseStockV1</c>. When all expected <c>StockReleasedV1</c>
+    /// events arrive (Set-based dedup against MT redelivery), the saga
+    /// transitions to Cancelled + publishes <c>OrderCancelled</c> for the
+    /// Outbound-side consumer to flip the Order row to <c>Cancelled</c>
+    /// (R3 eventual-consistency boundary).
+    /// </summary>
     [HttpPost("{id:guid}/mark-pick-failed")]
-    public IActionResult MarkPickFailed(Guid id)
+    public async Task<IActionResult> MarkPickFailedAsync(
+        Guid id,
+        [FromBody] MarkPickFailedRequest? request,
+        CancellationToken ct
+    )
     {
-        _ = id;
-        return Problem(
-            statusCode: 501,
-            title:
-                "POST /api/outbound/orders/{id}/mark-pick-failed ships in Sprint-3-redux U7.",
-            type: "https://shopflow.example/errors/not_implemented"
-        );
+        var order = await _orderRepo.FindByIdAsync(id, ct).ConfigureAwait(false);
+        if (order is null)
+        {
+            return ProblemFromError($"order {id} not found.", "order.not_found", 404);
+        }
+
+        // Defensive pre-state guard: the saga only handles PickFailed in
+        // its AwaitingPick state. If the Order row's status is anything
+        // other than AwaitingPick (or the already-compensating state, in
+        // which case it's a duplicate POST per the plan's "race" scenario),
+        // surface 400 invalid_state. A duplicate POST against a Compensating
+        // / Cancelled order returns 409 conflict so operators see the
+        // serialization, not a silent no-op.
+        if (order.Status == OrderStatus.CompensatingReservation
+            || order.Status == OrderStatus.Cancelled)
+        {
+            return ProblemFromError(
+                $"order {id} is already in {order.Status} state; pick-failure already recorded.",
+                "order.pick_failure_already_recorded",
+                409
+            );
+        }
+
+        var transition = order.MarkCompensatingReservation();
+        if (!transition.IsSuccess)
+        {
+            return ProblemFromResult(transition.Error!, transition.ErrorCode!);
+        }
+
+        await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        // R3 boundary: publish the in-process saga event AFTER the Order
+        // commit. The saga's AwaitingPick → CompensatingReservation
+        // transition + the ReleaseStockV1 publish live in a separate MT
+        // saga commit. The Reason string is captured on the event for
+        // diagnostic logging; not persisted on the Order row (no
+        // pick_failed_reason column in the U1 schema — Phase-2 candidate).
+        var reason = string.IsNullOrWhiteSpace(request?.Reason) ? string.Empty : request!.Reason!.Trim();
+        await _publishEndpoint
+            .Publish(new PickFailed(order.Id, reason), ct)
+            .ConfigureAwait(false);
+
+        return Ok(Map(order));
     }
 
     /// <summary>

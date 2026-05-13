@@ -57,3 +57,11 @@ public sealed record ConfirmShipResponse(
     string TrackingNumber,
     OrderResponse Order
 );
+
+/// <summary>
+/// Sprint-3-redux U7 — <c>POST /mark-pick-failed</c> body. The operator
+/// reports an optional human-readable reason; the saga uses it for
+/// diagnostic logging only (no pick_failed_reason column in the U1
+/// schema — Phase-2 candidate). Empty / whitespace reason is allowed.
+/// </summary>
+public sealed record MarkPickFailedRequest(string? Reason);

@@ -168,14 +168,19 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
         // Reserved state for the race case (concurrent failure-on-other-
         // line after success) without re-introducing the state.
 
-        // ---- AwaitingPick transitions (U7 fleshes out compensation) -----
+        // ---- AwaitingPick transitions (U7 fills in compensation) --------
         During(
             AwaitingPick,
             When(PickConfirmed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
                 .TransitionTo(Picked),
-            // PickFailed enters the compensation path; U7 fleshes out the
-            // ReleaseStockV1 publish + dedup-counter wiring below.
+            // U7 Path B — pick failure. The StockReserved handler in the
+            // AwaitingReservation block above already populated
+            // ReservedLineSkus + LinesAwaitingRelease for this saga; the
+            // WhenEnter(CompensatingReservation) activity below reads
+            // those fields to decide whether to publish ReleaseStockV1
+            // (Path B; LinesAwaitingRelease > 0) or short-circuit
+            // straight to Cancelled (Path A; LinesAwaitingRelease == 0).
             When(PickFailed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
                 .TransitionTo(CompensatingReservation)
@@ -206,17 +211,110 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                 .TransitionTo(Shipped)
         );
 
-        // ---- CompensatingReservation transitions (U7 fleshes out) -------
-        // TODO U7: On enter, publish ReleaseStockV1 with OrderLineIds set
-        // from ReservedLineSkus. On StockReleased arrival, run the Set-based
-        // dedup against ReleasedLineSkus + decrement LinesAwaitingRelease;
-        // when zero → TransitionTo(Cancelled).
+        // ---- CompensatingReservation transitions (U7) -------------------
+        // OnEnter activity (MT 8.x WhenEnter shape): fires when ANY
+        // transition lands the saga in CompensatingReservation. Two
+        // entry paths exist (both share this activity):
+        //   Path A — AwaitingReservation + StockReservationFailedV1 (atomic-
+        //   CTE failure). ReservedLineSkus = "", LinesAwaitingRelease = 0;
+        //   the IfElse branch transitions straight to Cancelled with no
+        //   release publish (release-the-empty-set is a no-op).
+        //   Path B — AwaitingPick + PickFailed (operator-reported pick
+        //   failure). ReservedLineSkus = "L1,L2,...", LinesAwaitingRelease
+        //   = count from the prior StockReserved handler. The IfElse branch
+        //   publishes ONE ReleaseStockV1 envelope carrying the parsed line
+        //   ids; the saga then waits for StockReleased arrivals to drain
+        //   the counter.
+        WhenEnter(
+            CompensatingReservation,
+            x =>
+                x.IfElse(
+                    // Condition: nothing to release ⇒ Path A.
+                    ctx => ctx.Saga.LinesAwaitingRelease <= 0,
+                    // Then-branch: Path A. No release publish; transition
+                    // directly to Cancelled. The WhenEnter(Cancelled, ...)
+                    // activity below publishes OrderCancelled to drive the
+                    // Order row update.
+                    then => then.TransitionTo(Cancelled),
+                    // Else-branch: Path B. Publish ONE ReleaseStockV1 with
+                    // the OrderLineIds parsed from ReservedLineSkus. K13's
+                    // accepted Publish-for-commands trade-off applies (saga
+                    // doesn't have direct outbox access). Inventory's
+                    // ReleaseStockConsumer applies the release + emits
+                    // ONE StockReleasedV1 carrying the actually-released
+                    // line ids; the StockReleased handler below uses that
+                    // set to drain LinesAwaitingRelease via Set-based dedup.
+                    @else =>
+                        @else.Publish(ctx => new ReleaseStockV1(
+                            OrderId: ctx.Saga.CorrelationId,
+                            TenantId: ctx.Saga.TenantId,
+                            OrderLineIds: ParseLineSkus(ctx.Saga.ReservedLineSkus)
+                        ))
+                )
+        );
+
+        During(
+            CompensatingReservation,
+            // Set-based dedup (K15 supplementary decision): on each
+            // StockReleased arrival, add every line id in the payload to
+            // ReleasedLineSkus IFF it's not already there; decrement
+            // LinesAwaitingRelease ONCE per first-sighted line id. Guards
+            // against MassTransit at-least-once redelivery driving the
+            // counter negative. Once the counter hits zero, transition to
+            // Cancelled. Subsequent StockReleased redeliveries are a no-op
+            // because every line id is already in the set + the saga is
+            // already at the Cancelled state (which has no handler for
+            // StockReleased).
+            When(StockReleased)
+                .Then(ctx =>
+                {
+                    var saga = ctx.Saga;
+                    var alreadyReleased = ParseLineSkusToSet(saga.ReleasedLineSkus);
+                    foreach (var lineId in ctx.Message.OrderLineIds)
+                    {
+                        if (alreadyReleased.Add(lineId))
+                        {
+                            // First sight of this line id for this saga;
+                            // credit the counter. Subsequent redeliveries
+                            // hit the else branch + leave the counter alone.
+                            saga.LinesAwaitingRelease--;
+                        }
+                    }
+                    saga.ReleasedLineSkus = string.Join(",", alreadyReleased);
+                    saga.UpdatedAt = DateTime.UtcNow;
+                })
+                .If(
+                    // Guard: only transition when ALL expected releases have
+                    // landed. Defensive <= 0 vs == 0 — protects against the
+                    // theoretical case where ReleasedLineSkus accumulates
+                    // MORE entries than LinesAwaitingRelease started at (a
+                    // misbehaving consumer emitting StockReleasedV1 for a
+                    // line that was never reserved would drive the counter
+                    // negative without this).
+                    ctx => ctx.Saga.LinesAwaitingRelease <= 0,
+                    branch => branch.TransitionTo(Cancelled)
+                )
+        );
+
+        // ---- Cancelled terminal state -----------------------------------
+        // OnEnter activity publishes OrderCancelled (in-process saga event;
+        // NOT a cross-module Contracts type) so the OrderCancelledConsumer
+        // in Outbound.Infrastructure can flip the Order row's Status to
+        // Cancelled. The R3 eventual-consistency boundary applies: the saga
+        // commit and the Order row update live in separate EF transactions.
+        WhenEnter(
+            Cancelled,
+            x => x.Publish(ctx => new OrderCancelled(ctx.Saga.CorrelationId))
+        );
 
         // ---- Terminal states --------------------------------------------
         // SetCompletedWhenFinalized() would auto-delete the saga state row
         // on entering a Final state. We intentionally do NOT call it here
         // for Sprint-3-redux: keeping the terminal-state row supports
         // post-mortem queries + the scale-gate's after-the-fact assertions.
+        // Both Shipped and Cancelled are "logical terminals" — no handler
+        // declared in either state for any event, so MT treats stray events
+        // as out-of-band and the saga sits put.
     }
 
     public State AwaitingReservation { get; } = null!;
@@ -238,4 +336,41 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
     public Event<PickFailed> PickFailed { get; } = null!;
     public Event<PackConfirmed> PackConfirmed { get; } = null!;
     public Event<ShipConfirmed> ShipConfirmed { get; } = null!;
+
+    /// <summary>
+    /// Parse the comma-separated <c>ReservedLineSkus</c> column into a
+    /// stable-order list for the <see cref="ReleaseStockV1.OrderLineIds"/>
+    /// payload. Empty/whitespace input yields an empty list.
+    /// </summary>
+    private static IReadOnlyList<string> ParseLineSkus(string commaSeparated)
+    {
+        if (string.IsNullOrWhiteSpace(commaSeparated))
+        {
+            return Array.Empty<string>();
+        }
+        return commaSeparated
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// Parse the comma-separated <c>ReleasedLineSkus</c> column into the
+    /// mutable set used for the U7 dedup pass. Empty/whitespace input
+    /// yields an empty set so the first <c>StockReleased</c> arrival adds
+    /// every line id cleanly.
+    /// </summary>
+    private static HashSet<string> ParseLineSkusToSet(string commaSeparated)
+    {
+        if (string.IsNullOrWhiteSpace(commaSeparated))
+        {
+            return new HashSet<string>(StringComparer.Ordinal);
+        }
+        return new HashSet<string>(
+            commaSeparated.Split(
+                ',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+            ),
+            StringComparer.Ordinal
+        );
+    }
 }
