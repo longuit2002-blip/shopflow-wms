@@ -48,6 +48,33 @@ public sealed class ShopeeAdapter : IChannelAdapter
         return _parser.Parse(channelId, body);
     }
 
+    /// <summary>
+    /// Sprint-4.5 U1 — extract Shopee's <c>data</c> field into the
+    /// marketplace-agnostic <see cref="ExternalOrderDraft"/>. Delegates
+    /// to <see cref="ShopeeWebhookParser.ParseOrderData"/>; this method's
+    /// job is event-type gating + Result wrapping.
+    /// </summary>
+    public Result<ExternalOrderDraft> ParseOrderCreated(WebhookEnvelope envelope)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+
+        if (
+            !string.Equals(
+                envelope.EventType,
+                "order.created",
+                StringComparison.OrdinalIgnoreCase
+            )
+        )
+        {
+            return Result<ExternalOrderDraft>.Failure(
+                $"shopee.order: event_type '{envelope.EventType}' is not supported by ParseOrderCreated.",
+                "shopee.order.event_type_unsupported"
+            );
+        }
+
+        return _parser.ParseOrderData(envelope.RawPayload);
+    }
+
     public Task<Result> PushStockUpdateAsync(StockUpdateRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);

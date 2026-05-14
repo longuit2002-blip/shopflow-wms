@@ -86,6 +86,165 @@ public sealed class ShopeeWebhookParser
     }
 
     /// <summary>
+    /// Sprint-4.5 U1 — extract the order-shape data from a Shopee
+    /// <c>order.created</c> webhook's raw payload. Reads field names from
+    /// the real Shopee Open Platform v2 wire format per
+    /// <c>tests/fixtures/channels/shopee/webhook-order-created.json</c>:
+    /// <c>data.ordersn</c>, <c>data.items[].item_sku</c>,
+    /// <c>data.items[].model_quantity_purchased</c>,
+    /// <c>data.package_list[0].shipping_carrier</c>.
+    /// </summary>
+    /// <remarks>
+    /// Caller (<see cref="ShopeeAdapter.ParseOrderCreated"/>) is
+    /// responsible for event-type gating. This method assumes the
+    /// payload is an <c>order.created</c> envelope and surfaces shape
+    /// failures as <see cref="Result{T}.Failure"/> with stable codes.
+    /// </remarks>
+    public Result<ExternalOrderDraft> ParseOrderData(string rawPayload)
+    {
+        if (string.IsNullOrWhiteSpace(rawPayload))
+        {
+            return Result<ExternalOrderDraft>.Failure(
+                "shopee.order: raw payload is empty.",
+                "shopee.order.payload_empty"
+            );
+        }
+
+        ShopeeWebhookPayload? envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<ShopeeWebhookPayload>(
+                rawPayload,
+                OutboxJsonOptions.Default
+            );
+        }
+        catch (JsonException ex)
+        {
+            return Result<ExternalOrderDraft>.Failure(
+                $"shopee.order: raw payload is malformed JSON: {ex.Message}",
+                "shopee.order.data_malformed"
+            );
+        }
+
+        if (envelope is null || envelope.Data.ValueKind != JsonValueKind.Object)
+        {
+            return Result<ExternalOrderDraft>.Failure(
+                "shopee.order: data object missing.",
+                "shopee.order.data_missing"
+            );
+        }
+
+        var data = envelope.Data;
+
+        if (
+            !data.TryGetProperty("ordersn", out var ordersnElement)
+            || ordersnElement.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(ordersnElement.GetString())
+        )
+        {
+            return Result<ExternalOrderDraft>.Failure(
+                "shopee.order: ordersn is required.",
+                "shopee.order.ordersn_required"
+            );
+        }
+
+        if (
+            !data.TryGetProperty("items", out var itemsElement)
+            || itemsElement.ValueKind != JsonValueKind.Array
+            || itemsElement.GetArrayLength() == 0
+        )
+        {
+            return Result<ExternalOrderDraft>.Failure(
+                "shopee.order: items array is missing or empty.",
+                "shopee.order.items_empty"
+            );
+        }
+
+        var lines = new List<ExternalOrderLine>(itemsElement.GetArrayLength());
+        var lineIndex = 0;
+        foreach (var item in itemsElement.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object)
+            {
+                return Result<ExternalOrderDraft>.Failure(
+                    $"shopee.order: items[{lineIndex}] is not an object.",
+                    "shopee.order.line_malformed"
+                );
+            }
+
+            if (
+                !item.TryGetProperty("item_sku", out var skuElement)
+                || skuElement.ValueKind != JsonValueKind.String
+                || string.IsNullOrWhiteSpace(skuElement.GetString())
+            )
+            {
+                return Result<ExternalOrderDraft>.Failure(
+                    $"shopee.order: items[{lineIndex}].item_sku is required.",
+                    "shopee.order.line_sku_required"
+                );
+            }
+
+            if (
+                !item.TryGetProperty("model_quantity_purchased", out var qtyElement)
+                || qtyElement.ValueKind != JsonValueKind.Number
+                || !qtyElement.TryGetInt32(out var qty)
+                || qty <= 0
+            )
+            {
+                return Result<ExternalOrderDraft>.Failure(
+                    $"shopee.order: items[{lineIndex}].model_quantity_purchased must be a positive integer.",
+                    "shopee.order.line_quantity_invalid"
+                );
+            }
+
+            lines.Add(new ExternalOrderLine(skuElement.GetString()!.Trim(), qty));
+            lineIndex++;
+        }
+
+        var shippingProfile = ExtractShippingProfile(data);
+
+        return Result<ExternalOrderDraft>.Success(
+            new ExternalOrderDraft(
+                ChannelExternalOrderId: ordersnElement.GetString()!.Trim(),
+                ShippingProfile: shippingProfile,
+                Lines: lines
+            )
+        );
+    }
+
+    /// <summary>
+    /// Map Shopee <c>data.package_list[0].shipping_carrier</c> to the
+    /// internal <c>ShippingProfile</c> string. Sprint-4.5 ships the
+    /// carrier name verbatim; operator-side profile catalog lookup is
+    /// Sprint-6+ work. Default <c>"default"</c> when missing — keeps
+    /// the downstream <c>OrderImportedV1.ShippingProfile</c> non-null.
+    /// </summary>
+    private static string ExtractShippingProfile(JsonElement data)
+    {
+        if (
+            !data.TryGetProperty("package_list", out var packages)
+            || packages.ValueKind != JsonValueKind.Array
+            || packages.GetArrayLength() == 0
+        )
+        {
+            return "default";
+        }
+
+        var first = packages[0];
+        if (
+            first.ValueKind != JsonValueKind.Object
+            || !first.TryGetProperty("shipping_carrier", out var carrier)
+            || carrier.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(carrier.GetString())
+        )
+        {
+            return "default";
+        }
+
+        return carrier.GetString()!.Trim();
+    }
+
+    /// <summary>
     /// Shopee webhook payload shape. Forward-compatible — unknown fields
     /// in <c>data</c> are preserved as JsonElement and pass through to
     /// downstream handlers untouched.

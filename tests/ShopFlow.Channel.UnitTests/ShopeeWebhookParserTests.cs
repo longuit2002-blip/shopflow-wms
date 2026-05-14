@@ -111,6 +111,9 @@ public sealed class ChannelAdapterFactoryTests
         public ShopFlow.SharedKernel.Domain.Result<ShopFlow.Channel.Application.Webhooks.WebhookEnvelope>
             ParseWebhook(Guid channelId, ReadOnlySpan<byte> body, IReadOnlyDictionary<string, string> headers) =>
                 throw new NotSupportedException();
+        public ShopFlow.SharedKernel.Domain.Result<ShopFlow.Channel.Application.Webhooks.ExternalOrderDraft>
+            ParseOrderCreated(ShopFlow.Channel.Application.Webhooks.WebhookEnvelope envelope) =>
+                throw new NotSupportedException();
         public Task<ShopFlow.SharedKernel.Domain.Result> PushStockUpdateAsync(
             ShopFlow.Channel.Application.Adapters.StockUpdateRequest request, CancellationToken ct) =>
                 throw new NotSupportedException();
