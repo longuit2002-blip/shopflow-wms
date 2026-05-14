@@ -39,7 +39,7 @@ public sealed class WebhooksController : ControllerBase
     private readonly ITenantCatalog _tenantCatalog;
     private readonly ISignatureVerifierFactory _verifierFactory;
     private readonly IChannelAdapterFactory _adapterFactory;
-    private readonly IngestWebhookService _ingest;
+    private readonly WebhookOrchestrator _orchestrator;
     private readonly RequestContext _requestContext;
 
     public WebhooksController(
@@ -47,7 +47,7 @@ public sealed class WebhooksController : ControllerBase
         ITenantCatalog tenantCatalog,
         ISignatureVerifierFactory verifierFactory,
         IChannelAdapterFactory adapterFactory,
-        IngestWebhookService ingest,
+        WebhookOrchestrator orchestrator,
         RequestContext requestContext
     )
     {
@@ -55,7 +55,7 @@ public sealed class WebhooksController : ControllerBase
         _tenantCatalog = tenantCatalog;
         _verifierFactory = verifierFactory;
         _adapterFactory = adapterFactory;
-        _ingest = ingest;
+        _orchestrator = orchestrator;
         _requestContext = requestContext;
     }
 
@@ -149,30 +149,51 @@ public sealed class WebhooksController : ControllerBase
         }
         var envelope = envelopeResult.Value!;
 
-        // Step 6: orchestrator handles UNIQUE-23505 + first-write outbox.
-        // Sprint-4.5 U3 swaps the placeholder downstream event-type +
-        // payload for OrderImportedV1 (with event-type gating). Until U3
-        // lands the U2 swap keeps the placeholder so existing tests stay
-        // green; U3 replaces this block.
-        var ingestResult = await _ingest
-            .IngestAsync(
-                envelope,
-                downstreamEventType: "ShopFlow.Channel.Webhooks.WebhookReceivedV1",
-                downstreamPayload: envelope,
-                ct
-            )
+        // Step 6: orchestrator owns event-type gating + ParseOrderCreated +
+        // per-line mapping resolution + OrderImportedV1 assembly + the
+        // fail-whole-import path. Sprint-4.5 U3 — produces a WebhookProcessOutcome
+        // that maps cleanly onto the 200-shape responses below.
+        var processResult = await _orchestrator
+            .ProcessAsync(envelope, binding.ChannelType, binding.TenantId, ct)
             .ConfigureAwait(false);
 
-        if (!ingestResult.IsSuccess)
+        if (!processResult.IsSuccess)
         {
-            return BadRequest(new { error = ingestResult.Error, code = ingestResult.ErrorCode });
+            return BadRequest(
+                new { error = processResult.Error, code = processResult.ErrorCode }
+            );
         }
 
-        return Ok(new
+        var outcome = processResult.Value!;
+        return outcome.Status switch
         {
-            eventId = ingestResult.Value!.EventId,
-            isDuplicate = ingestResult.Value!.IsDuplicate,
-        });
+            WebhookProcessStatus.OrderImported => Ok(new
+            {
+                eventId = outcome.EventId,
+                isDuplicate = outcome.IsDuplicate,
+                status = "order_imported",
+            }),
+            WebhookProcessStatus.ImportFailed => Ok(new
+            {
+                eventId = outcome.EventId,
+                isDuplicate = outcome.IsDuplicate,
+                status = "import_failed",
+                reason = "unmapped_skus",
+                unmapped = outcome.UnmappedSkus,
+            }),
+            WebhookProcessStatus.EventSkipped => Ok(new
+            {
+                eventId = outcome.EventId,
+                isDuplicate = outcome.IsDuplicate,
+                status = "no_downstream",
+                eventType = envelope.EventType,
+            }),
+            _ => Ok(new
+            {
+                eventId = outcome.EventId,
+                isDuplicate = outcome.IsDuplicate,
+            }),
+        };
     }
 
     /// <summary>

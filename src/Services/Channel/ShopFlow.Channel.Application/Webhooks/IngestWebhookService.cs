@@ -126,4 +126,87 @@ public sealed class IngestWebhookService
             new IngestWebhookResult(outcome.EventId, outcome.IsDuplicate)
         );
     }
+
+    /// <summary>
+    /// Sprint-4.5 U3 — persist a webhook event with
+    /// <see cref="WebhookProcessingStatus.Failed"/> status and NO outbox
+    /// row. Used by the orchestrator when an inbound <c>order.created</c>
+    /// carries lines that cannot be resolved through
+    /// <c>IProductMappingService</c> — per the canonical
+    /// <c>OrderImportedV1</c> contract, unmappable lines fail the whole
+    /// import (the row is captured for operator-side replay after manual
+    /// mapping upsert, but no downstream order is emitted).
+    /// </summary>
+    /// <remarks>
+    /// <para>The UNIQUE-23505 idempotency catch on
+    /// <c>(channel_id, provider_event_id)</c> applies the same way as
+    /// <see cref="IngestAsync"/> — replays of a previously-Failed import
+    /// resolve to the same row without writing a second outbox attempt.</para>
+    /// </remarks>
+    public async Task<Result<IngestWebhookResult>> IngestFailedAsync(
+        WebhookEnvelope envelope,
+        string failureReason,
+        CancellationToken ct
+    )
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
+        ArgumentException.ThrowIfNullOrWhiteSpace(failureReason);
+
+        var providerEventIdResult = ProviderEventId.Create(envelope.ProviderEventId);
+        if (!providerEventIdResult.IsSuccess)
+        {
+            return Result<IngestWebhookResult>.Failure(
+                providerEventIdResult.Error!,
+                providerEventIdResult.ErrorCode
+            );
+        }
+
+        var eventResult = WebhookEvent.Create(
+            envelope.ChannelId,
+            providerEventIdResult.Value!,
+            envelope.RawPayload,
+            signatureVerified: true
+        );
+        if (!eventResult.IsSuccess)
+        {
+            return Result<IngestWebhookResult>.Failure(
+                eventResult.Error!,
+                eventResult.ErrorCode
+            );
+        }
+
+        var webhookEvent = eventResult.Value!;
+        var markResult = webhookEvent.MarkFailed(failureReason, DateTime.UtcNow);
+        if (!markResult.IsSuccess)
+        {
+            return Result<IngestWebhookResult>.Failure(
+                markResult.Error!,
+                markResult.ErrorCode
+            );
+        }
+
+        var insertResult = await _webhookEvents
+            .TryInsertAsync(webhookEvent, ct)
+            .ConfigureAwait(false);
+
+        if (!insertResult.IsSuccess)
+        {
+            return Result<IngestWebhookResult>.Failure(
+                insertResult.Error!,
+                insertResult.ErrorCode
+            );
+        }
+
+        var outcome = insertResult.Value!;
+        if (!outcome.IsDuplicate)
+        {
+            // Commit the Failed-status row. No outbox append — the import
+            // failed, no downstream consumer should receive the event.
+            await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
+        }
+
+        return Result<IngestWebhookResult>.Success(
+            new IngestWebhookResult(outcome.EventId, outcome.IsDuplicate)
+        );
+    }
 }

@@ -57,6 +57,10 @@ public static class ChannelServiceCollectionExtensions
         services.AddScoped<IChannelOutbox, ChannelOutbox>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IngestWebhookService>();
+        // Sprint-4.5 U3 — orchestrator owns event-type gating + mapping +
+        // OrderImportedV1 assembly. Scoped because IngestWebhookService is
+        // scoped (DbContext-bound) — orchestrator inherits the scope.
+        services.AddScoped<WebhookOrchestrator>();
 
         // ---- Product mapping (U6) ----
         services.AddScoped<IProductMappingRepository, ProductMappingRepository>();

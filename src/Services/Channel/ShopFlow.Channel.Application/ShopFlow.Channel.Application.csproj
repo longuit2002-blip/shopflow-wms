@@ -10,6 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Channel.Domain\ShopFlow.Channel.Domain.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
     <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Application\ShopFlow.ControlPlane.Application.csproj" />
   </ItemGroup>
 
