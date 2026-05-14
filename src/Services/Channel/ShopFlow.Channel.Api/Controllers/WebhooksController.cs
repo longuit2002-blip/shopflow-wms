@@ -1,6 +1,6 @@
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ShopFlow.Channel.Application.Adapters;
 using ShopFlow.Channel.Application.Ports;
 using ShopFlow.Channel.Application.Webhooks;
 using ShopFlow.ControlPlane.Application.Ports;
@@ -38,6 +38,7 @@ public sealed class WebhooksController : ControllerBase
     private readonly IChannelDirectory _channelDirectory;
     private readonly ITenantCatalog _tenantCatalog;
     private readonly ISignatureVerifierFactory _verifierFactory;
+    private readonly IChannelAdapterFactory _adapterFactory;
     private readonly IngestWebhookService _ingest;
     private readonly RequestContext _requestContext;
 
@@ -45,6 +46,7 @@ public sealed class WebhooksController : ControllerBase
         IChannelDirectory channelDirectory,
         ITenantCatalog tenantCatalog,
         ISignatureVerifierFactory verifierFactory,
+        IChannelAdapterFactory adapterFactory,
         IngestWebhookService ingest,
         RequestContext requestContext
     )
@@ -52,6 +54,7 @@ public sealed class WebhooksController : ControllerBase
         _channelDirectory = channelDirectory;
         _tenantCatalog = tenantCatalog;
         _verifierFactory = verifierFactory;
+        _adapterFactory = adapterFactory;
         _ingest = ingest;
         _requestContext = requestContext;
     }
@@ -123,22 +126,34 @@ public sealed class WebhooksController : ControllerBase
         }
         _requestContext.Bind(tenant, HttpContext.TraceIdentifier, userId: null);
 
-        // Step 5: stub envelope (U5 ships the Shopee adapter that produces
-        // the real envelope from bodyBytes). For U3 we pass the raw bytes
-        // through with a placeholder provider_event_id derived from the
-        // body hash — tests exercise the idempotency invariant either way.
-        var bodyText = Encoding.UTF8.GetString(bodyBytes);
-        var envelope = new WebhookEnvelope(
-            ChannelId: channelId,
-            ProviderEventId: ExtractProviderEventIdStub(bodyText, signature),
-            EventType: "webhook.raw",
-            RawPayload: bodyText,
-            OccurredAt: DateTime.UtcNow
-        );
+        // Step 5: parse via the channel-type-specific adapter (Sprint-4.5 U2 —
+        // replaces the Sprint-4 body-hash stub). Adapter returns the real
+        // marketplace-asserted provider_event_id so replays of semantically
+        // identical events (e.g., re-signed retries) collide on UNIQUE.
+        var adapter = _adapterFactory.TryResolve(binding.ChannelType);
+        if (adapter is null)
+        {
+            return StatusCode(StatusCodes.Status501NotImplemented, new
+            {
+                error = $"no adapter registered for channel type '{binding.ChannelType}'",
+            });
+        }
+
+        var headers = BuildHeaderSnapshot();
+        var envelopeResult = adapter.ParseWebhook(channelId, bodyBytes, headers);
+        if (!envelopeResult.IsSuccess)
+        {
+            return BadRequest(
+                new { error = envelopeResult.Error, code = envelopeResult.ErrorCode }
+            );
+        }
+        var envelope = envelopeResult.Value!;
 
         // Step 6: orchestrator handles UNIQUE-23505 + first-write outbox.
-        // U3 ships a placeholder downstream event type; U8 swaps in
-        // OrderImportedV1.AssemblyQualifiedName + the parsed contract.
+        // Sprint-4.5 U3 swaps the placeholder downstream event-type +
+        // payload for OrderImportedV1 (with event-type gating). Until U3
+        // lands the U2 swap keeps the placeholder so existing tests stay
+        // green; U3 replaces this block.
         var ingestResult = await _ingest
             .IngestAsync(
                 envelope,
@@ -161,18 +176,21 @@ public sealed class WebhooksController : ControllerBase
     }
 
     /// <summary>
-    /// Sprint-4 U3 stub: derive a per-webhook idempotency token from the
-    /// (body, signature) pair so the receiver's UNIQUE constraint still
-    /// catches replays even before the U5 Shopee adapter parses a real
-    /// <c>provider_event_id</c> out of the body. Sprint-4 U5 replaces this
-    /// with <c>ShopeeWebhookParser.Parse(bodyBytes).Value.ProviderEventId</c>.
+    /// Snapshot the inbound request headers as an immutable case-insensitive
+    /// dictionary for the adapter parser. Multi-valued headers collapse to
+    /// the most-recent value — Sprint-4.5 adapters do not yet read multi-
+    /// valued headers; if they grow to, the contract can widen.
     /// </summary>
-    private static string ExtractProviderEventIdStub(string body, string? signature)
+    private IReadOnlyDictionary<string, string> BuildHeaderSnapshot()
     {
-        // Combine body + signature so replays of the same signed payload
-        // collide on UNIQUE; different signatures (e.g., post-secret-rotation)
-        // count as different events.
-        var combined = $"{signature}-{body.GetHashCode(StringComparison.Ordinal):x}-{body.Length}";
-        return combined[..Math.Min(combined.Length, 64)];
+        var snapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var header in Request.Headers)
+        {
+            if (header.Value.Count > 0)
+            {
+                snapshot[header.Key] = header.Value.ToString();
+            }
+        }
+        return snapshot;
     }
 }
