@@ -1,10 +1,13 @@
 ---
 title: "feat: Phase-2 Sprint-4.5 — webhook receiver follow-up + scale-gate harness"
 type: feat
-status: active
+status: completed
 date: 2026-05-14
+completed: 2026-05-15
 origin: docs/brainstorms/2026-05-14-sprint-4.5-webhook-followup-requirements.md
 follows: docs/phase-gates/2026-05-13-sprint-4-signoff.md
+signoff: docs/phase-gates/2026-05-15-sprint-4.5-signoff.md
+tag: v0.6.1-sprint-4.5
 ---
 
 # feat: Phase-2 Sprint-4.5 — webhook receiver follow-up + scale-gate harness
