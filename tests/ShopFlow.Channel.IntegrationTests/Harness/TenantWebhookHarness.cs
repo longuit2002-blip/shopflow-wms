@@ -120,7 +120,10 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
     /// Sign + POST a Shopee-shape webhook for <paramref name="tenantIndex"/>.
     /// The signing secret defaults to that tenant's own — pass
     /// <paramref name="signWithTenantIndex"/> to sign with a different
-    /// tenant's secret (cross-tenant-signature negative test).
+    /// tenant's secret (cross-tenant-signature negative test). Pass
+    /// <paramref name="eventId"/> to force a fixed Shopee envelope
+    /// event_id (replay-idempotency tests rely on this — without it
+    /// each call generates a fresh GUID).
     /// </summary>
     public async Task<HttpResponseMessage> SendAsync(
         int tenantIndex,
@@ -129,6 +132,7 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         (string ExternalSku, int Qty)[]? items = null,
         string shippingCarrier = "GHN",
         int? signWithTenantIndex = null,
+        string? eventId = null,
         CancellationToken ct = default
     )
     {
@@ -142,7 +146,7 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         var target = _tenants[tenantIndex];
         var signerSecret = _tenants[signWithTenantIndex ?? tenantIndex].Secret;
 
-        var bodyBytes = BuildShopeeBody(ordersn, eventType, items, shippingCarrier);
+        var bodyBytes = BuildShopeeBody(ordersn, eventType, items, shippingCarrier, eventId);
         var signature = SignedWebhookSender.Sign(bodyBytes, signerSecret);
 
         using var content = new ByteArrayContent(bodyBytes);
@@ -365,10 +369,11 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         string ordersn,
         string eventType,
         (string ExternalSku, int Qty)[]? items,
-        string shippingCarrier
+        string shippingCarrier,
+        string? eventId = null
     )
     {
-        var eventId = $"evt-{Guid.NewGuid():N}";
+        eventId ??= $"evt-{Guid.NewGuid():N}";
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
         var payload = new Dictionary<string, object?>
