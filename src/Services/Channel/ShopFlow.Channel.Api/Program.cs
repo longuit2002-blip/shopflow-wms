@@ -39,3 +39,11 @@ app.UseProblemDetails();
 app.UseTenantRouting();
 app.MapControllers();
 await app.RunAsync().ConfigureAwait(false);
+
+/// <summary>
+/// Exposed as <c>public partial</c> so <c>WebApplicationFactory&lt;Program&gt;</c>
+/// (Sprint-4.5 U4 <c>TenantWebhookHarness</c>) can boot the host in-process
+/// for integration tests. Top-level program needs this shim because the
+/// generated <c>Program</c> class is internal by default.
+/// </summary>
+public partial class Program;
