@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<title>Sprint-5 Stock Sync Engine — Visual</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --panel-2: #1d2230;
+    --border: #2a3142;
+    --text: #e6e8ee;
+    --muted: #8b95ab;
+    --accent: #6ee7ff;
+    --accent-2: #ffb86b;
+    --green: #5fd07a;
+    --red: #ff7a7a;
+    --purple: #c69bff;
+    --done: #2d3a2d;
+    --done-text: #93d896;
+    --pending: #3a342d;
+    --pending-text: #ffd28a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "Inter", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    padding: 32px 24px 60px;
+  }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  h2 { font-size: 19px; margin: 36px 0 14px; color: var(--accent); letter-spacing: -0.01em; }
+  h3 { font-size: 15px; margin: 0 0 8px; color: var(--accent-2); }
+  .sub { color: var(--muted); margin-bottom: 10px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+  .grid { display: grid; gap: 14px; }
+  .grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .pill {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px;
+    border: 1px solid var(--border); color: var(--muted); margin-right: 4px;
+  }
+  .pill.done { background: var(--done); color: var(--done-text); border-color: #3f5a40; }
+  .pill.pending { background: var(--pending); color: var(--pending-text); border-color: #6a5836; }
+  .pill.purple { background: #2c2545; color: var(--purple); border-color: #4a3d72; }
+  .module {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; text-align: center; font-size: 12.5px; position: relative;
+  }
+  .module.done { border-color: #3f5a40; }
+  .module.now { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .module.future { opacity: 0.5; }
+  .module .name { font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .module .meta { color: var(--muted); font-size: 11px; }
+  .arrow { text-align: center; color: var(--muted); font-size: 18px; margin: 4px 0; }
+
+  /* Flow diagram */
+  .flow {
+    display: grid; grid-template-columns: 1fr; gap: 0;
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; position: relative;
+  }
+  .lane {
+    display: grid; grid-template-columns: 180px 1fr; gap: 14px; padding: 12px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .lane:last-child { border-bottom: none; }
+  .lane-label { color: var(--muted); font-size: 12px; padding-top: 6px; }
+  .lane-content { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .stage {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 8px 12px; font-size: 12.5px; min-width: 130px; text-align: center;
+  }
+  .stage.iso { border-color: var(--accent); }
+  .stage strong { display: block; margin-bottom: 2px; }
+  .stage .note { color: var(--muted); font-size: 10.5px; }
+  .arr { color: var(--accent); font-size: 18px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td.u { color: var(--accent); font-weight: 600; white-space: nowrap; }
+  td.dep { color: var(--muted); font-size: 12px; }
+
+  .ktd-box {
+    background: var(--panel-2); border-left: 3px solid var(--accent); border-radius: 6px;
+    padding: 12px 14px; margin-bottom: 10px;
+  }
+  .ktd-box .h { color: var(--accent); font-size: 12.5px; margin-bottom: 4px; font-weight: 600; }
+  .ktd-box .b { font-size: 13.5px; }
+  .ktd-box .why { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+  .ev-cmp {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 6px;
+  }
+  .ev-col { background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: 12.5px; }
+  .ev-col.bad { border-color: #693a3a; }
+  .ev-col.good { border-color: #3a6940; }
+  .ev-col .ev-h { font-size: 11px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .ev-col code { color: var(--accent-2); }
+  .ev-col .pro { color: var(--green); }
+  .ev-col .con { color: var(--red); }
+
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+
+  .scale-gate {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; margin-top: 12px;
+  }
+  .tenant-row { display: grid; grid-template-columns: 80px 1fr 110px; gap: 12px; align-items: center; padding: 6px 0; font-size: 12.5px; }
+  .bar { height: 14px; background: var(--bg); border-radius: 3px; overflow: hidden; position: relative; }
+  .bar > span { display: block; height: 100%; }
+  .bar.burst > span { background: linear-gradient(90deg, var(--red), var(--accent-2)); width: 100%; }
+  .bar.normal > span { background: var(--green); width: 8%; }
+  .target { color: var(--accent); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Sprint-5 — Stock Sync Engine</h1>
+<div class="sub">Visual companion for <code>2026-05-16-sprint-5-stock-sync-requirements.md</code>. Phase-2 W6-W8, đóng egress half.</div>
+
+<!-- ============ 1. PROJECT MAP ============ -->
+<h2>1. Sprint-5 đang nằm ở đâu trong project</h2>
+<div class="panel">
+  <div class="grid cols-6">
+    <div class="module done">
+      <span class="pill done">DONE</span>
+      <div class="name">Phase-0</div>
+      <div class="meta">DB-per-tenant + ControlPlane</div>
+    </div>
+    <div class="module done">
+      <span class="pill done">DONE</span>
+      <div class="name">Sprint-1</div>
+      <div class="meta">Reservation Ledger (Inventory)</div>
+    </div>
+    <div class="module done">
+      <span class="pill done">DONE</span>
+      <div class="name">Sprint-2 / 2.5</div>
+      <div class="meta">Inbound + cross-module outbox</div>
+    </div>
+    <div class="module done">
+      <span class="pill done">DONE</span>
+      <div class="name">Sprint-3</div>
+      <div class="meta">Outbound saga (Reserve→Ship)</div>
+    </div>
+    <div class="module done">
+      <span class="pill done">DONE</span>
+      <div class="name">Sprint-4 / 4.5</div>
+      <div class="meta">Channel webhook ingress</div>
+    </div>
+    <div class="module now">
+      <span class="pill pending">YOU ARE HERE</span>
+      <div class="name">Sprint-5</div>
+      <div class="meta"><strong>Stock Sync (egress)</strong></div>
+    </div>
+  </div>
+  <div class="arrow">↓ còn lại sau Sprint-5 ↓</div>
+  <div class="grid cols-2">
+    <div class="module future">
+      <span class="pill">SAU</span>
+      <div class="name">Sprint-6 — Analytics</div>
+      <div class="meta">Read-side projections, dashboards (W9-W10)</div>
+    </div>
+    <div class="module future">
+      <span class="pill">SAU</span>
+      <div class="name">Phase-3 — Polish</div>
+      <div class="meta">Gateway hardening, observability, demo, README, deployment (W11-W12)</div>
+    </div>
+  </div>
+  <div class="sub" style="margin-top:14px; font-size:12.5px;">
+    <strong>Cấu trúc Sprint-5:</strong> tạo module mới <code>ShopFlow.StockSync</code> quartet (Domain / Application / Infrastructure / Api) — đúng cadence Sprint-2/3/4. Đây là module thứ <strong>6</strong> hoàn thiện trong modular monolith.
+  </div>
+</div>
+
+<!-- ============ 2. ENGINE FLOW ============ -->
+<h2>2. Stock Sync Engine — luồng dữ liệu</h2>
+<div class="sub">Stock đổi ở Inventory ⟶ 4 cơ chế isolation ⟶ push lên Shopee. Mỗi tenant có buffer/queue/bucket/breaker <strong>riêng</strong>.</div>
+<div class="flow">
+
+  <div class="lane">
+    <div class="lane-label">SOURCE<br/>(đã có sẵn)</div>
+    <div class="lane-content">
+      <div class="stage"><strong>Inventory</strong><div class="note">reserve / release / confirm / adjust</div></div>
+      <div class="arr">→</div>
+      <div class="stage"><strong>StockLevelChangedV1</strong><div class="note">event mới, KTD1 (xem dưới)</div></div>
+      <div class="arr">→</div>
+      <div class="stage"><strong>RabbitMQ</strong><div class="note">MassTransit topic</div></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="lane-label">STOCKSYNC ENGINE<br/>(per tenant)</div>
+    <div class="lane-content">
+      <div class="stage iso"><strong>① Coalescing buffer</strong><div class="note">window 500ms<br/>key (T, SKU, channel)<br/>chỉ giữ giá trị mới nhất</div></div>
+      <div class="arr">→</div>
+      <div class="stage iso"><strong>② Priority queue</strong><div class="note">flash-sale SKU lên trước<br/>2 lane: high + normal</div></div>
+      <div class="arr">→</div>
+      <div class="stage iso"><strong>③ Token bucket</strong><div class="note">per (T, channel)<br/>10 RPS + burst 50</div></div>
+      <div class="arr">→</div>
+      <div class="stage iso"><strong>④ Circuit breaker</strong><div class="note">per (T, channel)<br/>Polly v8, Open/Half-Open</div></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <div class="lane-label">PUSH (Sprint-5<br/>fill body)</div>
+    <div class="lane-content">
+      <div class="stage"><strong>ShopeeAdapter</strong><div class="note">PushStockUpdateAsync</div></div>
+      <div class="arr">→</div>
+      <div class="stage"><strong>Shopee mock</strong><div class="note">tools/mocks/shopee<br/>+ chaos endpoint sẵn</div></div>
+      <div class="arr">→</div>
+      <div class="stage"><strong>push_log table</strong><div class="note">audit row mỗi push<br/>(thành công + thất bại)</div></div>
+    </div>
+  </div>
+
+</div>
+<div class="legend">
+  <span><span class="dot" style="background:var(--accent)"></span>Cơ chế isolation mới ship trong Sprint-5</span>
+  <span><span class="dot" style="background:var(--panel-2);border:1px solid var(--border)"></span>Đã có sẵn từ sprint trước</span>
+</div>
+
+<!-- ============ 3. KEY DECISION KTD1 ============ -->
+<h2>3. KTD1 — Bet kỹ thuật cần bạn xác nhận</h2>
+<div class="sub">Brainstorm R1 nói "consume 3 event Sprint-3 đã có". Đọc code thì 2 trong 3 event không có SKU → StockSync phải coupling sang Outbound. Plan đề xuất bổ sung 1 event mới sạch hơn.</div>
+
+<div class="ev-cmp">
+
+  <div class="ev-col bad">
+    <div class="ev-h">Option A — Literal brainstorm R1 (giữ nguyên)</div>
+    <div>StockSync subscribe 3 event:</div>
+    <ul>
+      <li><code>StockReservedV1</code> — có SKU ✓</li>
+      <li><code>StockReleasedV1</code> — chỉ có <code>OrderLineIds</code>, <span class="con">không có SKU</span></li>
+      <li><code>StockConfirmedV1</code> — <span class="con">không có per-line gì cả</span></li>
+    </ul>
+    <div class="con">⚠ StockSync phải gọi Outbound để map line → SKU<br/>⚠ Cross-module coupling thừa<br/>⚠ Race: line có thể đã xoá khi StockSync hỏi</div>
+  </div>
+
+  <div class="ev-col good">
+    <div class="ev-h">Option B — KTD1 đề xuất (recommended)</div>
+    <div>Thêm 1 contract mới:</div>
+    <code>StockLevelChangedV1(<br/>&nbsp;&nbsp;TenantId, Sku,<br/>&nbsp;&nbsp;AvailableToSell,<br/>&nbsp;&nbsp;OccurredAt)</code>
+    <div style="margin-top:6px;">Inventory emit event này từ <code>StockChangedEvent</code> domain event (<span class="pro">đã có sẵn trong code</span>, comment ghi rõ "for the stock-sync engine").</div>
+    <div class="pro" style="margin-top:6px;">✓ StockSync chỉ subscribe 1 event<br/>✓ Không touchout Outbound<br/>✓ Self-contained, đúng intent design v3.0</div>
+  </div>
+
+</div>
+
+<!-- ============ 4. KTD 2-5 ============ -->
+<h2>4. Các KTD còn lại (đỡ rủi ro hơn)</h2>
+<div class="grid cols-2">
+
+  <div class="ktd-box">
+    <div class="h">KTD2 — Flash-sale flag ở đâu?</div>
+    <div class="b">Bảng riêng <code>stock_sync_sku_flag</code> trong StockSync DbContext.</div>
+    <div class="why">Không attach <code>ProductMapping</code> của Channel → StockSync sở hữu lifecycle flag, loose coupling.</div>
+  </div>
+
+  <div class="ktd-box">
+    <div class="h">KTD3 — Library cụ thể</div>
+    <div class="b">
+      Token bucket = <code>System.Threading.RateLimiting.TokenBucketRateLimiter</code> (.NET 9 built-in)<br/>
+      Queue = <code>System.Threading.Channels.Channel&lt;T&gt;</code> bounded<br/>
+      Breaker = Polly v8 <code>AddCircuitBreaker</code> (tái dùng pipeline Sprint-4)
+    </div>
+    <div class="why">Không thêm thư viện mới; built-in .NET 9 đủ cho portfolio.</div>
+  </div>
+
+  <div class="ktd-box">
+    <div class="h">KTD4 — Coalescing implementation</div>
+    <div class="b"><code>ConcurrentDictionary&lt;(TenantId, Sku, Channel), Entry&gt;</code> + <code>PeriodicTimer</code> 500ms flush.</div>
+    <div class="why">Per-tenant qua key tuple; không cần lock; flush job push entries qua priority queue.</div>
+  </div>
+
+  <div class="ktd-box">
+    <div class="h">KTD5 — State persistence</div>
+    <div class="b"><strong>Persist:</strong> push_log (audit) + sku_flag.<br/><strong>In-memory:</strong> coalescing buffer, queue, token bucket, breaker state.</div>
+    <div class="why">Restart = warm-up (mất ~500ms throttle); chấp nhận cho portfolio MVP. Phase-3 cân nhắc Redis-back-store.</div>
+  </div>
+
+</div>
+
+<!-- ============ 5. UNITS ============ -->
+<h2>5. 10 implementation units (cadence Sprint-3/4)</h2>
+<table>
+  <thead><tr><th>U</th><th>Tên</th><th>Goal</th><th>Dep</th></tr></thead>
+  <tbody>
+    <tr><td class="u">U1</td><td>Module quartet + migration</td><td>Tạo <code>ShopFlow.StockSync.{Domain,App,Infra,Api}</code> + <code>StockSyncDbContext</code> + <code>InitialStockSyncSchema</code> migration (bảng <code>stock_sync_push_log</code>, <code>stock_sync_sku_flag</code>); smoke test 6th method.</td><td class="dep">—</td></tr>
+    <tr><td class="u">U2</td><td>StockLevelChangedV1 contract + Inventory emit</td><td>Contract mới + Inventory phát event qua outbox khi <code>StockChangedEvent</code> raise. <strong>KTD1.</strong></td><td class="dep">—</td></tr>
+    <tr><td class="u">U3</td><td>Coalescing buffer</td><td>Service nhận event qua MassTransit consumer → ghi vào <code>ConcurrentDictionary</code>; <code>PeriodicTimer</code> 500ms flush.</td><td class="dep">U1, U2</td></tr>
+    <tr><td class="u">U4</td><td>Priority queue + token bucket</td><td>Per-tenant <code>Channel&lt;T&gt;</code> (high + normal); dispatcher worker rút theo priority + tuân thủ <code>TokenBucketRateLimiter</code>.</td><td class="dep">U3</td></tr>
+    <tr><td class="u">U5</td><td>Circuit breaker + push pipeline</td><td>Polly v8 breaker per (T, channel); pipeline goi <code>IChannelAdapter.PushStockUpdateAsync</code>; ghi push_log.</td><td class="dep">U4</td></tr>
+    <tr><td class="u">U6</td><td>ShopeeAdapter.PushStockUpdate body + mock endpoint</td><td>Fill stub Sprint-4 còn lại; thêm <code>POST /api/v2/product/update_stock</code> trong Shopee mock (tái dùng chaos endpoint).</td><td class="dep">U5</td></tr>
+    <tr><td class="u">U7</td><td>SkuFlag repository</td><td>Aggregate + repo cho <code>is_flash_sale</code>; admin API stub <code>PUT /skus/{sku}/flag</code>.</td><td class="dep">U1</td></tr>
+    <tr><td class="u">U8</td><td>Api composition</td><td><code>StockSync.Api/Program.cs</code> full composition (DI + tenant routing + Aspire register); diagnostics endpoint <code>GET /sync/state</code>.</td><td class="dep">U3-U7</td></tr>
+    <tr><td class="u">U9</td><td>Integration + Load tests</td><td>1× <code>Category=Integration</code> (happy round-trip). 2× <code>Category=Load</code>: noisy-neighbor + breaker recovery. Tái dùng <code>FairnessCalculator</code> + <code>TenantHarness</code> Sprint-1/4.5.</td><td class="dep">U8</td></tr>
+    <tr><td class="u">U10</td><td>Sign-off + tag</td><td>Sign-off doc + CHANGELOG entry + README/CLAUDE update + tag <code>v0.7.0-sprint-5</code>.</td><td class="dep">U9</td></tr>
+  </tbody>
+</table>
+
+<!-- ============ 6. SCALE GATE ============ -->
+<h2>6. Scale gate — bài test định hình portfolio</h2>
+<div class="scale-gate">
+  <h3>Noisy-neighbor isolation: 5 tenants × 5 phút</h3>
+  <div class="tenant-row"><span>Tenant A</span><div class="bar burst"><span></span></div><span class="target">2000 delta/s</span></div>
+  <div class="tenant-row"><span>Tenant B</span><div class="bar normal"><span></span></div><span>~10 delta/s</span></div>
+  <div class="tenant-row"><span>Tenant C</span><div class="bar normal"><span></span></div><span>~10 delta/s</span></div>
+  <div class="tenant-row"><span>Tenant D</span><div class="bar normal"><span></span></div><span>~10 delta/s</span></div>
+  <div class="tenant-row"><span>Tenant E</span><div class="bar normal"><span></span></div><span>~10 delta/s</span></div>
+  <div style="margin-top:14px; font-size:13px;">
+    <strong>Pass criteria:</strong>
+    <ul style="margin: 6px 0;">
+      <li>Tenant B-E giữ p99 end-to-end <span class="target">&lt; 30 giây</span></li>
+      <li>Per-tenant fairness floor <span class="target">≥ 0.85</span> (min push / max push)</li>
+      <li>Khi Shopee mock bật chaos 5xx cho tenant A → breaker (A, Shopee) trip → B-E không bị ảnh hưởng</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ 7. NEXT STEP ============ -->
+<h2>7. Quyết định cần từ bạn để mình viết plan</h2>
+<div class="panel">
+  <ol style="margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+    <li><strong>OK với KTD1?</strong> (thay 3 event bằng 1 event <code>StockLevelChangedV1</code> mới)<br/>
+      <span class="sub" style="font-size: 12px;">— nếu OK: mình viết plan 10-unit ngay.<br/>— nếu KHÔNG: giữ literal 3 event như brainstorm R1, mình sẽ thêm port StockSync → Outbound để map line→SKU.</span>
+    </li>
+    <li><strong>OK với 4 KTD còn lại?</strong> (flag table riêng, built-in .NET 9 libraries, ConcurrentDictionary + PeriodicTimer, state in-memory)<br/>
+      <span class="sub" style="font-size: 12px;">— mặc định OK; chỉ cần báo nếu có chỗ muốn đổi.</span>
+    </li>
+    <li><strong>OK với 10 units?</strong> Cadence + thứ tự + dependency như bảng trên.<br/>
+      <span class="sub" style="font-size: 12px;">— tách / gộp / thêm bớt unit nếu cần.</span>
+    </li>
+  </ol>
+</div>
+
+</div>
+</body>
+</html>
