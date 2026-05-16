@@ -71,7 +71,7 @@ public sealed class StockItemRepositoryAdjustTests : IAsyncLifetime
     {
         var binId = await FindBinIdAsync("B1");
         await using var db = new InventoryDbContext(_tenant.Options);
-        var repo = new StockItemRepository(db);
+        var repo = new StockItemRepository(db, _tenant.BuildRequestContext());
 
         var result = await repo.AdjustAtBinAsync(
             Sku.Create("SKU-NEW"),
@@ -105,7 +105,7 @@ public sealed class StockItemRepositoryAdjustTests : IAsyncLifetime
     {
         var binId = await FindBinIdAsync("B1");
         await using var db = new InventoryDbContext(_tenant.Options);
-        var repo = new StockItemRepository(db);
+        var repo = new StockItemRepository(db, _tenant.BuildRequestContext());
         await repo.AdjustAtBinAsync(
             Sku.Create("SKU-EXIST"),
             binId,
@@ -116,7 +116,7 @@ public sealed class StockItemRepositoryAdjustTests : IAsyncLifetime
         );
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
-        var repo2 = new StockItemRepository(db2);
+        var repo2 = new StockItemRepository(db2, _tenant.BuildRequestContext());
         var result = await repo2.AdjustAtBinAsync(
             Sku.Create("SKU-EXIST"),
             binId,
@@ -142,7 +142,7 @@ public sealed class StockItemRepositoryAdjustTests : IAsyncLifetime
     {
         var binId = await FindBinIdAsync("B1");
         await using var db = new InventoryDbContext(_tenant.Options);
-        var repo = new StockItemRepository(db);
+        var repo = new StockItemRepository(db, _tenant.BuildRequestContext());
         await repo.AdjustAtBinAsync(
             Sku.Create("SKU-UF"),
             binId,
@@ -153,7 +153,7 @@ public sealed class StockItemRepositoryAdjustTests : IAsyncLifetime
         );
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
-        var repo2 = new StockItemRepository(db2);
+        var repo2 = new StockItemRepository(db2, _tenant.BuildRequestContext());
         var result = await repo2.AdjustAtBinAsync(
             Sku.Create("SKU-UF"),
             binId,
@@ -180,7 +180,7 @@ public sealed class StockItemRepositoryAdjustTests : IAsyncLifetime
     {
         var binId = await FindBinIdAsync("B1");
         await using var db = new InventoryDbContext(_tenant.Options);
-        var repo = new StockItemRepository(db);
+        var repo = new StockItemRepository(db, _tenant.BuildRequestContext());
 
         var result = await repo.AdjustAtBinAsync(
             Sku.Create("SKU-Z"),

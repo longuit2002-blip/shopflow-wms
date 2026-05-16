@@ -1,11 +1,16 @@
 using System.Data;
+using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using NpgsqlTypes;
+using ShopFlow.Contracts.Inventory;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Domain;
+using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Domain;
+using ShopFlow.SharedKernel.Infrastructure;
 
 namespace ShopFlow.Inventory.Infrastructure.Repositories;
 
@@ -19,10 +24,12 @@ namespace ShopFlow.Inventory.Infrastructure.Repositories;
 public sealed class StockItemRepository : IStockItemRepository
 {
     private readonly InventoryDbContext _db;
+    private readonly IRequestContext _requestContext;
 
-    public StockItemRepository(InventoryDbContext db)
+    public StockItemRepository(InventoryDbContext db, IRequestContext requestContext)
     {
         _db = db;
+        _requestContext = requestContext;
     }
 
     public Task<StockItem?> FindBySkuAsync(Sku sku, CancellationToken ct)
@@ -222,6 +229,34 @@ public sealed class StockItemRepository : IStockItemRepository
                 await adjCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
 
+            // 6. Sprint-5 U2 / KTD1 — emit StockLevelChangedV1 with the
+            // post-commit `available` for this SKU. Read inside the same tx
+            // (read-your-own-writes), append to outbox, then SaveChanges so
+            // the row flushes atomically with the audit + agg updates.
+            var nowUtc = DateTime.UtcNow;
+            int postCommitAvailable;
+            await using (var availCmd = connection.CreateCommand())
+            {
+                availCmd.Transaction = (NpgsqlTransaction)transaction.GetDbTransaction();
+                availCmd.CommandText = "SELECT available FROM stock_items WHERE sku = @p_sku";
+                availCmd.Parameters.Add(
+                    new NpgsqlParameter("p_sku", NpgsqlDbType.Varchar) { Value = sku.Value }
+                );
+                var scalar = await availCmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+                postCommitAvailable = Convert.ToInt32(scalar);
+            }
+
+            AppendOutbox(
+                new StockLevelChangedV1(
+                    _requestContext.TenantId,
+                    sku.Value,
+                    postCommitAvailable,
+                    nowUtc
+                ),
+                nowUtc
+            );
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+
             await transaction.CommitAsync(ct).ConfigureAwait(false);
             return Result.Success();
         }
@@ -237,5 +272,31 @@ public sealed class StockItemRepository : IStockItemRepository
             }
             throw;
         }
+    }
+
+    /// <summary>
+    /// Sprint-5 U2 / KTD1 — generic outbox append for cross-module integration
+    /// events. Mirrors the <see cref="ReservationRepository"/> overload so
+    /// both repositories produce identically-shaped outbox rows.
+    /// </summary>
+    private void AppendOutbox<T>(T integrationEvent, DateTime occurredAt)
+        where T : class
+    {
+        var traceId = Activity.Current?.TraceId.ToString();
+        _db.OutboxMessages.Add(
+            new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                TenantId = _requestContext.TenantId,
+                EventType = typeof(T).AssemblyQualifiedName!,
+                Payload = JsonSerializer.Serialize(
+                    integrationEvent,
+                    typeof(T),
+                    OutboxJsonOptions.Default
+                ),
+                TraceId = traceId,
+                CreatedAt = occurredAt,
+            }
+        );
     }
 }

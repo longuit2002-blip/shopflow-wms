@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using NpgsqlTypes;
+using ShopFlow.Contracts.Inventory;
 using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Domain;
@@ -308,6 +309,25 @@ public sealed class ReservationRepository : IReservationRepository
                         line.Quantity.Value,
                         nowUtc
                     ),
+                    nowUtc
+                );
+            }
+
+            // Sprint-5 U2 / KTD1 — emit one StockLevelChangedV1 per unique
+            // affected SKU using post-commit `available`. The CTE updates
+            // stock_items but does not surface the new available; the helper
+            // does a follow-up SELECT inside the same transaction.
+            var affectedSkus = insertedRows.Select(r => r.Sku).Distinct().ToArray();
+            var perSkuAvailable = await ReadAvailableForSkusAsync(
+                connection,
+                transaction,
+                affectedSkus,
+                ct
+            ).ConfigureAwait(false);
+            foreach (var (sku, available) in perSkuAvailable)
+            {
+                AppendOutbox(
+                    new StockLevelChangedV1(_requestContext.TenantId, sku, available, nowUtc),
                     nowUtc
                 );
             }
@@ -692,6 +712,11 @@ public sealed class ReservationRepository : IReservationRepository
             foreach (var (sku, available, reserved, _) in perSku)
             {
                 AppendOutbox(new StockChangedEvent(sku, available, reserved, nowUtc), nowUtc);
+                // Sprint-5 U2 / KTD1 — cross-module integration event.
+                AppendOutbox(
+                    new StockLevelChangedV1(_requestContext.TenantId, sku, available, nowUtc),
+                    nowUtc
+                );
             }
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
             await transaction.CommitAsync(ct).ConfigureAwait(false);
@@ -810,6 +835,11 @@ public sealed class ReservationRepository : IReservationRepository
             foreach (var (sku, available, reserved) in distinctSkus)
             {
                 AppendOutbox(new StockChangedEvent(sku, available, reserved, nowUtc), nowUtc);
+                // Sprint-5 U2 / KTD1 — cross-module integration event.
+                AppendOutbox(
+                    new StockLevelChangedV1(_requestContext.TenantId, sku, available, nowUtc),
+                    nowUtc
+                );
             }
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
             await transaction.CommitAsync(ct).ConfigureAwait(false);
@@ -947,6 +977,11 @@ public sealed class ReservationRepository : IReservationRepository
             foreach (var (sku, available, reserved) in distinctSkus)
             {
                 AppendOutbox(new StockChangedEvent(sku, available, reserved, nowUtc), nowUtc);
+                // Sprint-5 U2 / KTD1 — cross-module integration event.
+                AppendOutbox(
+                    new StockLevelChangedV1(_requestContext.TenantId, sku, available, nowUtc),
+                    nowUtc
+                );
             }
 
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
@@ -1067,6 +1102,25 @@ public sealed class ReservationRepository : IReservationRepository
                     occurredAt
                 );
             }
+
+            // Sprint-5 U2 / KTD1 — emit one StockLevelChangedV1 per unique
+            // affected SKU. The expiry CTE updates stock_items but does not
+            // surface the new available; read it inside the same tx.
+            var affectedSkus = expired.Select(e => e.Sku).Distinct().ToArray();
+            var perSkuAvailable = await ReadAvailableForSkusAsync(
+                connection,
+                transaction,
+                affectedSkus,
+                ct
+            ).ConfigureAwait(false);
+            foreach (var (sku, available) in perSkuAvailable)
+            {
+                AppendOutbox(
+                    new StockLevelChangedV1(_requestContext.TenantId, sku, available, occurredAt),
+                    occurredAt
+                );
+            }
+
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
             await transaction.CommitAsync(ct).ConfigureAwait(false);
             return expired.Count;
@@ -1130,5 +1184,69 @@ public sealed class ReservationRepository : IReservationRepository
                 CreatedAt = occurredAt,
             }
         );
+    }
+
+    /// <summary>
+    /// Sprint-5 U2 / KTD1 — generic outbox append for cross-module integration
+    /// events (records in <c>ShopFlow.Contracts.*</c>) that do not implement
+    /// <see cref="IDomainEvent"/>. Mirrors the Sprint-3-redux consumer-side
+    /// <c>EnqueueOutbox&lt;T&gt;</c> shape so JSON serialization, trace id, and
+    /// tenant scope follow the same path.
+    /// </summary>
+    private void AppendOutbox<T>(T integrationEvent, DateTime occurredAt)
+        where T : class
+    {
+        var traceId = Activity.Current?.TraceId.ToString();
+        _db.OutboxMessages.Add(
+            new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                TenantId = _requestContext.TenantId,
+                EventType = typeof(T).AssemblyQualifiedName!,
+                Payload = JsonSerializer.Serialize(
+                    integrationEvent,
+                    typeof(T),
+                    OutboxJsonOptions.Default
+                ),
+                TraceId = traceId,
+                CreatedAt = occurredAt,
+            }
+        );
+    }
+
+    /// <summary>
+    /// Sprint-5 U2 / KTD1 — read post-commit <c>available</c> for the given
+    /// SKU set within the active transaction (read-your-own-writes). Used by
+    /// the TryReserveLines + ReleaseExpired paths whose CTEs do not surface
+    /// the post-update <c>stock_items.available</c> column.
+    /// </summary>
+    private static async Task<IReadOnlyDictionary<string, int>> ReadAvailableForSkusAsync(
+        NpgsqlConnection connection,
+        IDbContextTransaction transaction,
+        IReadOnlyCollection<string> skus,
+        CancellationToken ct
+    )
+    {
+        if (skus.Count == 0)
+        {
+            return new Dictionary<string, int>();
+        }
+
+        var result = new Dictionary<string, int>(skus.Count);
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = (NpgsqlTransaction)transaction.GetDbTransaction();
+        cmd.CommandText = "SELECT sku, available FROM stock_items WHERE sku = ANY(@p_skus)";
+        cmd.Parameters.Add(
+            new NpgsqlParameter("p_skus", NpgsqlDbType.Array | NpgsqlDbType.Varchar)
+            {
+                Value = skus.ToArray(),
+            }
+        );
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            result[reader.GetString(0)] = reader.GetInt32(1);
+        }
+        return result;
     }
 }
