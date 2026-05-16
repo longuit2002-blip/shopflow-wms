@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    StockSync module — Application (Sprint-5 plan U1). Ports + consumer +
+    coalescing buffer abstraction + StockSyncOptions. Carries Contracts
+    reference for StockLevelChangedV1 (U2) consumer subscription.
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="MassTransit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.StockSync.Domain\ShopFlow.StockSync.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Application\ShopFlow.ControlPlane.Application.csproj" />
+    <ProjectReference Include="..\..\Channel\ShopFlow.Channel.Application\ShopFlow.Channel.Application.csproj" />
+  </ItemGroup>
+
+</Project>

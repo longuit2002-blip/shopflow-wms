@@ -5,6 +5,7 @@ using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Inbound.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
 using ShopFlow.Outbound.Infrastructure;
+using ShopFlow.StockSync.Infrastructure;
 
 namespace ShopFlow.SharedKernel.IntegrationTests;
 
@@ -299,6 +300,52 @@ public sealed class MigrationSmokeTests
                 "ux_webhook_events_channel_provider_event",
                 "ux_product_mappings_channel_external_sku",
                 "ix_channel_outbox_messages_pending",
+            }
+        );
+    }
+
+    [Fact]
+    public async Task StockSyncMigration_AppliesAndLeavesNamedObjects()
+    {
+        var dbName = "smoke_stocksync_" + Guid.NewGuid().ToString("N")[..8];
+        var connStr = await _postgres.CreateDatabaseAsync(dbName);
+
+        var options = new DbContextOptionsBuilder<StockSyncDbContext>()
+            .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.StockSync.Infrastructure"))
+            .Options;
+
+        await using (var ctx = new StockSyncDbContext(options))
+        {
+            await ctx.Database.MigrateAsync();
+        }
+
+        await AssertHistoryAppliedAsync(connStr);
+        await AssertTablesExistAsync(
+            connStr,
+            new[]
+            {
+                "stock_sync_sku_flag",
+                "stock_sync_push_log",
+                "stock_sync_outbox_messages",
+            }
+        );
+        await AssertConstraintsExistAsync(
+            connStr,
+            new[]
+            {
+                "pk_stock_sync_sku_flag",
+                "pk_stock_sync_push_log",
+                "pk_stock_sync_outbox_messages",
+                "ck_stock_sync_push_log_status",
+            }
+        );
+        await AssertIndexesExistAsync(
+            connStr,
+            new[]
+            {
+                "ux_stock_sync_push_log_idempotency",
+                "ix_stock_sync_push_log_tenant_channel_pushed",
+                "ix_stock_sync_outbox_messages_pending",
             }
         );
     }

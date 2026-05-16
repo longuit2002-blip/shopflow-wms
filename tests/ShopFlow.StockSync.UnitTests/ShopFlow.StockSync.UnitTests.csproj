@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.StockSync.UnitTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Domain\ShopFlow.StockSync.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Application\ShopFlow.StockSync.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Infrastructure\ShopFlow.StockSync.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

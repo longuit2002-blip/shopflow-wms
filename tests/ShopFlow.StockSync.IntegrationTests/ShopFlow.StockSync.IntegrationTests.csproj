@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sprint-5 plan U9 — StockSync module integration tests. Runs in CI
+    against Testcontainers Postgres + an in-process Kestrel-hosted
+    StockSync.Api via WebApplicationFactory. Two suite shapes:
+
+      • MultiTenantStockSyncScaleGateTests (Category=Load): 5 tenants ×
+        A burst 2k stock-change/s × 5min; B-E p99 < 30s; per-tenant
+        fairness ≥ 0.85. Breaker recovery variant: chaos 5xx → trip →
+        cooldown → recover, without cross-tenant blast.
+
+      • StockSyncHappyPathTests (Category=Integration): single-tenant
+        StockLevelChangedV1 → coalesce → flush → push → Shopee mock
+        receives + push_log row.
+
+    U1 ships the project skel; harness bodies are populated by U5/U9.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.StockSync.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Api\ShopFlow.StockSync.Api.csproj" />
+    <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Infrastructure\ShopFlow.StockSync.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    StockSync module — Infrastructure (Sprint-5 plan U1).
+    Persistence: StockSyncDbContext + 3 tables (sku_flag, push_log, outbox).
+    Dispatch: PerTenantQueue + dispatcher BackgroundService (U4/U5).
+    RateLimit: TokenBucketRateLimiter registry (U4).
+    Breaker: Polly v8 circuit-breaker registry (U5).
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Polly" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.StockSync.Application\ShopFlow.StockSync.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.StockSync.Domain\ShopFlow.StockSync.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\Channel\ShopFlow.Channel.Application\ShopFlow.Channel.Application.csproj" />
+  </ItemGroup>
+
+</Project>

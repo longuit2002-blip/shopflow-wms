@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- StockSync module — Api (Sprint-5 plan U1 scaffold; U8 full composition). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.StockSync.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.StockSync.Application\ShopFlow.StockSync.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.StockSync.Infrastructure\ShopFlow.StockSync.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
