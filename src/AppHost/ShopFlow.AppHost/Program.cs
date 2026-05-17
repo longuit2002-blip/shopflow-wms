@@ -209,6 +209,21 @@ var shopeeMock = builder
     .WithExternalHttpEndpoints();
 _ = shopeeMock;
 
+// ── Module APIs (Sprint-5 plan U8) ───────────────────────────────────
+// StockSync.Api is the first module Api wired into the Aspire dev
+// orchestrator. Waits for the tenant-provisioning chain (catalog + dev1
+// + dev2) so the host can resolve every Ready tenant on startup. Phases
+// 0-1 ship the modular monolith stage with each module Api running as
+// its own Aspire resource; W6 split flips the Address values in
+// src/ApiGateway/ShopFlow.Gateway/appsettings.json without changing the
+// AddProject<> registrations here.
+var stockSyncApi = builder
+    .AddProject<Projects.ShopFlow_StockSync_Api>("stocksync-api")
+    .WithReference(postgres)
+    .WithReference(rabbitmq)
+    .WaitForCompletion(migrateDev2);
+_ = stockSyncApi;
+
 await builder.Build().RunAsync().ConfigureAwait(false);
 
 static string ResolveRepoRoot()

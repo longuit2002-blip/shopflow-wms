@@ -78,6 +78,16 @@ public sealed class StockSyncOptions
     public BreakerSettings Breaker { get; init; } = new();
 
     /// <summary>
+    /// Sprint-5 plan U8 — when <c>true</c>, the Api exposes
+    /// <c>GET /api/sync/state</c> with in-memory buffer + queue + bucket +
+    /// breaker snapshots. Default <c>false</c> so production deployments
+    /// don't leak internal state by accident; Development overrides via
+    /// <c>appsettings.Development.json</c>. Phase-3 replaces the bare flag
+    /// with proper admin-API auth.
+    /// </summary>
+    public bool DiagnosticsEnabled { get; init; }
+
+    /// <summary>
     /// Circuit-breaker tuning for the per-<c>(tenant, channel)</c>
     /// Polly v8 pipeline (Sprint-5 plan U5).
     /// </summary>

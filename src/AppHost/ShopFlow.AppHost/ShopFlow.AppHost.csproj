@@ -50,4 +50,10 @@
                       IsAspireProjectResource="true" />
   </ItemGroup>
 
+  <!-- Sprint-5 U8 — StockSync.Api resource (Aspire AddProject<>). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\StockSync\ShopFlow.StockSync.Api\ShopFlow.StockSync.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
 </Project>
