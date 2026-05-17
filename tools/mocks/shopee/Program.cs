@@ -52,9 +52,16 @@ app.MapPost(
         chaos.Rate429 = Math.Clamp(body.Rate429, 0d, 1d);
         chaos.Rate500 = Math.Clamp(body.Rate500, 0d, 1d);
         chaos.LatencyJitterMs = Math.Max(0, body.LatencyJitterMs);
+        if (body.IsStockUpdateChaosActive.HasValue)
+        {
+            chaos.IsStockUpdateChaosActive = body.IsStockUpdateChaosActive.Value;
+        }
         return Results.Ok(chaos);
     }
 );
+
+// Sprint-5 U6 — Shopee Open Platform v2 stock-update endpoint.
+app.MapShopeeUpdateStock();
 
 app.MapPost(
     "/__seed-channel",
@@ -146,4 +153,22 @@ app.MapPost(
 
 await app.RunAsync();
 
-internal sealed record ChaosUpdate(double Rate429, double Rate500, int LatencyJitterMs);
+// Sprint-5 U6 — IsStockUpdateChaosActive added as nullable so existing
+// callers (Sprint-4 tests) keep their bodies unchanged; only senders that
+// care about the flag set it.
+internal sealed record ChaosUpdate(
+    double Rate429,
+    double Rate500,
+    int LatencyJitterMs,
+    bool? IsStockUpdateChaosActive = null
+);
+
+// Sprint-5 U6 — namespaced marker class for WebApplicationFactory<T> in
+// the Channel integration suite. We intentionally avoid exposing a
+// public top-level <c>Program</c> here because Channel.Api already
+// ships one in the global namespace and global-Program collisions are
+// undefined when the integration test project references both.
+namespace ShopFlow.Mocks.Shopee
+{
+    public sealed class MockEntryPoint;
+}

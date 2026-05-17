@@ -36,6 +36,8 @@
     <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Api\ShopFlow.Channel.Api.csproj" />
     <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
+    <!-- Sprint-5 U6 — round-trip test boots the Shopee mock in-process via WebApplicationFactory<Program>. -->
+    <ProjectReference Include="..\..\tools\mocks\shopee\ShopFlow.Mocks.Shopee.csproj" />
   </ItemGroup>
 
 </Project>

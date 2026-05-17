@@ -16,4 +16,12 @@ public sealed class ChaosState
 
     /// <summary>Upper bound on extra latency in milliseconds (uniform [0, max]).</summary>
     public int LatencyJitterMs { get; set; }
+
+    /// <summary>
+    /// Sprint-5 U6 — when set, <c>POST /api/v2/product/update_stock</c>
+    /// short-circuits to 503. Lets the integration tests assert the
+    /// adapter surfaces 5xx as <c>shopee.push.5xx</c> without touching
+    /// the per-call probabilistic rates above.
+    /// </summary>
+    public bool IsStockUpdateChaosActive { get; set; }
 }
