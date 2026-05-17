@@ -72,7 +72,7 @@ public sealed class StockLevelChangedConsumer : IConsumer<StockLevelChangedV1>
         }
 
         var isFlashSale = await _skuFlagRepo
-            .IsFlashSaleAsync(msg.Sku, ct)
+            .IsFlashSaleAsync(msg.TenantId, msg.Sku, ct)
             .ConfigureAwait(false);
 
         foreach (var channelType in channels)

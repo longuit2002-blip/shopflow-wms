@@ -33,7 +33,7 @@ public sealed class StockLevelChangedConsumerTests
         channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee", "lazada" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        skuFlagRepo.IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
@@ -63,7 +63,7 @@ public sealed class StockLevelChangedConsumerTests
         channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync("SKU-X", Arg.Any<CancellationToken>())
+        skuFlagRepo.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>())
             .Returns(true);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
@@ -101,7 +101,7 @@ public sealed class StockLevelChangedConsumerTests
 
             buffer.Count.Should().Be(0);
             await skuFlagRepo.DidNotReceive().IsFlashSaleAsync(
-                Arg.Any<string>(), Arg.Any<CancellationToken>());
+                Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
         finally
         {
@@ -117,7 +117,7 @@ public sealed class StockLevelChangedConsumerTests
         channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        skuFlagRepo.IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
@@ -154,7 +154,7 @@ public sealed class StockLevelChangedConsumerTests
         channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        skuFlagRepo.IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
