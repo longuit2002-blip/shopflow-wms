@@ -67,4 +67,39 @@ public sealed class StockSyncOptions
         /// <summary>Normal-priority lane capacity (baseline traffic).</summary>
         public int NormalCap { get; init; } = 10_000;
     }
+
+    /// <summary>
+    /// Polly v8 circuit-breaker parameters applied per
+    /// <c>(tenant, channel)</c> by <c>TenantChannelBreakerRegistry</c>
+    /// (Sprint-5 plan U5, R7). Defaults match the plan's brainstorm
+    /// numbers: trip on 5 consecutive failures inside a 30s sample,
+    /// cool down for 60s, then probe.
+    /// </summary>
+    public BreakerSettings Breaker { get; init; } = new();
+
+    /// <summary>
+    /// Circuit-breaker tuning for the per-<c>(tenant, channel)</c>
+    /// Polly v8 pipeline (Sprint-5 plan U5).
+    /// </summary>
+    public sealed class BreakerSettings
+    {
+        /// <summary>
+        /// Minimum number of actions inside <see cref="SamplingDurationSeconds"/>
+        /// before the breaker considers a trip. Polly's default is 100;
+        /// Sprint-5 lowers it so flash-sale fault detection is fast.
+        /// </summary>
+        public int MinimumThroughput { get; init; } = 5;
+
+        /// <summary>
+        /// Cool-down before the breaker transitions Open → HalfOpen and
+        /// admits one probe call.
+        /// </summary>
+        public int BreakDurationSeconds { get; init; } = 60;
+
+        /// <summary>
+        /// Rolling window length over which Polly counts results to
+        /// compute the trip ratio.
+        /// </summary>
+        public int SamplingDurationSeconds { get; init; } = 30;
+    }
 }
