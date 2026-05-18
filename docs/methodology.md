@@ -150,17 +150,89 @@ The `TenantWebhookHarness` shape becomes the template for any multi-tenant integ
 
 ## Synthesis — patterns that compounded across sprints
 
-*(Section body lands in U6 — pattern catalog with 5 subsections plus 1-2 Mermaid diagrams.)*
+The chronological narrative above hides the patterns. This section extracts them. Each pattern is named, described, supported by cross-sprint evidence, and accompanied by an honest note about cost or limitation.
 
 ### Cadence: brainstorm → plan → work → sign-off
 
+**The pattern.** Every sprint follows the same four-stage cycle. `/ce-brainstorm` (or equivalent dialogue) produces a requirements doc in `docs/brainstorms/` answering WHAT to build — product behavior, scope boundaries, success criteria, key product decisions. `/ce-plan` produces an implementation plan in `docs/plans/` answering HOW to build it — implementation units (U-IDs), file paths, KTDs, test scenarios, verification criteria, system-wide impact, deferred questions. `/ce-work` executes the plan unit-by-unit, with reviewer-style diff checks + tests after each unit + incremental commits per unit. Sprint close ships a sign-off doc in `docs/phase-gates/` capturing what shipped + measured numbers + KTD recap + deviations from plan + carry-forward rules + git tag.
+
+**Why it works.** Each stage has a single job, and the artifacts are durable. The brainstorm doc lets future-self (or a reviewer) understand product intent without re-asking. The plan doc lets `ce-work` execute without re-inventing scope. The sign-off doc lets the next sprint's brainstorm start from a known foundation rather than a fuzzy memory. The cycle is fractal — Sprint-2.5 (closure) and Sprint-4.5 (closure) follow the same shape on smaller scope.
+
+```mermaid
+flowchart LR
+    A["/ce-brainstorm<br/>(WHAT)"] --> B["docs/brainstorms/<br/>*-requirements.md"]
+    B --> C["/ce-plan<br/>(HOW)"]
+    C --> D["docs/plans/<br/>*-plan.md"]
+    D --> E["/ce-work<br/>(EXEC)"]
+    E --> F["Per-unit commits<br/>+ tests"]
+    F --> G["docs/phase-gates/<br/>*-signoff.md"]
+    G --> H["git tag<br/>vX.Y.Z-name"]
+    H -.->|next sprint| A
+```
+
+*This illustrates the intended cycle; the implementing agent treats it as context, not literal flowchart code.*
+
+**Cross-sprint evidence.** Seven instances over ~10 days proves repeatability: Phase-0-redux → Sprint-1-redux → Sprint-2-redux → Sprint-2.5 → Sprint-3-redux (three full cycles in a single day, 2026-05-13) → Sprint-4 → Sprint-4.5 → Sprint-5. The cycle was fast when patterns settled (Sprint-2-redux + 2.5 + 3-redux all closed within 24 hours); it was slower at the start (Phase-0-redux + Sprint-1-redux each took ~2 days) and at the end (Sprint-4 + 4.5 across two days; Sprint-5 across two days).
+
+**Honest cost.** The cadence is not free. Each sprint pays roughly 10-15% of its time in documentation overhead — the brainstorm doc takes 30 minutes to an hour, the plan doc 1-2 hours, the sign-off doc 30-45 minutes. Across 7 sprints that's 8-15 hours of pure documentation effort. The trade-off is paid back in: future-self speed when context resets, reviewer / contributor speed when reading the repo, the ability to defer correctly (Sprint-2.5 / 4.5 / 5.5 are all enabled by the sign-off doc capturing exactly what was deferred), and KTD discovery via plan-time-read-actual-code (see next subsection). If the project were a one-week throw-away, the overhead would not pay back. At seven sprints + ongoing, it does.
+
 ### KTD discovery: plan-time vs mid-sprint emergence
+
+**The pattern.** Key Technical Decisions surface in two distinct modes, and naming the mode matters. **Plan-time KTDs** surface when writing the plan section forces the planner to read actual code (contract definitions, value-object constraints, existing repository methods) and catches an assumption the brainstorm carried in. **Mid-sprint KTDs** surface during implementation when the integration of concrete code reveals a constraint the brainstorm and plan both missed. Both kinds get captured the same way — KTD-numbered entries in the plan or sign-off doc with rationale — but the discovery cost differs sharply.
+
+```mermaid
+flowchart TD
+    B["Brainstorm doc<br/>(product decisions)"] --> P["Plan doc<br/>(technical decisions)"]
+    P -->|reading actual code<br/>during plan-write| K1["Plan-time KTD<br/>(cheap to fix)"]
+    K1 --> P
+    P --> W["Work execution<br/>(unit by unit)"]
+    W -->|integration surfaces<br/>missed constraint| K2["Mid-sprint KTD<br/>(expensive — work re-shuffled)"]
+    K2 --> S["Sign-off captures<br/>both types"]
+    K1 --> S
+    W --> S
+```
+
+**Cross-sprint evidence for plan-time KTDs.** Sprint-3-redux K11: plan pseudocode had a `will_succeed` pre-check CTE that was unsafe under READ COMMITTED — caught by Sprint-1-redux's existing concurrent-oversell test, fix shipped in U3. Sprint-4.5 R6 reversal: brainstorm proposed emit-with-`InternalSku=null` but `OrderImportedLineV1.Sku` is non-nullable AND contract docs mandate fail-whole-import — caught by reading the contract definition during plan-write. Sprint-5 KTD1: literal brainstorm R1 said "consume 3 transition events" but `StockReleasedV1` carries only `OrderLineIds` and `StockConfirmedV1` has no per-line detail — caught by reading the contract definitions during plan-write, replaced with single canonical `StockLevelChangedV1`.
+
+**Cross-sprint evidence for mid-sprint KTDs.** Sprint-2-redux U6: `IDomainEvent`-based cross-module path required SharedKernel → Contracts cycle (structurally impossible) — caught when trying to add the `using` import. Sprint-3-redux MT 8.x publish DSL trap: `Publish(ctx => new T(...))` works inside `Initially`; `PublishAsync(ctx.Init<T>(new {...}))` silently fails — caught by test-first cadence in U4 when expected next state never arrived. Sprint-5 KTD7: `ISkuFlagRepository` port signature needs explicit `Guid tenantId` — surfaced in U7 when singleton wrapper's scope-binding analysis revealed the cache key needs explicit tenant.
+
+**The honest lesson.** Plan-time KTDs are cheap — fix during plan-write, no work re-shuffle. Mid-sprint KTDs are expensive — Sprint-5 KTD7 rippled to 4 NSubstitute call sites in already-shipped U3 unit tests. The forward-looking question is: can mid-sprint KTDs be converted to plan-time KTDs by adding plan-time checklists? Specifically: a "singleton-vs-scoped + tenant-context boundary" question for every cross-module port at plan-time would have caught KTD7 before U7. The methodology improvement isn't free (more plan-time questions = longer plan-write) but each saved mid-sprint KTD is worth it.
 
 ### Subagent dispatch: context isolation under pressure
 
+**The pattern.** When a sprint runs more units than the orchestrator's context window can hold while maintaining quality, dispatch units to subagents serially. Each subagent gets a fresh context window with the plan unit's full metadata (Goal, Files, Approach, Patterns, Test scenarios, Verification) plus instructions on the unit's deferred-implementation questions. The orchestrator reviews each subagent's diff, runs the relevant test suite, and commits before dispatching the next subagent. Parallel dispatch is the variant for independent units; Sprint-5 used serial throughout because U-IDs had real dependencies.
+
+**Cross-sprint evidence.** Sprint-5 used subagent dispatch for U3-U9 (7 of 10 units). Sprint-3-redux also used it for the larger units. Sprint-4 used it more selectively. Smaller sprints (Sprint-2.5, Sprint-1-redux) ran inline. The rule of thumb: 5+ units of substantial code per sprint = use subagents; smaller sprints = inline.
+
+**Honest cost — three modes.** **Re-investigation overhead**: each subagent reads files the orchestrator already knew, paying ~30% of its tokens on context the orchestrator could have provided as briefing. The plan unit's "Patterns to follow" field exists specifically to reduce this, but it's a partial fix — patterns documented at plan-time vs runtime constraints discovered during implementation are different surfaces. **Voice drift**: subagents have their own writing style; comments and commit messages from subagent work read slightly differently from inline work. For code this is fine; for documentation work (like this methodology doc) it would be a problem — which is why this doc is being written inline. **Re-dispatch on usage limit**: Sprint-5 U8 hit a usage limit mid-subagent; the subagent's partial work was lost; re-dispatching at session start required full re-load of context. The mitigation suggested in the Sprint-5 sign-off — more granular checkpoint commits inside long subagent runs — is not yet a practiced pattern.
+
+**The honest limitation.** Subagent dispatch is a partial fix for context window pressure. It doesn't solve the orchestrator's review burden growing with the number of subagent batches; it doesn't solve usage-limit re-dispatch cost; it doesn't solve the fact that some units (KTD discovery, integration debugging) need orchestrator context anyway. The pattern works because the alternative — running a 10-unit sprint inline — definitely degrades quality before unit 7.
+
 ### Deferral pattern: Sprint-4 → 4.5, Sprint-5 → 5.5
 
+**The pattern.** When a sprint discovers that closing a unit would balloon the sprint past its planned size, ship the unit's shell + deferred body as a `[Fact(Skip = "<follow-up-name> follow-up — <rationale>")]` slot (for tests) or as a documented stub returning a stable error code (for service methods). The sign-off doc captures the deferral with name + rationale + which follow-up sprint will close it. A follow-up "point release" sprint (Sprint-N.5) cuts a fresh branch from the parent's tag and closes the deferred surface, reusing the parent's plan as scaffold.
+
+**Cross-sprint evidence.** Sprint-2-redux U9 deferred a cross-module flow test because of a real architecture finding (outbox table collision) → Sprint-2.5 closed in half a day. Sprint-4 shipped four deferrals all in sign-off (`provider_event_id` stub, `OrderImportedV1` not yet emitted, scale-gate harness Skip'd, Aspire runtime smoke deferred) → Sprint-4.5 closed all four in ~1 week. Sprint-5 U9 ships two `Category=Load` scale-gate slots Skip'd per the Sprint-4 U9 precedent → Sprint-5.5 is the planned closure (not yet built; estimated ~1 week from the deferred surface size).
+
+**Why it works.** Two reasons. **Sprint cadence integrity**: a sprint that runs over scope corrupts the cadence — the next brainstorm can't start cleanly because it inherits unresolved work. Deferral lets the sprint close on a clean line. **Production primitives proven at unit + integration level**: the deferred wall-time measurement composes already-proven primitives; the gate is "do these work together at scale?" not "do they work at all?". The honest framing is: production-level correctness is in CI per-PR; production-level scale is measured in nightly + closed by follow-up sprint.
+
+**The honest "kicking the can" discussion.** Each deferral has to be case-by-case. **Legit deferrals**: Sprint-2-redux U9 (real architecture finding); Sprint-4 deferrals (each had a documented rationale, all closed in Sprint-4.5 within a week); Sprint-5 U9 (production primitives all proven, harness composition is the gap). **Anti-pattern to avoid**: deferring without sign-off doc honesty, deferring without a follow-up sprint name + rationale, deferring twice in a row without closing the first. The methodology proves the pattern works for one or two deferral cycles per project; whether it scales to many cycles is unproven — Sprint-5.5 isn't yet built, and the test of pattern-or-anti-pattern is whether it actually closes within a week as estimated.
+
+**Cost.** Real time. Sprint-2.5 cost half a day; Sprint-4.5 cost a week; Sprint-5.5 is estimated at a week. That's ~1.5-2 weeks of follow-up sprint time across the project — call it ~10-15% of total sprint time. The trade-off is worth it because the parent sprints stayed clean and the methodology is being honest about what shipped vs what's measured.
+
 ### Context management: AGENTS.md / CLAUDE.md / session-resume hooks
+
+**The pattern.** Project state too large for in-context loading; persistent docs let any session resume from a known foundation. Three load-bearing artifacts: **AGENTS.md** = persistent agent config (rules, conventions, sprint-specific carry-forward rules, deferred-work surface) — read at session start by `ce-` skills; **CLAUDE.md** = current-stage block (active branch, latest tag, what just shipped) + sprint history (each sprint's deliverables, deviations, carry-forward rules) — load-bearing for "what's the project state right now" questions; **session-resume hooks** = SessionStart auto-context that summarises the previous session's tasks + files modified + tools used + key decisions, so a new session doesn't start cold. These three artifacts together let a fresh session pick up mid-sprint without ambiguity.
+
+**Cross-sprint evidence.** AGENTS.md grew from ~50 lines at Phase-0-redux to ~150 lines at Sprint-5 — each sprint added carry-forward rules (Sprint-2-redux per-module outbox prefix, Sprint-3-redux K12 pattern, Sprint-4 K13 OutboxRoute, etc.). CLAUDE.md grew similarly — each sprint's "current stage" block was preserved as sprint history when the next sprint became current. The visual companion HTML shipped during Sprint-5 brainstorm ([docs/brainstorms/2026-05-16-sprint-5-visual.html](brainstorms/2026-05-16-sprint-5-visual.html)) is an emergency context-management tool: when prose-only dialogue stopped landing, the visual unstuck the conversation. The mechanism: dense multi-decision context (10 units × 6 KTDs × 4-layer pipeline) exceeds prose's bandwidth for some dialogue moments; visual representation costs more to produce but reads in seconds.
+
+**The honest limitation.** AGENTS.md and CLAUDE.md grow over time. The Sprint-5 close brought CLAUDE.md to ~3000 words; session-start context-load time scales with that. At some point (probably 12-15 sprints in), pruning becomes necessary — old sprint history blocks should compress to one-paragraph summaries pointing at sign-off docs, not full prose. The methodology hasn't crossed that threshold yet; future-self will need to.
+
+The other limitation: session-resume hooks summarise the previous session in fixed structure (tasks + files + tools + decisions). They miss the **conversational tone** of how decisions were arrived at — the back-and-forth that produced a KTD, the user's specific concern that drove a scope choice. Those nuances live in brainstorm and plan docs, not in session-resume summaries. The mitigation: write brainstorm docs as conversational artifacts (with the dialogue-flavored "Stated / Inferred / Out of scope" structure), not as bullet-point requirements.
+
+---
+
+*These patterns came from one project, one solo developer, one stack — .NET 9 + Postgres + modular monolith, Claude Code + compound-engineering skills, ~10 days of active development. They may not generalize. They work for the specific shape: solo work + long-running project + persistent docs + Claude Code's specific skill primitives. Read this as evidence, not prescription. If you adopt anything from this section, adopt the cadence first; the other patterns are accessories.*
 
 ---
 
