@@ -13,4 +13,9 @@
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Sprint-6 U7 — MediatR query handlers for the Inventory.Api read endpoints. -->
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+
 </Project>
