@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" width="32" height="32" role="img" aria-label="ShopFlow">
+  <title>ShopFlow</title>
+  <rect width="22" height="22" rx="3" fill="#FAFAF7"/>
+  <g fill="#2D2C28">
+    <rect x="3"  y="3"  width="3" height="3" rx="0.5"/>
+    <rect x="8"  y="3"  width="3" height="3" rx="0.5"/>
+    <rect x="13" y="3"  width="3" height="3" rx="0.5"/>
+    <rect x="3"  y="8"  width="3" height="3" rx="0.5"/>
+    <rect x="16" y="8"  width="3" height="3" rx="0.5"/>
+    <rect x="3"  y="13" width="3" height="3" rx="0.5"/>
+    <rect x="16" y="13" width="3" height="3" rx="0.5"/>
+    <rect x="3"  y="16" width="3" height="3" rx="0.5"/>
+    <rect x="8"  y="16" width="3" height="3" rx="0.5"/>
+    <rect x="13" y="16" width="3" height="3" rx="0.5"/>
+  </g>
+</svg>

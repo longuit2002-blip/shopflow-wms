@@ -1,17 +1,41 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import userEvent from '@testing-library/user-event';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import App from './App';
+import { __resetLocaleForTests } from './hooks/useLocale';
 
-describe('App (Sprint-6 U2 placeholder)', () => {
-  it('renders the product name heading', () => {
-    render(<App />);
-    expect(screen.getByRole('heading', { name: /ShopFlow WMS/i })).toBeInTheDocument();
+describe('App (Sprint-6 U3 shell)', () => {
+  beforeEach(() => {
+    __resetLocaleForTests();
   });
 
-  it('renders the U2 token smoke pills', () => {
+  afterEach(() => {
+    __resetLocaleForTests();
+  });
+
+  it('renders the desktop shell (sidebar nav + topbar banner)', () => {
     render(<App />);
-    expect(screen.getByText(/U2 token smoke/i)).toBeInTheDocument();
-    expect(screen.getByText('neutral')).toBeInTheDocument();
-    expect(screen.getByText('accent')).toBeInTheDocument();
+    expect(screen.getByRole('banner')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: /Điều hướng chính/i })).toBeInTheDocument();
+  });
+
+  it('starts on the Inventory placeholder slot', () => {
+    render(<App />);
+    const heading = screen.getByRole('heading', { name: /Tồn kho/i });
+    expect(heading).toBeInTheDocument();
+  });
+
+  it('renders ComingSoon when user clicks a stubbed nav item', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /Tổng quan/i }));
+    expect(screen.getByText(/Sắp ra mắt/i)).toBeInTheDocument();
+  });
+
+  it('flips locale on EN button click and re-renders labels', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /English/i }));
+    expect(screen.getByRole('heading', { name: /Inventory/i })).toBeInTheDocument();
   });
 });
