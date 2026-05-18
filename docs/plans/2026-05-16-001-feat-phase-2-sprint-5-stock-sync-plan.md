@@ -1,11 +1,13 @@
 ---
 title: "feat: Phase-2 Sprint-5 — Stock Sync Engine"
 type: feat
-status: active
+status: completed
 date: 2026-05-16
+completed: 2026-05-17
 origin: docs/brainstorms/2026-05-16-sprint-5-stock-sync-requirements.md
 follows: docs/phase-gates/2026-05-15-sprint-4.5-signoff.md
-tag_target: v0.7.0-sprint-5
+signoff: docs/phase-gates/2026-05-17-sprint-5-signoff.md
+tag: v0.7.0-sprint-5
 ---
 
 # feat: Phase-2 Sprint-5 — Stock Sync Engine
