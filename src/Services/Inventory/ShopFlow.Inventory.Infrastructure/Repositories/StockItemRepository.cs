@@ -32,23 +32,32 @@ public sealed class StockItemRepository : IStockItemRepository
         _requestContext = requestContext;
     }
 
-    public Task<StockItem?> FindBySkuAsync(Sku sku, CancellationToken ct)
+    public async Task<StockItem?> FindBySkuAsync(Sku sku, CancellationToken ct)
     {
-        _ = (sku, ct, _db);
-        throw new NotImplementedException(
-            "Sprint-3-redux body — Outbound picking flow needs FindBySkuAsync."
-        );
+        ArgumentNullException.ThrowIfNull(sku);
+        return await _db.StockItems
+            .AsTracking()
+            .FirstOrDefaultAsync(s => s.Sku == sku, ct)
+            .ConfigureAwait(false);
     }
 
-    public Task AddAsync(StockItem item, CancellationToken ct)
+    public async Task AddAsync(StockItem item, CancellationToken ct)
     {
-        _ = (item, ct);
-        throw new NotImplementedException(
-            "Sprint-3-redux body — explicit AddAsync from admin workflows; Sprint-2-redux auto-creates via AdjustAtBinAsync."
-        );
+        ArgumentNullException.ThrowIfNull(item);
+        await _db.StockItems.AddAsync(item, ct).ConfigureAwait(false);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
 
-    public Task<Result> AdjustAsync(
+    /// <summary>
+    /// Sprint-6 U8 — non-bin stock adjustment for the Inventory screen's
+    /// Adjust modal (Owner role). Applies <paramref name="delta"/> to
+    /// <c>stock_items.available</c>, appends a <c>stock_adjustments</c>
+    /// audit row, and emits a <c>StockLevelChangedV1</c> outbox message
+    /// in one ReadCommitted transaction. Unlike
+    /// <see cref="AdjustAtBinAsync"/> there is no bin upsert; the bin
+    /// layer remains the source of truth for inbound put-away flows.
+    /// </summary>
+    public async Task<Result> AdjustAsync(
         Sku sku,
         int delta,
         StockAdjustmentReason reason,
@@ -56,10 +65,48 @@ public sealed class StockItemRepository : IStockItemRepository
         CancellationToken ct
     )
     {
-        _ = (sku, delta, reason, note, ct);
-        throw new NotImplementedException(
-            "Sprint-3-redux body — non-bin adjust path for Outbound's picking flow."
+        ArgumentNullException.ThrowIfNull(sku);
+        if (delta == 0)
+        {
+            return Result.Failure("delta must be non-zero.", "stock.adjustment_zero");
+        }
+
+        var item = await _db.StockItems
+            .AsTracking()
+            .FirstOrDefaultAsync(s => s.Sku == sku, ct)
+            .ConfigureAwait(false);
+
+        if (item is null)
+        {
+            return Result.Failure(
+                $"sku not found: {sku.Value}",
+                "stock.sku_not_found"
+            );
+        }
+
+        var domainResult = item.Adjust(delta, reason);
+        if (!domainResult.IsSuccess)
+        {
+            return domainResult;
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        _db.StockAdjustments.Add(
+            StockAdjustment.Record(sku, delta, reason, note)
         );
+
+        AppendOutbox(
+            new StockLevelChangedV1(
+                _requestContext.TenantId,
+                sku.Value,
+                item.Available.Value,
+                nowUtc
+            ),
+            nowUtc
+        );
+
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        return Result.Success();
     }
 
     public async Task<Result> AdjustAtBinAsync(

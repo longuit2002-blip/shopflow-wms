@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ShopFlow.Inventory.Application.Dtos;
 using ShopFlow.Inventory.Application.Queries;
+using ShopFlow.Inventory.Application.Services;
 using ShopFlow.Inventory.Domain;
 
 namespace ShopFlow.Inventory.Infrastructure.Queries;
@@ -16,15 +17,18 @@ namespace ShopFlow.Inventory.Infrastructure.Queries;
 ///   - Total count is a separate query inside the same transaction so the
 ///     pagination footer renders correctly.
 ///
-/// Cosmetic fields (Name, Category, Threshold, IsFlashSale) ship as
-/// stubbed/null values — Sprint-7 adds them as real columns. Channel
-/// allocations + p24 outbound require cross-module joins; stubbed empty
-/// in Sprint-6 (see SkuListItemDto remarks).
+/// Threshold + isFlashSale come from the in-memory metadata store
+/// (Sprint-6 U8 — <see cref="ISkuMetadataReader"/>). Sprint-7 promotes
+/// them to real columns. Channel allocations + p24 outbound still ship
+/// empty (cross-module join is Sprint-7).
 /// </summary>
-public sealed class ListSkusQueryHandler(InventoryDbContext db)
+public sealed class ListSkusQueryHandler(
+    InventoryDbContext db,
+    ISkuMetadataReader metadata)
     : IRequestHandler<ListSkusQuery, PaginatedSkuListDto>
 {
     private readonly InventoryDbContext db = db;
+    private readonly ISkuMetadataReader metadata = metadata;
 
     public async Task<PaginatedSkuListDto> Handle(
         ListSkusQuery request,
@@ -66,8 +70,8 @@ public sealed class ListSkusQueryHandler(InventoryDbContext db)
                 Reserved: r.Reserved,
                 Name: r.Sku, // Sprint-7 reads from a real name column
                 Category: null,
-                Threshold: null,
-                IsFlashSale: false,
+                Threshold: this.metadata.GetThreshold(r.Sku),
+                IsFlashSale: this.metadata.IsFlashSale(r.Sku),
                 Allocations: Array.Empty<ChannelAllocationDto>(),
                 P24Outbound: 0))
             .ToList();

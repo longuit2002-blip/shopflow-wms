@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
+using ShopFlow.Inventory.Application.Services;
 using ShopFlow.Inventory.Infrastructure.Repositories;
 using ShopFlow.Inventory.Infrastructure.Services;
 using ShopFlow.Inventory.Infrastructure.Workers;
@@ -65,6 +66,11 @@ public static class InventoryServiceCollectionExtensions
         services.AddScoped<IInboundDedupRepository, InboundDedupRepository>();
         services.AddScoped<IPutAwaySuggestionService, PutAwaySuggestionService>();
         services.AddScoped<IUnitOfWork, InventoryUnitOfWork>();
+
+        // Sprint-6 U8 — in-memory metadata store for threshold + is_flash_sale.
+        // Sprint-7 replaces with EF-backed real columns.
+        services.AddSingleton<ISkuMetadataStore, InMemorySkuMetadataStore>();
+        services.AddScoped<ISkuMetadataReader, TenantScopedSkuMetadataReader>();
 
         services
             .AddOptions<InventoryOptions>()
