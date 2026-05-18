@@ -1,21 +1,24 @@
 /**
  * Sidebar — left-rail navigation + System Health placeholder.
  *
- * Ports the design canon `app.jsx` `<Sidebar>` (~line 46). Sprint-6
- * decisions vs canon:
+ * Ports the design canon `app.jsx` `<Sidebar>` (~line 46). Sprint-6 U6
+ * pivots from prop-based active state to TanStack Router's `<Link>` +
+ * `useLocation`, which means:
  *
- * - Role is hardcoded to Owner (Sprint-6's vertical slice), so the
- *   admin section + Operator-hides are simplified out. The canon's
- *   Settings / Audit log / Tenants / Onboarding items stay visible
- *   because Owner sees everything; they're just stubbed via ComingSoon
- *   routes (handled by U6).
+ * - Active state is derived from the current URL pathname, not a prop.
+ * - Nav items render as anchor tags via `<Link to=...>` — browser back/
+ *   forward + middle-click open-in-new-tab + keyboard Tab → Enter all
+ *   work for free.
+ * - The Sidebar is no longer router-agnostic; it imports from
+ *   @tanstack/react-router. Sprint-7 swap (e.g. React Router) would
+ *   touch this file. Trade-off accepted: cleaner code + correct a11y.
  *
- * - The "active" prop is supplied by the caller. Sprint-6 hardcodes
- *   `inventory` until U6 wires TanStack Router; once routing lands the
- *   App component derives `active` from `useLocation()`.
+ * Role is hardcoded to Owner (Sprint-6's vertical slice) so the
+ * Operator-hides + admin section gating from canon are simplified out.
+ * Canon items stay visible because Owner sees everything.
  *
- * - System Health values are mock-static. Real values stream from the
- *   `/system/health` SignalR channel in Sprint-7.
+ * System Health values are mock-static — real values stream from the
+ * `/system/health` SignalR channel in Sprint-7.
  */
 
 import {
@@ -31,9 +34,11 @@ import {
   UserPlus,
   type LucideIcon,
 } from 'lucide-react';
+import { Link, useLocation } from '@tanstack/react-router';
 import { Logo } from '../primitives/Logo';
 import { Pill } from '../primitives/Pill';
 import { t, useLocale } from '../../hooks/useLocale';
+import { SCREEN_PATHS } from './screenPaths';
 
 export type ScreenId =
   | 'dashboard'
@@ -51,65 +56,53 @@ interface NavItem {
   id: ScreenId;
   label: string;
   icon: LucideIcon;
-  count: number | null;
   /** "Coming Sprint-X" badge for stubbed routes. Inventory is null. */
   upcoming?: string;
   /** Section header above the next group. */
   groupBefore?: string;
 }
 
-export interface SidebarProps {
-  /** Currently active screen id. Sprint-6 callers pass `inventory`. */
-  active: ScreenId;
-  onNavigate?: (id: ScreenId) => void;
-}
-
-export function Sidebar({ active, onNavigate }: SidebarProps) {
+export function Sidebar() {
   // Re-subscribe to locale so labels re-render when LocaleSwitcher flips lang.
   useLocale();
+  const location = useLocation();
 
   const items: NavItem[] = [
     {
       id: 'dashboard',
       label: t('Tổng quan', 'Dashboard'),
       icon: LayoutDashboard,
-      count: null,
       upcoming: 'Sprint 7',
     },
-    { id: 'inventory', label: t('Tồn kho', 'Inventory'), icon: Boxes, count: null },
+    { id: 'inventory', label: t('Tồn kho', 'Inventory'), icon: Boxes },
     {
       id: 'inbound',
       label: t('Nhập hàng', 'Inbound'),
       icon: Truck,
-      count: null,
       upcoming: 'Sprint 8',
     },
     {
       id: 'outbound',
       label: t('Đơn hàng', 'Outbound'),
       icon: Receipt,
-      count: null,
       upcoming: 'Sprint 7',
     },
     {
       id: 'channels',
       label: t('Kênh bán', 'Channels'),
       icon: Plug,
-      count: null,
       upcoming: 'Sprint 8',
     },
     {
       id: 'sync',
       label: t('Đồng bộ tồn', 'Stock sync'),
       icon: RefreshCw,
-      count: null,
       upcoming: 'Sprint 8',
     },
     {
       id: 'settings',
       label: t('Cài đặt', 'Settings'),
       icon: Settings,
-      count: null,
       upcoming: 'Phase 3',
       groupBefore: t('Quản trị', 'Admin'),
     },
@@ -117,21 +110,18 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
       id: 'audit',
       label: t('Audit log', 'Audit log'),
       icon: FileSearch,
-      count: null,
       upcoming: 'Phase 3',
     },
     {
       id: 'tenants',
       label: t('Tenants', 'Tenants'),
       icon: Building2,
-      count: null,
       upcoming: 'Phase 3',
     },
     {
       id: 'onboarding',
       label: t('Khởi tạo mới', 'Onboard new'),
       icon: UserPlus,
-      count: null,
       upcoming: 'Phase 3',
     },
   ];
@@ -176,8 +166,7 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
             <NavRow
               key={it.id}
               item={it}
-              active={active === it.id}
-              onClick={() => onNavigate?.(it.id)}
+              active={location.pathname.startsWith(SCREEN_PATHS[it.id])}
             />
           ))}
         </nav>
@@ -191,11 +180,10 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
 interface NavRowProps {
   item: NavItem;
   active: boolean;
-  onClick: () => void;
 }
 
-function NavRow({ item, active, onClick }: NavRowProps) {
-  const { icon: Icon, label, upcoming, groupBefore } = item;
+function NavRow({ item, active }: NavRowProps) {
+  const { icon: Icon, label, upcoming, groupBefore, id } = item;
   return (
     <>
       {groupBefore && (
@@ -212,17 +200,12 @@ function NavRow({ item, active, onClick }: NavRowProps) {
           {groupBefore}
         </div>
       )}
-      <button
-        type="button"
+      <Link
+        to={SCREEN_PATHS[id]}
         className={`nav-item ${active ? 'active' : ''}`}
-        onClick={onClick}
         aria-current={active ? 'page' : undefined}
         style={{
-          width: '100%',
-          textAlign: 'left',
-          border: 'none',
-          background: 'transparent',
-          font: 'inherit',
+          textDecoration: 'none',
           color: 'inherit',
         }}
       >
@@ -236,7 +219,7 @@ function NavRow({ item, active, onClick }: NavRowProps) {
             {upcoming}
           </span>
         )}
-      </button>
+      </Link>
     </>
   );
 }

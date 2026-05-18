@@ -1,14 +1,22 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
 import path from 'node:path';
 
-// ShopFlow WMS web frontend — Sprint-6 plan U1.
-// SWC instead of Babel (faster); React 19.
-// TanStack Router plugin is wired in U6 once the `src/routes/` tree exists.
+// ShopFlow WMS web frontend — Sprint-6 plan U1 + U6.
+// SWC instead of Babel (faster); React 19; TanStack Router file-based
+// routing (U6 wires the routes tree).
+//
 // Dev server proxies `/api/*` and `/auth/*` to the Gateway so JWT + tenant
 // routing flow through the real backend even in dev mode.
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    TanStackRouterVite({
+      target: 'react',
+      autoCodeSplitting: true,
+    }),
+    react(),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

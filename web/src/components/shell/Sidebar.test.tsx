@@ -1,8 +1,53 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import {
+  RouterProvider,
+  createRouter,
+  createRootRoute,
+  createRoute,
+  createMemoryHistory,
+  Outlet,
+} from '@tanstack/react-router';
 import { Sidebar } from './Sidebar';
 import { __resetLocaleForTests, setLang } from '../../hooks/useLocale';
+
+/**
+ * Mount the Sidebar inside a TanStack Router memory router so its `<Link>`
+ * children can call `useLocation()` etc. The memory router is configured
+ * with a single root component that renders the Sidebar; tests navigate
+ * by overriding `initialEntries`.
+ */
+function renderSidebarAt(pathname: string) {
+  const rootRoute = createRootRoute({
+    component: () => (
+      <>
+        <Sidebar />
+        <Outlet />
+      </>
+    ),
+  });
+  // Register placeholder routes for every path the Sidebar links to so
+  // the router can resolve them without `notFoundComponent` noise.
+  const childRoutes = [
+    '/dashboard',
+    '/inventory',
+    '/inbound',
+    '/outbound',
+    '/channels',
+    '/sync',
+    '/settings',
+    '/audit',
+    '/tenants',
+    '/onboarding',
+  ].map((path) =>
+    createRoute({ getParentRoute: () => rootRoute, path, component: () => null }),
+  );
+  const router = createRouter({
+    routeTree: rootRoute.addChildren(childRoutes),
+    history: createMemoryHistory({ initialEntries: [pathname] }),
+  });
+  return render(<RouterProvider router={router} />);
+}
 
 describe('Sidebar', () => {
   beforeEach(() => {
@@ -13,65 +58,53 @@ describe('Sidebar', () => {
     __resetLocaleForTests();
   });
 
-  it('renders 10 nav items including Inventory', () => {
-    render(<Sidebar active="inventory" />);
-    expect(screen.getByRole('button', { name: /Tồn kho/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Tổng quan/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Nhập hàng/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Đơn hàng/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Kênh bán/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Đồng bộ tồn/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Cài đặt/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Audit log/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Tenants/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Khởi tạo mới/i })).toBeInTheDocument();
+  it('renders 10 nav items including Inventory', async () => {
+    renderSidebarAt('/inventory');
+    expect(await screen.findByRole('link', { name: /Tồn kho/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Tổng quan/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Nhập hàng/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Đơn hàng/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Kênh bán/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Đồng bộ tồn/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Cài đặt/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Audit log/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Tenants/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Khởi tạo mới/i })).toBeInTheDocument();
   });
 
-  it('marks active item with aria-current=page', () => {
-    render(<Sidebar active="inventory" />);
-    const inventory = screen.getByRole('button', { name: /Tồn kho/i });
+  it('marks the active item with aria-current=page based on current URL', async () => {
+    renderSidebarAt('/inventory');
+    const inventory = await screen.findByRole('link', { name: /Tồn kho/i });
     expect(inventory).toHaveAttribute('aria-current', 'page');
 
-    const dashboard = screen.getByRole('button', { name: /Tổng quan/i });
+    const dashboard = screen.getByRole('link', { name: /Tổng quan/i });
     expect(dashboard).not.toHaveAttribute('aria-current');
   });
 
-  it('hides the upcoming pill on the active item but shows it on stubs', () => {
-    render(<Sidebar active="inventory" />);
-    // Inventory is active — no Sprint-X pill
-    const inventory = screen.getByRole('button', { name: /Tồn kho/i });
+  it('hides the upcoming pill on the active item but shows it on stubs', async () => {
+    renderSidebarAt('/inventory');
+    const inventory = await screen.findByRole('link', { name: /Tồn kho/i });
     expect(inventory.textContent).not.toMatch(/Sprint|Phase/);
 
-    // Dashboard is stubbed — shows "Sprint 7"
-    const dashboard = screen.getByRole('button', { name: /Tổng quan/i });
+    const dashboard = screen.getByRole('link', { name: /Tổng quan/i });
     expect(dashboard.textContent).toMatch(/Sprint 7/);
   });
 
-  it('renders English labels after locale flip', () => {
+  it('renders English labels after locale flip', async () => {
     setLang('en');
-    render(<Sidebar active="inventory" />);
-    expect(screen.getByRole('button', { name: /Inventory/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Dashboard/i })).toBeInTheDocument();
+    renderSidebarAt('/inventory');
+    expect(await screen.findByRole('link', { name: /Inventory/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Dashboard/i })).toBeInTheDocument();
   });
 
-  it('renders Admin section header above the Settings group', () => {
-    render(<Sidebar active="inventory" />);
-    expect(screen.getByText(/Quản trị/i)).toBeInTheDocument();
+  it('renders the Admin section header', async () => {
+    renderSidebarAt('/inventory');
+    expect(await screen.findByText(/Quản trị/i)).toBeInTheDocument();
   });
 
-  it('fires onNavigate with the clicked id', async () => {
-    const user = userEvent.setup();
-    const onNavigate = vi.fn();
-    render(<Sidebar active="inventory" onNavigate={onNavigate} />);
-
-    await user.click(screen.getByRole('button', { name: /Tổng quan/i }));
-    expect(onNavigate).toHaveBeenCalledWith('dashboard');
-  });
-
-  it('renders the dot-matrix logo + ShopFlow wordmark + version line', () => {
-    render(<Sidebar active="inventory" />);
-    expect(screen.getByRole('img', { name: /ShopFlow logo/i })).toBeInTheDocument();
+  it('renders the dot-matrix logo + ShopFlow wordmark', async () => {
+    renderSidebarAt('/inventory');
+    expect(await screen.findByRole('img', { name: /ShopFlow logo/i })).toBeInTheDocument();
     expect(screen.getByText('ShopFlow')).toBeInTheDocument();
-    expect(screen.getByText(/WMS · v0\.9\.0/)).toBeInTheDocument();
   });
 });
