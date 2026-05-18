@@ -1,0 +1,212 @@
+/**
+ * LoginScreen — single-screen login (Sprint-6 plan U5).
+ *
+ * Centered 400-px card on bg-soft with the dot-matrix Logo at 64 px,
+ * email + password inputs, a disabled TOTP placeholder ("Mã 2FA"), and
+ * an amber-ochre submit button. Any non-empty (email, password) pair
+ * succeeds against the dev-mode `/auth/login` endpoint.
+ *
+ * On success: `useAuth.login(jwt)` populates the store + persists to
+ * localStorage; the parent calls `onLoginSuccess()` to navigate. The
+ * component is router-agnostic so the U6 route file can wrap it with
+ * `useNavigate()` without changes here.
+ *
+ * STYLING_SPECS §6 a11y: focus-visible ring is wired in tokens.css
+ * (U2); labels carry `htmlFor` + ids; the submit button announces a
+ * loading state on press.
+ */
+
+import { useState, type FormEvent } from 'react';
+import { Logo } from '../primitives/Logo';
+import { Button } from '../primitives/Button';
+import { t, useLocale } from '../../hooks/useLocale';
+import { useAuth } from '../../hooks/useAuth';
+import { login, LoginFailedError } from '../../api/auth';
+
+export interface LoginScreenProps {
+  onLoginSuccess?: () => void;
+}
+
+type SubmissionState =
+  | { kind: 'idle' }
+  | { kind: 'submitting' }
+  | { kind: 'error'; message: string };
+
+export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+  useLocale();
+  const authLogin = useAuth((s) => s.login);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [totp, setTotp] = useState('');
+  const [state, setState] = useState<SubmissionState>({ kind: 'idle' });
+
+  const canSubmit =
+    email.trim().length > 0 && password.length > 0 && state.kind !== 'submitting';
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setState({ kind: 'submitting' });
+    try {
+      const result = await login({ email: email.trim(), password });
+      authLogin(result.accessToken);
+      onLoginSuccess?.();
+    } catch (err) {
+      const message =
+        err instanceof LoginFailedError
+          ? err.message
+          : t('Đăng nhập thất bại. Vui lòng thử lại.', 'Login failed. Please try again.');
+      setState({ kind: 'error', message });
+    }
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-soft)',
+        padding: 'var(--s-6)',
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        className="card"
+        style={{
+          width: 400,
+          padding: 'var(--s-7)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 'var(--s-4)',
+        }}
+        aria-label={t('Đăng nhập ShopFlow WMS', 'Sign in to ShopFlow WMS')}
+      >
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 'var(--s-2)',
+          }}
+        >
+          <Logo size={64} />
+          <h1 className="t-xl" style={{ margin: 0, fontWeight: 600 }}>
+            ShopFlow WMS
+          </h1>
+          <p className="t-sm" style={{ margin: 0, color: 'var(--ink-2)' }}>
+            {t('Đăng nhập để quản lý tồn kho', 'Sign in to manage your inventory')}
+          </p>
+        </div>
+
+        <FormField id="login-email" label={t('Email', 'Email')}>
+          <input
+            id="login-email"
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={state.kind === 'submitting'}
+          />
+        </FormField>
+
+        <FormField id="login-password" label={t('Mật khẩu', 'Password')}>
+          <input
+            id="login-password"
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={state.kind === 'submitting'}
+          />
+        </FormField>
+
+        <FormField
+          id="login-totp"
+          label={t('Mã 2FA', '2FA code')}
+          helper={t(
+            'Bỏ qua trong chế độ phát triển',
+            'Skipped in dev mode',
+          )}
+        >
+          <input
+            id="login-totp"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]{6}"
+            maxLength={6}
+            placeholder="••••••"
+            value={totp}
+            onChange={(e) => setTotp(e.target.value)}
+            disabled
+            aria-disabled="true"
+          />
+        </FormField>
+
+        {state.kind === 'error' && (
+          <div
+            role="alert"
+            className="t-sm"
+            style={{
+              padding: 'var(--s-2) var(--s-3)',
+              borderRadius: 'var(--radius-md)',
+              background: 'var(--danger-100)',
+              border: '1px solid #E5A4A4',
+              color: '#7A1A1A',
+            }}
+          >
+            {state.message}
+          </div>
+        )}
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          disabled={!canSubmit}
+          aria-busy={state.kind === 'submitting'}
+        >
+          {state.kind === 'submitting'
+            ? t('Đang đăng nhập…', 'Signing in…')
+            : t('Đăng nhập', 'Sign in')}
+        </Button>
+
+        <p
+          className="t-xs"
+          style={{ margin: 0, color: 'var(--ink-3)', textAlign: 'center' }}
+        >
+          {t(
+            'Phiên bản v0.9.0 · chế độ phát triển',
+            'Version v0.9.0 · dev mode',
+          )}
+        </p>
+      </form>
+    </div>
+  );
+}
+
+interface FormFieldProps {
+  id: string;
+  label: string;
+  helper?: string;
+  children: React.ReactNode;
+}
+
+function FormField({ id, label, helper, children }: FormFieldProps) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
+      <label htmlFor={id} className="lbl">
+        {label}
+      </label>
+      {children}
+      {helper && (
+        <span className="t-xs" style={{ color: 'var(--ink-3)' }}>
+          {helper}
+        </span>
+      )}
+    </div>
+  );
+}

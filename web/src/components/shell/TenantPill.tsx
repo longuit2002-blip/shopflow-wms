@@ -64,10 +64,7 @@ export function TenantPill({ monogram, legalName, erc, region, dbName }: TenantP
         <div className="tr" style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.2 }}>
           {legalName}
         </div>
-        <div
-          className="tr"
-          style={{ fontSize: 10.5, color: 'var(--ink-3)', lineHeight: 1.2 }}
-        >
+        <div className="tr" style={{ fontSize: 10.5, color: 'var(--ink-3)', lineHeight: 1.2 }}>
           <span className="mono">{erc}</span>
           {' · '}
           {region}

@@ -33,9 +33,7 @@ export function LiveIndicator({ status = 'info' }: LiveIndicatorProps) {
       }}
     >
       <span className={`live-dot ${status === 'info' ? '' : status}`} />
-      <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-        {t('Trực tiếp', 'Live')}
-      </span>
+      <span style={{ fontSize: 11, color: 'var(--ink-3)' }}>{t('Trực tiếp', 'Live')}</span>
     </div>
   );
 }

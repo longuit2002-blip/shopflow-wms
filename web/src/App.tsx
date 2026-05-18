@@ -41,7 +41,15 @@ export default function App() {
       <Sidebar active={active} onNavigate={setActive} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         <TopBar tenant={DEMO_TENANT} user={DEMO_USER} />
-        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, background: 'var(--bg)' }}>
+        <main
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            background: 'var(--bg)',
+          }}
+        >
           {active === 'inventory' ? (
             <InventoryPlaceholder />
           ) : (

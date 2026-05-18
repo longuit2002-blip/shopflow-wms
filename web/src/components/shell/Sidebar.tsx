@@ -69,12 +69,42 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
   useLocale();
 
   const items: NavItem[] = [
-    { id: 'dashboard', label: t('Tổng quan', 'Dashboard'), icon: LayoutDashboard, count: null, upcoming: 'Sprint 7' },
+    {
+      id: 'dashboard',
+      label: t('Tổng quan', 'Dashboard'),
+      icon: LayoutDashboard,
+      count: null,
+      upcoming: 'Sprint 7',
+    },
     { id: 'inventory', label: t('Tồn kho', 'Inventory'), icon: Boxes, count: null },
-    { id: 'inbound', label: t('Nhập hàng', 'Inbound'), icon: Truck, count: null, upcoming: 'Sprint 8' },
-    { id: 'outbound', label: t('Đơn hàng', 'Outbound'), icon: Receipt, count: null, upcoming: 'Sprint 7' },
-    { id: 'channels', label: t('Kênh bán', 'Channels'), icon: Plug, count: null, upcoming: 'Sprint 8' },
-    { id: 'sync', label: t('Đồng bộ tồn', 'Stock sync'), icon: RefreshCw, count: null, upcoming: 'Sprint 8' },
+    {
+      id: 'inbound',
+      label: t('Nhập hàng', 'Inbound'),
+      icon: Truck,
+      count: null,
+      upcoming: 'Sprint 8',
+    },
+    {
+      id: 'outbound',
+      label: t('Đơn hàng', 'Outbound'),
+      icon: Receipt,
+      count: null,
+      upcoming: 'Sprint 7',
+    },
+    {
+      id: 'channels',
+      label: t('Kênh bán', 'Channels'),
+      icon: Plug,
+      count: null,
+      upcoming: 'Sprint 8',
+    },
+    {
+      id: 'sync',
+      label: t('Đồng bộ tồn', 'Stock sync'),
+      icon: RefreshCw,
+      count: null,
+      upcoming: 'Sprint 8',
+    },
     {
       id: 'settings',
       label: t('Cài đặt', 'Settings'),
@@ -83,9 +113,27 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
       upcoming: 'Phase 3',
       groupBefore: t('Quản trị', 'Admin'),
     },
-    { id: 'audit', label: t('Audit log', 'Audit log'), icon: FileSearch, count: null, upcoming: 'Phase 3' },
-    { id: 'tenants', label: t('Tenants', 'Tenants'), icon: Building2, count: null, upcoming: 'Phase 3' },
-    { id: 'onboarding', label: t('Khởi tạo mới', 'Onboard new'), icon: UserPlus, count: null, upcoming: 'Phase 3' },
+    {
+      id: 'audit',
+      label: t('Audit log', 'Audit log'),
+      icon: FileSearch,
+      count: null,
+      upcoming: 'Phase 3',
+    },
+    {
+      id: 'tenants',
+      label: t('Tenants', 'Tenants'),
+      icon: Building2,
+      count: null,
+      upcoming: 'Phase 3',
+    },
+    {
+      id: 'onboarding',
+      label: t('Khởi tạo mới', 'Onboard new'),
+      icon: UserPlus,
+      count: null,
+      upcoming: 'Phase 3',
+    },
   ];
 
   return (
@@ -103,9 +151,7 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
       <div style={{ padding: '14px 14px 10px', display: 'flex', alignItems: 'center', gap: 9 }}>
         <Logo size={22} />
         <div>
-          <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em' }}>
-            ShopFlow
-          </div>
+          <div style={{ fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em' }}>ShopFlow</div>
           <div
             className="mono"
             style={{
@@ -210,7 +256,14 @@ function SystemHealth() {
       <div style={{ padding: '0 6px', display: 'flex', flexDirection: 'column', gap: 4 }}>
         <HealthRow label={t('p99 giữ chỗ', 'p99 reservation')} value="—" />
         <HealthRow label={t('kết nối signalr', 'signalr conns')} value="—" />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 11,
+          }}
+        >
           <span style={{ color: 'var(--ink-3)' }}>noisy neighbour</span>
           <Pill kind="ok">{t('ổn định', 'stable')}</Pill>
         </div>
@@ -221,7 +274,14 @@ function SystemHealth() {
 
 function HealthRow({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontSize: 11,
+      }}
+    >
       <span style={{ color: 'var(--ink-3)' }}>{label}</span>
       <span className="mono tnum">{value}</span>
     </div>
