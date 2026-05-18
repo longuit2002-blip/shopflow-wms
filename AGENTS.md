@@ -47,93 +47,98 @@ This is the executable canon that AI-pair-programming agents (Claude Code, Curso
 21. Cross-tenant routing correctness is tested in CI: a request with tenant A's headers must never return tenant B's data — verified via the `CrossTenantRoutingTests` suite per Phase-0-redux U8-redux. A failure is a P0 incident.
 22. Schema migrations are backward-compatible for one release: add columns/indexes before reads, expand types before shrinking, never drop in the same release that stops writing. Migrations apply per-tenant via `shopflow-migrate apply --target=<version>`; failure stops the run and reports the failed tenant for retry.
 23. Hand-authored migration classes carry **both** `[Migration("<timestamp>_Name")]` and `[DbContext(typeof(<DbContext>))]` attributes. Without them `MigrateAsync()` is a silent no-op (per `docs/solutions/2026-05-10-ef-migration-needs-attributes.md`). The migration smoke test in per-PR CI guards this contract.
+24. Ports invoked from singleton context (consumer middleware, hosted services, multiplexed dispatchers, singleton caching wrappers) take `Guid tenantId` as an **explicit parameter** — never read from ambient `IRequestContext`. The singleton-side wrapper opens a DI scope, resolves `ITenantCatalog.LookupByIdAsync`, binds `IRequestContext`, then delegates to the scoped inner repository. Reference: `CLAUDE.md` KTD7 (Sprint-5 U7 `ISkuFlagRepository` signature change).
+25. Saga DbContext binding uses `TenantBindingSagaFilter<TState>` (primary path) plus `TenantAwareSagaDbContextFactory<TState>` (registered fallback). Both read the tenant identifier from the message envelope, not from `IRequestContext` — consumer middleware has not yet bound the request scope when the saga repository materializes. Reference: `CLAUDE.md` K12 (Sprint-3-redux U4 fulfillment saga).
+26. Multi-row conditional CTE INSERT/UPDATE places the predicate **inside** the UPDATE clause and gates the outer write with `NOT EXISTS` against the all-succeeded set — never pre-check the predicate in a separate CTE. A separate CTE leaks a race window under `READ COMMITTED` and silently oversells. Reference: `docs/solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md`.
 
 ---
 
 ## 4. Domain and error handling
 
-24. Domain methods return `Result<T>` for expected failures (oversold, idempotency-key-reused, validation). They throw only for programmer errors (invariant violations).
-25. `Application` handlers return `Result<T>`; the API layer maps `Result.Failure` to the appropriate HTTP status via problem-details middleware.
-26. Domain events are raised on aggregates via `RaiseDomainEvent` and cleared by the persistence layer after the outbox interceptor collects them.
-27. Aggregate roots inherit from `AggregateRoot` (which inherits from `BaseEntity`). Value objects inherit from `ValueObject`.
-28. Value objects validate at construction and throw `ArgumentException` on invalid input. They are immutable. Equality is structural.
-29. Do not use exceptions for control flow. Do not use `Try`/`out` patterns when `Result<T>` fits.
-30. Domain code does not log. Logging is an `Application`/`Infrastructure` concern.
+27. Domain methods return `Result<T>` for expected failures (oversold, idempotency-key-reused, validation). They throw only for programmer errors (invariant violations).
+28. `Application` handlers return `Result<T>`; the API layer maps `Result.Failure` to the appropriate HTTP status via problem-details middleware.
+29. Domain events are raised on aggregates via `RaiseDomainEvent` and cleared by the persistence layer after the outbox interceptor collects them.
+30. Aggregate roots inherit from `AggregateRoot` (which inherits from `BaseEntity`). Value objects inherit from `ValueObject`.
+31. Value objects validate at construction and throw `ArgumentException` on invalid input. They are immutable. Equality is structural.
+32. Do not use exceptions for control flow. Do not use `Try`/`out` patterns when `Result<T>` fits.
+33. Domain code does not log. Logging is an `Application`/`Infrastructure` concern.
 
 ---
 
 ## 5. Async, time, and concurrency
 
-31. Every I/O method is async. Suffix is `Async`. Returns `Task` or `ValueTask`, never `void`.
-32. Never `.Result` or `.Wait()` on a Task. Never `.GetAwaiter().GetResult()` outside `Main`. Analyzer-enforced where statically detectable.
-33. Pass `CancellationToken` through every async call chain. Do not swallow `OperationCanceledException`.
-34. `DateTime.Now` is forbidden anywhere. Use `DateTime.UtcNow` or, preferably, inject `TimeProvider` (or an `IClock` shim if not on .NET 8 timing API). Analyzer `ShopFlow0004` fails the build.
-35. `DateTimeOffset.Now` is forbidden for the same reason. Use `DateTimeOffset.UtcNow`.
-36. `Random.Shared` only — never `new Random()` in hot paths.
-37. Concurrency primitives (locks, semaphores) are last-resort. Prefer immutable data + message passing.
+34. Every I/O method is async. Suffix is `Async`. Returns `Task` or `ValueTask`, never `void`.
+35. Never `.Result` or `.Wait()` on a Task. Never `.GetAwaiter().GetResult()` outside `Main`. Analyzer-enforced where statically detectable.
+36. Pass `CancellationToken` through every async call chain. Do not swallow `OperationCanceledException`.
+37. `DateTime.Now` is forbidden anywhere. Use `DateTime.UtcNow` or, preferably, inject `TimeProvider` (or an `IClock` shim if not on .NET 8 timing API). Analyzer `ShopFlow0004` fails the build.
+38. `DateTimeOffset.Now` is forbidden for the same reason. Use `DateTimeOffset.UtcNow`.
+39. `Random.Shared` only — never `new Random()` in hot paths.
+40. Concurrency primitives (locks, semaphores) are last-resort. Prefer immutable data + message passing.
 
 ---
 
 ## 6. Outbox, messaging, and idempotency
 
-38. Domain events are persisted via the outbox (atomic with the business write) by the `OutboxInterceptor` in `ShopFlow.SharedKernel`. Modules never call `IPublishEndpoint.Publish` directly during a write transaction.
-39. Webhook receivers persist the raw payload + `(channel_id, provider_event_id) UNIQUE` *before* enqueuing for processing. Duplicate deliveries return 200 without re-processing — never silently dedupe via Redis.
-40. Webhook handlers carry the `[Idempotent]` attribute. Analyzer `ShopFlow0003` fails the build on missing attribute.
-41. Outbound HTTP calls to channels (Shopee, Lazada, future marketplaces) carry an idempotency key. Retries reuse the key.
-42. Every published integration event carries `tenant_id`, `correlation_id`, and `occurred_at` UTC in its envelope.
-43. Correlation context propagates via W3C TraceContext on the message envelope. Analyzer `ShopFlow0002` fails the build on missing propagation.
-44. Saga state machines persist via MassTransit (Postgres-backed at MVP, Redis-backed at scale per Tech Design §10.4). State transitions are explicit; no implicit transitions.
+41. Domain events are persisted via the outbox (atomic with the business write) by the `OutboxInterceptor` in `ShopFlow.SharedKernel`. Modules never call `IPublishEndpoint.Publish` directly during a write transaction.
+42. Webhook receivers persist the raw payload + `(channel_id, provider_event_id) UNIQUE` *before* enqueuing for processing. Duplicate deliveries return 200 without re-processing — never silently dedupe via Redis.
+43. Webhook handlers carry the `[Idempotent]` attribute. Analyzer `ShopFlow0003` fails the build on missing attribute.
+44. Outbound HTTP calls to channels (Shopee, Lazada, future marketplaces) carry an idempotency key. Retries reuse the key.
+45. Every published integration event carries `tenant_id`, `correlation_id`, and `occurred_at` UTC in its envelope.
+46. Correlation context propagates via W3C TraceContext on the message envelope. Analyzer `ShopFlow0002` fails the build on missing propagation.
+47. Saga state machines persist via MassTransit (Postgres-backed at MVP, Redis-backed at scale per Tech Design §10.4). State transitions are explicit; no implicit transitions.
+48. Modules declare cross-module event/command routing via `services.AddOutboxRoute<T>(SendKind, destination?)` against the central `IOutboxRouteRegistry`. `MultiplexedOutboxDispatcher` reads the registry per outbox row and branches `Send` vs `Publish`. Unregistered envelope types default to `OutboxRoute.PublishDefault` with destination = kebab-case CLR type name. Reference: `CLAUDE.md` K13 (Sprint-4 U4).
+49. When multiple domain transitions converge on the same downstream state, emit one canonical event carrying the **final state** — not one event per transition. Heuristic: if a downstream consumer must re-map or re-query to reconstruct state from the event payload, the event signal is at the wrong altitude. Reference: `CLAUDE.md` KTD1 (Sprint-5 `StockLevelChangedV1` replaces 3 stock-transition events).
 
 ---
 
 ## 7. Naming conventions
 
-45. C# files: PascalCase. One public type per file (with rare nested-type exceptions). File name matches the public type.
-46. Aggregate roots: noun, no suffix (`StockItem`, `Order`). Domain events: past-tense participle (`StockReservedEvent`, `OrderShipped`).
-47. Commands: imperative-mood + `Command` suffix (`ReserveStockCommand`). Queries: noun + `Query` suffix (`GetAvailabilityQuery`).
-48. Handlers: corresponding command/query name + `Handler` suffix (`ReserveStockHandler`).
-49. Repositories: aggregate name + `Repository`. Interface: `I` + same. Place interface in `Application/Ports/`, implementation in `Infrastructure/Repositories/`.
-50. Database tables and columns: snake_case (Tech Design §7.2 verbatim). C# property names: PascalCase. EF Core's `[Column]` attribute or fluent config maps the two.
-51. Migrations: `YYYYMMDDhhmmss_DescriptiveName` (EF default + UTC timestamp).
-52. Tests: `Arrange/Act/Assert` structure, named `MethodUnderTest_Scenario_ExpectedOutcome`. xUnit `[Fact]` for fixed cases, `[Theory] + [InlineData]` for parameterized.
-53. Async test methods end in `Async`.
+50. C# files: PascalCase. One public type per file (with rare nested-type exceptions). File name matches the public type.
+51. Aggregate roots: noun, no suffix (`StockItem`, `Order`). Domain events: past-tense participle (`StockReservedEvent`, `OrderShipped`).
+52. Commands: imperative-mood + `Command` suffix (`ReserveStockCommand`). Queries: noun + `Query` suffix (`GetAvailabilityQuery`).
+53. Handlers: corresponding command/query name + `Handler` suffix (`ReserveStockHandler`).
+54. Repositories: aggregate name + `Repository`. Interface: `I` + same. Place interface in `Application/Ports/`, implementation in `Infrastructure/Repositories/`.
+55. Database tables and columns: snake_case (Tech Design §7.2 verbatim). C# property names: PascalCase. EF Core's `[Column]` attribute or fluent config maps the two.
+56. Migrations: `YYYYMMDDhhmmss_DescriptiveName` (EF default + UTC timestamp).
+57. Tests: `Arrange/Act/Assert` structure, named `MethodUnderTest_Scenario_ExpectedOutcome`. xUnit `[Fact]` for fixed cases, `[Theory] + [InlineData]` for parameterized.
+58. Async test methods end in `Async`.
 
 ---
 
 ## 8. Testing
 
-54. Unit tests cover the `Domain` and `Application` layers without I/O. They run in < 5 seconds total per module.
-55. Integration tests use Testcontainers for real Postgres + real RabbitMQ. They run via `[Collection("Integration")]` to share container lifetime where state is read-only.
-56. Pin Testcontainers image tags (`postgres:16`, `rabbitmq:3-management-alpine`). Do not float to `latest`.
-57. Property-based tests on the reservation ledger and allocation engine use FsCheck. Random seeds are pinned in attributes.
-58. The reservation ledger and stock-sync engine are written test-first against `NotImplementedException` stubs in W1. The harness is the spec; assertions are quoted from `01-product-development-plan.md.docx` §299, §316–§323.
-59. Integration tests do not mock the layers they exist to verify (DB, broker, HTTP gateway). Mock external services (Shopee/Lazada) via the mock-channel server, not via in-process mocks.
-60. Every public API endpoint has an integration test that exercises the full request→DB→outbox→event chain.
-61. Cross-tenant routing correctness is tested in CI per rule 21. The `CrossTenantRoutingTests` suite is mandatory and runs on every PR. Property tests, integration tests, and the W3 noisy-neighbor scale gate are tagged `Category=Integration` and run nightly + on-demand.
-62. Load tests (`tests/ShopFlow.LoadTests`) run nightly, not per-PR. Property tests run per-PR.
-63. New behavior arrives with new tests; changed behavior arrives with changed tests; deleted behavior arrives with deleted tests. CI fails on uncovered new public methods in `Domain`/`Application` (coverage gate, configurable per module).
+59. Unit tests cover the `Domain` and `Application` layers without I/O. They run in < 5 seconds total per module.
+60. Integration tests use Testcontainers for real Postgres + real RabbitMQ. They run via `[Collection("Integration")]` to share container lifetime where state is read-only.
+61. Pin Testcontainers image tags (`postgres:16`, `rabbitmq:3-management-alpine`). Do not float to `latest`.
+62. Property-based tests on the reservation ledger and allocation engine use FsCheck. Random seeds are pinned in attributes.
+63. The reservation ledger and stock-sync engine are written test-first against `NotImplementedException` stubs in W1. The harness is the spec; assertions are quoted from `01-product-development-plan.md.docx` §299, §316–§323.
+64. Integration tests do not mock the layers they exist to verify (DB, broker, HTTP gateway). Mock external services (Shopee/Lazada) via the mock-channel server, not via in-process mocks.
+65. Every public API endpoint has an integration test that exercises the full request→DB→outbox→event chain.
+66. Cross-tenant routing correctness is tested in CI per rule 21. The `CrossTenantRoutingTests` suite is mandatory and runs on every PR. Property tests, integration tests, and the W3 noisy-neighbor scale gate are tagged `Category=Integration` and run nightly + on-demand.
+67. Load tests (`tests/ShopFlow.LoadTests`) run nightly, not per-PR. Property tests run per-PR.
+68. New behavior arrives with new tests; changed behavior arrives with changed tests; deleted behavior arrives with deleted tests. CI fails on uncovered new public methods in `Domain`/`Application` (coverage gate, configurable per module).
 
 ---
 
 ## 9. AI-pair-programming workflow
 
-64. Treat every reviewer comment on an AI-assisted PR as a missing rule. Add the rule to this file in the same PR (or the next), do not just fix the violation.
-65. When a rule is genuinely conditional or has exceptions, document the condition. Do not vague-ify the rule.
-66. The blessed reference for any pattern is `src/Services/Inventory/` once it lands (W1 U6). Per-module `AGENTS.md` files capture only the deltas, not the full rule restatement.
-67. Cap this file at 200 instructions. When close, prefer consolidating duplicates over expanding. Spillover goes to `RULES.md` (companion file, opt-in).
-68. The Roslyn analyzer in `src/Shared/ShopFlow.SharedKernel/Analyzers/` is the executable subset of this canon. New analyzer rules require a new ADR.
+69. Treat every reviewer comment on an AI-assisted PR as a missing rule. Add the rule to this file in the same PR (or the next), do not just fix the violation.
+70. When a rule is genuinely conditional or has exceptions, document the condition. Do not vague-ify the rule.
+71. The blessed reference for any pattern is `src/Services/Inventory/` once it lands (W1 U6). Per-module `AGENTS.md` files capture only the deltas, not the full rule restatement.
+72. Cap this file at 200 instructions. When close, prefer consolidating duplicates over expanding. Spillover goes to `RULES.md` (companion file, opt-in).
+73. The Roslyn analyzer in `src/Shared/ShopFlow.SharedKernel/Analyzers/` is the executable subset of this canon. New analyzer rules require a new ADR.
 
 ---
 
 ## 10. Commit and PR hygiene
 
-69. Conventional commits: `<type>(<scope>): <subject>` where `type` ∈ {feat, fix, docs, refactor, test, chore, ci, build}. Subject is imperative-mood, lowercase, ≤ 72 chars.
-70. Each commit closes one logical unit. If the message would be "WIP" or "partial X", do not commit yet.
-71. Commits cite the closing U-ID when implementing a plan unit (e.g., "Closes U6 of docs/plans/...").
-72. Never `git add -A` or `git add .`. Stage by name to avoid accidentally committing secrets, derived artifacts, or scratch files.
-73. Never `--no-verify` to bypass pre-commit hooks. Fix the underlying issue.
-74. Never force-push to `main`. Force-push on feature branches is allowed but discouraged; prefer `git commit --amend` only on un-pushed commits.
-75. PR titles match the conventional-commit format. PR descriptions cite the closing R-IDs and U-IDs.
+74. Conventional commits: `<type>(<scope>): <subject>` where `type` ∈ {feat, fix, docs, refactor, test, chore, ci, build}. Subject is imperative-mood, lowercase, ≤ 72 chars.
+75. Each commit closes one logical unit. If the message would be "WIP" or "partial X", do not commit yet.
+76. Commits cite the closing U-ID when implementing a plan unit (e.g., "Closes U6 of docs/plans/...").
+77. Never `git add -A` or `git add .`. Stage by name to avoid accidentally committing secrets, derived artifacts, or scratch files.
+78. Never `--no-verify` to bypass pre-commit hooks. Fix the underlying issue.
+79. Never force-push to `main`. Force-push on feature branches is allowed but discouraged; prefer `git commit --amend` only on un-pushed commits.
+80. PR titles match the conventional-commit format. PR descriptions cite the closing R-IDs and U-IDs.
 
 ---
 
@@ -141,14 +146,15 @@ This is the executable canon that AI-pair-programming agents (Claude Code, Curso
 
 Every bounded-context module follows this layout. Diverging requires a new ADR.
 
-76. **Csproj quartet**: `ShopFlow.<Name>.Domain` + `.Application` + `.Infrastructure` + `.Api`. Analytics is the documented exception (no Domain — read-side only per Tech Design §5).
-77. **Folder layout**: `src/Services/<Name>/ShopFlow.<Name>.<Layer>/`. The module's `AGENTS.md` lives at `src/Services/<Name>/AGENTS.md` (sibling to the four csproj folders).
-78. **Project reference direction** (CI-enforced via `.csproj` references): `Api → Infrastructure → Application → Domain → SharedKernel`. Wrong-direction references fail the build (rule 8 already says this; here it gets a concrete shape).
-79. **Composition root extension**: each module exposes `services.Add<Name>Module(IConfiguration)` from `<Name>.Infrastructure/<Name>ServiceCollectionExtensions.cs`. The `Api/Program.cs` calls `services.AddShopFlowDefaults(...)` first, then `services.Add<Name>Module(...)`. No exceptions.
-80. **DbContext-per-module**: each module that persists owns one `<Name>DbContext` at `<Name>.Infrastructure/<Name>DbContext.cs`. Migrations live at `<Name>.Infrastructure/Migrations/`. Cross-module reads never touch another module's DbContext (rule 10). DbContexts are constructed via `IDbContextFactory<TContext>` per request (rule 17); modules never new up their own DbContext nor read connection strings directly.
-81. **Test layout mirrors source**: `tests/ShopFlow.<Name>.UnitTests/` (always — Domain + Application coverage), `tests/ShopFlow.<Name>.IntegrationTests/` (when DB- or API-bound).
-82. **Module `AGENTS.md` is delta-only**, ≤ 50 lines: lifecycle invariants specific to this module, hard "do not simplify" warnings on load-bearing primitives, deltas from root canon. Do not restate root rules.
-83. **Csproj keeps only what diverges from the defaults**. Root `Directory.Build.props` carries TargetFramework, ImplicitUsings, Nullable, LangVersion, TreatWarningsAsErrors, IsPackable. `Directory.Packages.props` carries every package version (CPM enforced — `<PackageReference>` declares Include, never Version). Test projects inherit additional defaults from `tests/Directory.Build.props`. A typical Domain csproj is ~10 lines; a typical test csproj is ~15 lines.
+81. **Csproj quartet**: `ShopFlow.<Name>.Domain` + `.Application` + `.Infrastructure` + `.Api`. Analytics is the documented exception (no Domain — read-side only per Tech Design §5).
+82. **Folder layout**: `src/Services/<Name>/ShopFlow.<Name>.<Layer>/`. The module's `AGENTS.md` lives at `src/Services/<Name>/AGENTS.md` (sibling to the four csproj folders).
+83. **Project reference direction** (CI-enforced via `.csproj` references): `Api → Infrastructure → Application → Domain → SharedKernel`. Wrong-direction references fail the build (rule 8 already says this; here it gets a concrete shape).
+84. **Composition root extension**: each module exposes `services.Add<Name>Module(IConfiguration)` from `<Name>.Infrastructure/<Name>ServiceCollectionExtensions.cs`. The `Api/Program.cs` calls `services.AddShopFlowDefaults(...)` first, then `services.Add<Name>Module(...)`. No exceptions.
+85. **DbContext-per-module**: each module that persists owns one `<Name>DbContext` at `<Name>.Infrastructure/<Name>DbContext.cs`. Migrations live at `<Name>.Infrastructure/Migrations/`. Cross-module reads never touch another module's DbContext (rule 10). DbContexts are constructed via `IDbContextFactory<TContext>` per request (rule 17); modules never new up their own DbContext nor read connection strings directly.
+86. **Test layout mirrors source**: `tests/ShopFlow.<Name>.UnitTests/` (always — Domain + Application coverage), `tests/ShopFlow.<Name>.IntegrationTests/` (when DB- or API-bound).
+87. **Module `AGENTS.md` is delta-only**, ≤ 50 lines: lifecycle invariants specific to this module, hard "do not simplify" warnings on load-bearing primitives, deltas from root canon. Do not restate root rules.
+88. **Csproj keeps only what diverges from the defaults**. Root `Directory.Build.props` carries TargetFramework, ImplicitUsings, Nullable, LangVersion, TreatWarningsAsErrors, IsPackable. `Directory.Packages.props` carries every package version (CPM enforced — `<PackageReference>` declares Include, never Version). Test projects inherit additional defaults from `tests/Directory.Build.props`. A typical Domain csproj is ~10 lines; a typical test csproj is ~15 lines.
+89. **`MassTransit.EntityFrameworkCore` is pinned to `8.3.4`** while the project targets EF Core 9. Pin lives in `Directory.Packages.props`. Upgrades require running the full saga test suite (per-tenant DbContext binding + compensation flow) before merge. Reference: `CLAUDE.md` K15 (Sprint-3-redux U1).
 
 ---
 
