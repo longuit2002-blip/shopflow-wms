@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Auth module — Application placeholder (Sprint-6 U4). Sprint-7
+       lands real command handlers (LoginCommand, RefreshTokenCommand,
+       RevokeSessionCommand) backed by Domain aggregates + Infrastructure
+       persistence + denylist. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

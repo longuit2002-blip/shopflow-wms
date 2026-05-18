@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Auth module — Infrastructure placeholder (Sprint-6 U4). Sprint-7
+       lands the real JwtTokenIssuer (Microsoft.IdentityModel.Tokens),
+       a Redis-backed denylist, and EF mapping for User/Session aggregates. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

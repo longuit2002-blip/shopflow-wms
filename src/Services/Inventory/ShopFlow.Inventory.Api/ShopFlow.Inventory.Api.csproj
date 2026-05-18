@@ -21,4 +21,9 @@
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Sprint-6 U4 — JwtBearer authentication for Owner role calls from the frontend. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
 </Project>

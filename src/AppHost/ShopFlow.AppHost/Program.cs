@@ -224,6 +224,14 @@ var stockSyncApi = builder
     .WaitForCompletion(migrateDev2);
 _ = stockSyncApi;
 
+// Sprint-6 U4 — dev-mode fake login API. No infrastructure deps (no DB,
+// no RabbitMQ). Sprint-7 swaps for the real auth service with Redis-backed
+// denylist + refresh token rotation.
+var authApi = builder
+    .AddProject<Projects.ShopFlow_Auth_Api>("auth-api")
+    .WithExternalHttpEndpoints();
+_ = authApi;
+
 await builder.Build().RunAsync().ConfigureAwait(false);
 
 static string ResolveRepoRoot()

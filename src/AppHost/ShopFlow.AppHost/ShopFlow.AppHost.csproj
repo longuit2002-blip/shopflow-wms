@@ -56,4 +56,10 @@
                       IsAspireProjectResource="true" />
   </ItemGroup>
 
+  <!-- Sprint-6 U4 — Auth.Api resource (dev-mode fake login). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\Auth\ShopFlow.Auth.Api\ShopFlow.Auth.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
 </Project>

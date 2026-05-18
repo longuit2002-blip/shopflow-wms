@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Auth module — Domain placeholder (Sprint-6 U4). Real aggregates
+       (User, Session, RefreshToken, RoleAssignment) land in Sprint-7
+       when fake /auth/login swaps for real JWT issuance + denylist. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>
