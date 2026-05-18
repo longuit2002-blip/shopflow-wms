@@ -9,9 +9,33 @@
   </head>
   <body>
     <!--
-      Sprint-6 U1 placeholder. <1024px notice + IBM Plex preconnect land in U2.
-      Below-1024 viewport notice lives in CSS (no JS); see src/index.css.
+      Below-1024 viewport notice — pure HTML + CSS, no JS.
+      Hidden by .under-min { display: none } at ≥1024px, shown via the
+      @media (max-width: 1023px) override in tokens.css. Stays present in
+      the DOM so it works even before React mounts.
     -->
+    <div class="under-min">
+      <svg
+        width="56"
+        height="56"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#5B5A52"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <rect x="2" y="4" width="20" height="14" rx="2" />
+        <path d="M2 18l5 -3 4 2 5 -4 6 5" />
+      </svg>
+      <div style="font-size: 15px; font-weight: 600; color: #2D2C28; max-width: 480px">
+        ShopFlow WMS được tối ưu cho desktop và tablet (≥ 1024 px). Vui lòng dùng màn hình lớn hơn để tiếp tục.
+      </div>
+      <div style="font-size: 12px; color: #5B5A52; max-width: 480px">
+        ShopFlow WMS is optimized for desktop and tablet (≥ 1024 px). Please use a larger screen to continue.
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

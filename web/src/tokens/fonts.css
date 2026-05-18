@@ -1,0 +1,36 @@
+/*
+ * Self-hosted IBM Plex Sans + Plex Mono via @fontsource.
+ * Subsets: vietnamese + latin-ext + latin (STYLING_SPECS §2.4 — cuts ~70% file size).
+ * Weights: Sans 400/500/600/700, Mono 400/500/600 (matches design canon).
+ * font-display: swap (built into @fontsource CSS).
+ * Vite bundles the .woff2 files into dist/assets/ — no external network requests at runtime.
+ */
+
+/* IBM Plex Sans */
+@import '@fontsource/ibm-plex-sans/vietnamese-400.css';
+@import '@fontsource/ibm-plex-sans/vietnamese-500.css';
+@import '@fontsource/ibm-plex-sans/vietnamese-600.css';
+@import '@fontsource/ibm-plex-sans/vietnamese-700.css';
+
+@import '@fontsource/ibm-plex-sans/latin-ext-400.css';
+@import '@fontsource/ibm-plex-sans/latin-ext-500.css';
+@import '@fontsource/ibm-plex-sans/latin-ext-600.css';
+@import '@fontsource/ibm-plex-sans/latin-ext-700.css';
+
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-sans/latin-700.css';
+
+/* IBM Plex Mono */
+@import '@fontsource/ibm-plex-mono/vietnamese-400.css';
+@import '@fontsource/ibm-plex-mono/vietnamese-500.css';
+@import '@fontsource/ibm-plex-mono/vietnamese-600.css';
+
+@import '@fontsource/ibm-plex-mono/latin-ext-400.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-500.css';
+@import '@fontsource/ibm-plex-mono/latin-ext-600.css';
+
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';

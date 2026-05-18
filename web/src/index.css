@@ -1,19 +1,19 @@
 /*
- * Sprint-6 U1 placeholder.
- * Token layer (CSS variables, IBM Plex Sans/Mono self-host, focus-visible spec,
- * a11y --ink-3 re-point) lands in U2. Tailwind / utility layer not in use —
- * Sprint-6 ships hand-written CSS per design canon (STYLING_SPECS §1).
+ * ShopFlow WMS — frontend entry stylesheet (Sprint-6 U2).
+ *
+ * Import order matters: fonts must register their @font-face declarations
+ * before any rule references --font-sans / --font-mono.
+ *
+ *   1. fonts.css  → @font-face for self-hosted IBM Plex (Sans + Mono),
+ *                   subsets vietnamese + latin-ext + latin via @fontsource.
+ *   2. tokens.css → :root design tokens, base reset, component classes,
+ *                   focus-visible, motion + reduced-motion, scrollbars.
+ *   3. tokens-settings.css → Settings / Compliance / Audit chip classes
+ *                   (unused in Sprint-6, shipped for future sprints).
+ *
+ * No Tailwind, no PostCSS plugins. Hand-written CSS per design canon.
  */
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  background: #fff;
-  color: #111;
-}
-
-* {
-  box-sizing: border-box;
-}
+@import './tokens/fonts.css';
+@import './tokens/tokens.css';
+@import './tokens/tokens-settings.css';
