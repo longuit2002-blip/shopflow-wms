@@ -5,6 +5,18 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "web", "web", "{F8E1C6B0-5A4D-4B12-9E3F-7C9D8E2F1A6B}"
+	ProjectSection(SolutionItems) = preProject
+		web\README.md = web\README.md
+		web\package.json = web\package.json
+		web\tsconfig.json = web\tsconfig.json
+		web\vite.config.ts = web\vite.config.ts
+		web\vitest.config.ts = web\vitest.config.ts
+		web\eslint.config.js = web\eslint.config.js
+		web\.prettierrc = web\.prettierrc
+		web\index.html = web\index.html
+	EndProjectSection
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{C8E42992-5E42-0C2B-DBFE-AA848D06431C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Contracts", "src\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj", "{6F9B7D5E-DB12-4A3B-B88A-DB76701FF933}"

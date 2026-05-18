@@ -1,0 +1,19 @@
+/*
+ * Sprint-6 U1 placeholder.
+ * Token layer (CSS variables, IBM Plex Sans/Mono self-host, focus-visible spec,
+ * a11y --ink-3 re-point) lands in U2. Tailwind / utility layer not in use —
+ * Sprint-6 ships hand-written CSS per design canon (STYLING_SPECS §1).
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #fff;
+  color: #111;
+}
+
+* {
+  box-sizing: border-box;
+}
