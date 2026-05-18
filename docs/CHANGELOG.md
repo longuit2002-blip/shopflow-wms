@@ -262,3 +262,34 @@ Parallel option: Sprint-4.5 follow-up commit landing the parser wire-up + harnes
 **Next**: cut a fresh branch from `v0.7.0-sprint-5` and start either **Sprint-5.5** (close U9 scale-gate harness gap; multi-tenant Aspire boot + real Shopee mock alongside StockSync.Api), **Sprint-6** (Analytics module — W9-W10, read-side projections consuming the existing outbox stream including `StockLevelChangedV1`), or **Phase-3 polish** (Gateway hardening, observability dashboards, portfolio README + demo video, deployment docs).
 
 ---
+
+## 2026-05-18 — Phase-3 Methodology Writeup complete
+
+**Tag**: `v0.8.0-methodology-writeup`. Ships [docs/methodology.md](methodology.md) — comprehensive 7-sprint chronological case study + synthesis pattern catalog + friction section documenting the AI-assisted development methodology used to build ShopFlow WMS. Branch `feat/phase-3-methodology-writeup` cut from `v0.7.0-sprint-5`. Sign-off: [docs/phase-gates/2026-05-18-methodology-writeup-signoff.md](phase-gates/2026-05-18-methodology-writeup-signoff.md).
+
+**Shipped** (7 implementation units U1-U7 per [plan](plans/2026-05-18-001-feat-methodology-writeup-plan.md)):
+
+- **U1 Doc skeleton + lead-in + TOC + reference inventory**: top-level heading; hand-rolled TOC with anchors; 4-paragraph lead-in (project framing + methodology framing + honest "one project, one solo dev, one stack" disclaimer + reader expectation "no productivity multiplier claims"); section header placeholders for 7 chronological sprint subsections + 5 synthesis pattern subsections + friction + forward-looking + appendix; appendix reference inventory listing all 6 brainstorms + 9 plans + 8 sign-offs + 3 ADRs + 5 institutional learnings + 10 git tags. ~1300 words.
+- **U2 Phase-0-redux + Sprint-1-redux sections**: foundation pivot (v2.0 RLS-shared → DB-per-tenant ADR-0003) + reservation ledger with conditional-CTE INSERT at READ COMMITTED. KTDs (D1-D4 + READ COMMITTED correction) documented. Honest friction: 23-file CSharpier drift, property tests pivoted twice (port shape changed), Property 5 read-back gap. ~990 words.
+- **U3 Sprint-2-redux + Sprint-2.5 + Sprint-3-redux sections**: Inbound module + cross-module InboundConfirmedV1 + bin-aware AdjustAtBinAsync + RabbitMQ flip (W6→W4) → Sprint-2.5 closure (~half-day point-release for U9 outbox table collision, sets canonical deferral pattern) → Outbound saga + K12 per-tenant DbContext binding + 9 cross-module contracts + K11 multi-row CTE concurrency fix (caught by inherited Sprint-1-redux test) + U8 scale-gate-bypasses-saga honest documentation. ~1160 words.
+- **U4 Sprint-4 + Sprint-4.5 sections**: Channel webhook ingress + K13 OutboxRouteRegistry close + 4 deferrals in sign-off → Sprint-4.5 closure (~1 week, R6 reversal documented: brainstorm InternalSku=null structurally impossible; canon mandates fail-whole-import). U1 field-name correction (idealized vs real Shopee fixture). Lesson: plan-time read-actual-contract checkpoint becomes Sprint-5 KTD1 antecedent. ~857 words.
+- **U5 Sprint-5 section** (most-detailed): StockSync module (7th logical) + 4-layer isolation pipeline + KTD1 (replace literal R1 3-event consume with canonical StockLevelChangedV1, plan-time KTD) + KTD7 (ISkuFlagRepository port signature change mid-sprint U7, expensive — 4 NSubstitute call-site updates) + 2 Skip'd Category=Load slots per Sprint-4 U9 precedent + subagent dispatch (7/10 units, ~30% re-investigation overhead) + subagent re-dispatch friction (Sprint-5 U8 usage limit hit) + visual companion HTML mid-plan (unstuck dialogue when prose got dense) + .NET 9 SDK gap on dev machine. ~860 words.
+- **U6 Synthesis pattern catalog**: 5 cross-sprint patterns extracted — Cadence (brainstorm → plan → work → sign-off; Mermaid flowchart; honest cost 10-15% sprint time), KTD discovery (plan-time vs mid-sprint emergence; Mermaid flowchart; K11/R6/KTD1 vs SharedKernel cycle/MT DSL/KTD7), Subagent dispatch (Sprint-5 evidence; ~30% re-investigation; voice drift + re-dispatch + review burden honest costs), Deferral pattern (Sprint-2.5/4.5/5.5; legit vs anti-pattern case-by-case; ~10-15% total sprint time), Context management (AGENTS.md + CLAUDE.md + session-resume hooks; growth limitation honest; visual HTML as emergency tool). Closing R11 framing: one project, one solo dev, one stack, ~10 days — evidence not prescription. ~2056 words.
+- **U7 Friction + forward-looking + outro + wrap-up**: 7 named friction modes with Pattern/Cost/Mitigation framing (context window pressure mid-sprint, subagent re-dispatch on usage limit, .NET 9 SDK gap on dev machine, Skip'd deferral pattern kicking-the-can analysis, mid-sprint KTD emergence, CRLF/LF noise, doc inventory growth). Forward-looking section: 4 process improvements (`.gitattributes` at project init, plan-time port-shape checklist, granular subagent checkpoint commits, visual companion HTML as standard pattern) + 4 open questions (team scaling, sprint-count scaling, deferral-as-anti-pattern, agent-shape coupling) + items deferred (public blog derivative, process improvements, reusable template repo). Plus README/CLAUDE/CHANGELOG updates + sign-off doc + tag.
+
+**Final word count**: ~8500 words (target range 7000-9000). Reading time ~30-45 minutes end-to-end; ~15 minutes for skim via TOC.
+
+**Documented limitations / carried-forward deferrals**:
+
+- **Public blog post derivative** (~3000-4000 words adapted for external reader) — separate brainstorm + plan + work cycle. Deferred to follow-up sprint.
+- **Process improvements based on findings** — reflection sprint that revises AGENTS.md / skill cadence based on what writing the methodology doc surfaced. Particularly: KTD7-style mid-sprint emergence — should plan-time have explicit checkpoints for "scope/lifetime/tenant-context" decisions?
+- **Reusable template repo** — only if external blog feedback shows demand. Not committed.
+
+**Carry-forward rules**:
+- This doc is one snapshot. Future-self updates when new patterns surface or old patterns turn out wrong.
+- The honest-framing pattern (Pattern / Cost / Mitigation) is the canonical shape for any future friction documentation in this project.
+- The "one project, one solo dev, one stack" disclaimer is canon: no universal-applicability claims in derived artifacts (blog post, template repo) without re-validation evidence.
+
+**Next**: cut a fresh branch from `v0.8.0-methodology-writeup` and start either **Sprint-5.5** (close scale-gate harness; see methodology friction mode 4), **Sprint-6** (Analytics module W9-W10), **public blog derivative**, or **process improvements sprint** (`.gitattributes` config, plan-time port-shape checklist, granular checkpoint commits — see methodology forward-looking section).
+
+---

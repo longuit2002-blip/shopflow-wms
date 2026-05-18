@@ -1,11 +1,13 @@
 ---
 title: "feat: Phase-3 Methodology Writeup — docs/methodology.md"
 type: feat
-status: active
+status: completed
 date: 2026-05-18
+completed: 2026-05-18
 origin: docs/brainstorms/2026-05-18-methodology-writeup-requirements.md
 follows: docs/phase-gates/2026-05-17-sprint-5-signoff.md
-tag_target: v0.8.0-methodology-writeup
+signoff: docs/phase-gates/2026-05-18-methodology-writeup-signoff.md
+tag: v0.8.0-methodology-writeup
 ---
 
 # feat: Phase-3 Methodology Writeup — `docs/methodology.md`

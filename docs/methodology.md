@@ -238,13 +238,49 @@ The other limitation: session-resume hooks summarise the previous session in fix
 
 ## Friction — what didn't work, what cost more than expected
 
-*(Section body lands in U7 — 6+ named friction modes with Pattern / Cost / Mitigation framing.)*
+Methodology has costs. Below are the named friction modes that surfaced across seven sprints, in roughly chronological order of first appearance. Each is framed as Pattern → Cost → Mitigation, the honest accounting being more useful than complaining.
+
+**1. Context window pressure mid-sprint.** **Pattern**: as a sprint runs more units inline, the orchestrator's context fills with file reads, plan reviews, test outputs, commit diffs. Around unit 6 or 7 of a 10-unit sprint, quality degrades — the orchestrator starts forgetting earlier KTDs, re-reads files it already knows, misses cross-unit consistency. **Cost**: not measurable in tokens alone — the degradation is in decisions made on partial context, which surfaces only at next-sprint sign-off review. **Mitigation**: subagent dispatch for U3-U9 of large sprints (proven in Sprint-3-redux and Sprint-5); each subagent gets a fresh context window. Partial fix only — orchestrator review burden grows with subagent count.
+
+**2. Subagent re-dispatch when usage limits hit mid-task.** **Pattern**: a long-running subagent (e.g., Sprint-5 U8 Api composition with 8 file creates + 1 modify) crosses a usage-window boundary. When the session resumes the next day, the subagent has to be re-dispatched. The new dispatch has to re-read all the files the previous attempt already explored, paying ~30% of its tokens on re-investigation. **Cost**: measured at one Sprint-5 unit — roughly half a day of net development time lost. **Mitigation suggested**: more granular checkpoint commits inside long subagent runs, so re-dispatch can pick up from the last committed state rather than from zero. Not yet a practiced pattern; documented as forward-looking.
+
+**3. .NET 9 SDK gap on dev machine.** **Pattern**: `global.json` pins SDK version 9.0.305 because the project depends on .NET 9 features (System.Threading.RateLimiting, value-type tuples in records). Dev machine has only 8.0.407 installed; SDK install requires admin + cycle. Local `dotnet build` blocked from Sprint-1-redux onward; local `dotnet test` blocked too. **Cost**: longer feedback loop on every code change — CI is the only validator. Test failures discovered post-push, not pre-push. Sprint-5 paid the most because of subagent dispatch (subagent assumes test runs are part of the loop; orchestrator has to disabuse). **Mitigation**: install .NET 9 SDK with admin rights — known fix, just not applied yet. Workaround: structure plan units so subagent output is reviewable on diff alone; CI catches anything subagent missed.
+
+**4. Skip'd deferral pattern — is this kicking the can?** **Pattern**: Sprint-4 deferred 4 items including scale-gate harness body. Sprint-5 deferred 2 scale-gate slots per Sprint-4 U9 precedent. The cumulative effect is "scale-gate measurement keeps not happening; each sprint defers it to the next; the next defers it too". **Cost**: real time. Sprint-4.5 cost a week to close 4 deferrals. Sprint-5.5 is estimated at a week to close 2 deferrals. Across the project that's ~10-15% of total development time spent on closure sprints. **Honest assessment**: the pattern is legit if each deferral has a documented rationale + named follow-up sprint, AND the follow-up actually closes. Sprint-2.5 closed; Sprint-4.5 closed; Sprint-5.5 not yet built — the test of pattern-or-anti-pattern is whether Sprint-5.5 actually closes within a week. **Mitigation**: cap consecutive deferrals at 2 per area; if a third deferral on the same surface is needed, the surface needs re-architecture rather than another point release.
+
+**5. Mid-sprint KTD emergence (KTD7-class).** **Pattern**: a port signature or architectural assumption ships in plan; implementation reveals the assumption is wrong; the port needs to change mid-sprint, rippling to already-shipped units. Sprint-5 KTD7 (`ISkuFlagRepository` needs explicit `tenantId`) cost 4 NSubstitute call-site updates in already-shipped U3 unit tests. **Cost**: rework on shipped code is expensive — context-switch back to a previous unit, ensure the change doesn't break it, re-test. **Mitigation suggested**: at plan-time, include explicit checklist questions for every cross-module port: (a) is this called from singleton or scoped context? (b) does it cross tenant boundary? (c) does the call site have ambient `IRequestContext`? Sprint-5 KTD7 would have surfaced at plan-time U3 with these questions. Not yet a practiced pattern.
+
+**6. CRLF/LF line-ending noise on every commit.** **Pattern**: Windows dev machine + Linux CI; `.gitattributes` not configured to normalise line endings. Every `git add` produces "warning: in the working copy of 'X', LF will be replaced by CRLF the next time Git touches it" for every touched file. Across 50+ commits, that's hundreds of warnings — pure signal-noise. **Cost**: cosmetic but constant. Reviewer fatigue from skipping over warnings; future warnings about real issues might be missed. **Mitigation**: `.gitattributes` config with `* text=auto` and `*.cs text eol=lf`. Known fix; just not applied. This is the cheapest unfixed friction in the project — should have been fixed at Phase-0-redux.
+
+**7. Doc inventory growth over time.** **Pattern**: AGENTS.md, CLAUDE.md, sign-off docs, brainstorm docs all accumulate. AGENTS.md grew from ~50 lines at Phase-0-redux to ~150 lines at Sprint-5. CLAUDE.md grew from ~30 lines to ~3000 words. Session-start context-load time scales with these. **Cost**: token cost per session start increases linearly. At some threshold (probably 12-15 sprints in), context load alone takes a meaningful fraction of session capacity. **Mitigation suggested**: pruning policy — old sprint history blocks compress to one-paragraph summaries pointing at sign-off docs, not full prose. Not yet at the threshold where it's worth doing.
 
 ---
 
 ## Forward-looking — open questions, what would be different next time
 
-*(Section body lands in U7 — open questions, process improvements that would not be in scope but are worth surfacing for project sau.)*
+Writing this doc surfaced patterns that weren't explicit during the project. Some are worth changing for the next project; some are open questions to test on the next project.
+
+**Process improvements to apply at next project start.**
+
+(1) **`.gitattributes` config at project init.** Cheapest unfixed friction; add as part of the first commit. `* text=auto`, `*.cs text eol=lf`, `*.json text eol=lf`. Eliminates CRLF/LF noise from day 1.
+
+(2) **Plan-time port-shape checklist for cross-module ports.** At every plan-write that introduces a new port, include explicit answers to: (a) which context (singleton, scoped, transient) calls this? (b) does the call site have ambient `IRequestContext`? (c) does the port cross a tenant boundary? (d) is the cache key per-tenant? Sprint-5 KTD7 would have surfaced at plan-time with this checklist. Probably converts other mid-sprint port-shape KTDs to plan-time too.
+
+(3) **Granular checkpoint commits inside long subagent runs.** When a subagent runs more than ~6 files of work, instruct it to checkpoint-commit after each major file. Re-dispatch on usage limit can pick up from the last checkpoint rather than from zero. Reduces friction mode 2 cost from "half a day" to "minutes". Not yet practiced.
+
+(4) **Visual companion HTML as standard pattern.** When prose dialogue gets dense (10+ units, 5+ KTDs, multi-layer architecture), produce a single-page HTML visual companion alongside the brainstorm doc. Sprint-5 proved this unstuck a stalled conversation. The cost is 30-60 minutes of HTML; the gain is conversation throughput. Make this a Phase-2+ default.
+
+**Open questions surfaced by writing this doc.**
+
+(a) Does the cadence (brainstorm → plan → work → sign-off) work for a team larger than one? Solo work has no coordination overhead; in a team, brainstorm and plan docs become coordination artifacts that need consensus, which would change the dynamics. Untested.
+
+(b) Does the cadence scale past 12-15 sprints? AGENTS.md / CLAUDE.md growth is real but unmeasured at threshold. The methodology might need a "compact previous sprints" sub-skill that the project hasn't yet built.
+
+(c) Is the deferral pattern an anti-pattern dressed as a pattern? Sprint-5.5 not yet built; if it doesn't close within a week, the deferral pattern has weaker evidence. Need to write Sprint-5.5 to find out.
+
+(d) How would this methodology behave under a different agent's strengths? The patterns documented here are shaped by Claude Code's specific skill primitives (`/ce-brainstorm`, `/ce-plan`, `/ce-work`, subagent dispatch via the `Agent` tool, session-resume hooks). A different agent might surface different patterns; some of the patterns above might disappear or invert.
+
+**Items deferred out of scope of this writeup.** The public blog derivative (~3000-4000 words adapted for external reader, target dev.to or personal blog) is a separate brainstorm + plan + work cycle. Process improvements based on the findings above are also separate — current sprint only documents existing methodology, not revises it. Reusable template repo extraction (cookbook for other developers) is contingent on external blog feedback indicating demand.
 
 ---
 
