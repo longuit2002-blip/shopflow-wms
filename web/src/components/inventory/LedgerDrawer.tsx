@@ -21,6 +21,7 @@ import type { SkuLedgerEntry, SkuListItem } from '../../api/inventory';
 import { Drawer } from '../primitives/Drawer';
 import { AllocationBar } from './AllocationBar';
 import { LedgerRow } from './LedgerRow';
+import { FlashSaleToggle } from './FlashSaleToggle';
 import { useSkuLedgerQuery } from '../../hooks/useInventoryQuery';
 import { t, useLocale } from '../../hooks/useLocale';
 
@@ -38,9 +39,12 @@ export function LedgerDrawer({ item, onClose, onAdjustClick }: LedgerDrawerProps
 
   const isOpen = item !== null;
   const title = item ? `${t('Sổ giữ chỗ', 'Reservation ledger')} · ${item.Sku}` : '';
+  const headerExtra = item ? (
+    <FlashSaleToggle sku={item.Sku} value={item.IsFlashSale} />
+  ) : undefined;
 
   return (
-    <Drawer isOpen={isOpen} onClose={onClose} title={title}>
+    <Drawer isOpen={isOpen} onClose={onClose} title={title} headerExtra={headerExtra}>
       {item ? (
         <div style={{ padding: 'var(--s-4) var(--s-5)' }}>
           <section style={{ marginBottom: 'var(--s-5)' }}>

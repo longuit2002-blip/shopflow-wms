@@ -158,4 +158,20 @@ describe('LedgerDrawer', () => {
     await user.click(screen.getByTestId('ledger-adjust-cta'));
     expect(onAdjustClick).toHaveBeenCalledWith('YS-RED-100');
   });
+
+  it('mounts the FlashSaleToggle in the drawer header reflecting the IsFlashSale flag', () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      jsonResponse({ Items: [], NextCursor: null }),
+    );
+    renderWithClient(
+      <LedgerDrawer
+        item={{ ...FIXTURE_ITEM, IsFlashSale: true }}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByTestId('flash-toggle-YS-RED-100')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+  });
 });

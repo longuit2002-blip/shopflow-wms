@@ -6,6 +6,7 @@ import { FilterStrip } from '../../components/inventory/FilterStrip';
 import { SkuTable } from '../../components/inventory/SkuTable';
 import { LedgerDrawer } from '../../components/inventory/LedgerDrawer';
 import { AdjustStockModal } from '../../components/inventory/AdjustStockModal';
+import { CreateSkuModal } from '../../components/inventory/CreateSkuModal';
 import { t, useLocale } from '../../hooks/useLocale';
 
 /**
@@ -24,6 +25,7 @@ function InventoryRouteComponent() {
   const [search, setSearch] = useState('');
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
   const [adjustingSku, setAdjustingSku] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const params = useMemo(() => ({ search: search || undefined, pageSize: 100 }), [search]);
   const { data, isLoading, isError } = useInventoryQuery(params);
@@ -35,11 +37,17 @@ function InventoryRouteComponent() {
   const closeDrawer = useCallback(() => setSelectedSku(null), []);
   const openAdjust = useCallback((sku: string) => setAdjustingSku(sku), []);
   const closeAdjust = useCallback(() => setAdjustingSku(null), []);
+  const openCreate = useCallback(() => setIsCreateOpen(true), []);
+  const closeCreate = useCallback(() => setIsCreateOpen(false), []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <KpiStrip />
-      <FilterStrip search={search} onSearchChange={setSearch} />
+      <FilterStrip
+        search={search}
+        onSearchChange={setSearch}
+        onCreateSkuClick={openCreate}
+      />
       {isError ? (
         <ErrorState />
       ) : (
@@ -60,6 +68,7 @@ function InventoryRouteComponent() {
         sku={adjustingSku ?? ''}
         onClose={closeAdjust}
       />
+      <CreateSkuModal isOpen={isCreateOpen} onClose={closeCreate} />
     </div>
   );
 }
