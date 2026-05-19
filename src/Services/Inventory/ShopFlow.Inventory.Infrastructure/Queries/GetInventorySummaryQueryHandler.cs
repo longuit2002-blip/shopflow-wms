@@ -1,27 +1,29 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ShopFlow.Inventory.Application.Dtos;
+using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Application.Queries;
-using ShopFlow.Inventory.Application.Services;
 
 namespace ShopFlow.Inventory.Infrastructure.Queries;
 
 /// <summary>
-/// MediatR handler for <see cref="GetInventorySummaryQuery"/> — Sprint-6
-/// plan U7 / R21 Backend Gap closure.
-///
-/// Single-trip read so the Inventory screen's 2-second polling loop
-/// doesn't N+1 across the SKU table. <c>BelowThresholdCount</c> joins
-/// the in-memory threshold store (Sprint-6 U8 — Sprint-7 promotes to
-/// an EF column).
+/// MediatR handler for <see cref="GetInventorySummaryQuery"/> —
+/// originally Sprint-6 plan U7 / R21. Single-trip read so the
+/// Inventory screen's polling loop does not N+1 across the SKU table.
 /// </summary>
+/// <remarks>
+/// Sprint-7.5 U3 — <c>BelowThresholdCount</c> now joins the real
+/// <c>skus.threshold</c> column via
+/// <see cref="ISkuRepository.GetAllThresholdsAsync"/> in one bulk
+/// dictionary read; the singleton metadata reader has been removed.
+/// </remarks>
 public sealed class GetInventorySummaryQueryHandler(
     InventoryDbContext db,
-    ISkuMetadataReader metadata)
+    ISkuRepository skuRepository)
     : IRequestHandler<GetInventorySummaryQuery, InventorySummaryDto>
 {
     private readonly InventoryDbContext db = db;
-    private readonly ISkuMetadataReader metadata = metadata;
+    private readonly ISkuRepository skuRepository = skuRepository;
 
     public async Task<InventorySummaryDto> Handle(
         GetInventorySummaryQuery request,
@@ -45,6 +47,10 @@ public sealed class GetInventorySummaryQueryHandler(
             return new InventorySummaryDto(0, 0, 0, 0, 0);
         }
 
+        var thresholds = await this.skuRepository
+            .GetAllThresholdsAsync(cancellationToken)
+            .ConfigureAwait(false);
+
         long totalAvailable = 0;
         long totalReserved = 0;
         var oversellRisk = 0;
@@ -56,8 +62,10 @@ public sealed class GetInventorySummaryQueryHandler(
             totalReserved += r.Reserved;
             if (r.Reserved > r.Available) oversellRisk += 1;
 
-            var threshold = this.metadata.GetThreshold(r.Sku);
-            if (threshold is int t && r.Available < t) belowThreshold += 1;
+            if (thresholds.TryGetValue(r.Sku, out var t) && r.Available < t)
+            {
+                belowThreshold += 1;
+            }
         }
 
         return new InventorySummaryDto(

@@ -3,7 +3,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
-using ShopFlow.Inventory.Application.Services;
 using ShopFlow.Inventory.Infrastructure.Repositories;
 using ShopFlow.Inventory.Infrastructure.Services;
 using ShopFlow.Inventory.Infrastructure.Workers;
@@ -67,10 +66,11 @@ public static class InventoryServiceCollectionExtensions
         services.AddScoped<IPutAwaySuggestionService, PutAwaySuggestionService>();
         services.AddScoped<IUnitOfWork, InventoryUnitOfWork>();
 
-        // Sprint-6 U8 — in-memory metadata store for threshold + is_flash_sale.
-        // Sprint-7 replaces with EF-backed real columns.
-        services.AddSingleton<ISkuMetadataStore, InMemorySkuMetadataStore>();
-        services.AddScoped<ISkuMetadataReader, TenantScopedSkuMetadataReader>();
+        // Sprint-7.5 U3 — per-tenant rich SKU catalog. Replaces the
+        // in-memory <c>InMemorySkuMetadataStore</c> singleton +
+        // <c>TenantScopedSkuMetadataReader</c> wrapper with a real EF-
+        // backed repository scoped per request.
+        services.AddScoped<ISkuRepository, SkuRepository>();
 
         services
             .AddOptions<InventoryOptions>()

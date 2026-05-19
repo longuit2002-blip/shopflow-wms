@@ -1,34 +1,36 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using ShopFlow.Inventory.Application.Dtos;
+using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Application.Queries;
-using ShopFlow.Inventory.Application.Services;
 using ShopFlow.Inventory.Domain;
 
 namespace ShopFlow.Inventory.Infrastructure.Queries;
 
 /// <summary>
-/// MediatR handler for <see cref="ListSkusQuery"/> — Sprint-6 plan U7.
-///
-/// Reads paginated rows from <c>stock_items</c>. Filter and ordering are
-/// kept minimal in Sprint-6:
-///   - Search is a case-insensitive substring match on SKU.
-///   - Ordering is by SKU ascending (stable for deterministic UI rows).
-///   - Total count is a separate query inside the same transaction so the
-///     pagination footer renders correctly.
-///
-/// Threshold + isFlashSale come from the in-memory metadata store
-/// (Sprint-6 U8 — <see cref="ISkuMetadataReader"/>). Sprint-7 promotes
-/// them to real columns. Channel allocations + p24 outbound still ship
-/// empty (cross-module join is Sprint-7).
+/// MediatR handler for <see cref="ListSkusQuery"/> — originally
+/// Sprint-6 plan U7. Reads paginated rows from <c>stock_items</c>
+/// and joins per-SKU rich-catalog metadata
+/// (<see cref="ISkuRepository.GetListMetadataAsync"/>) in one bulk
+/// round-trip per page rather than N per-row lookups.
 /// </summary>
+/// <remarks>
+/// <para>Sprint-7.5 U3 — threshold + is_flash_sale + name + category
+/// now come from the real <c>skus</c> table instead of the in-memory
+/// metadata store. SKUs without a <c>skus</c> row fall back to the
+/// SKU code as the name + null category + null threshold + false
+/// is_flash_sale (matches the singleton's "unset" semantics).</para>
+///
+/// <para>Channel allocations + p24 outbound still ship empty
+/// (Sprint-6 trade-off #3, unchanged in Sprint-7.5).</para>
+/// </remarks>
 public sealed class ListSkusQueryHandler(
     InventoryDbContext db,
-    ISkuMetadataReader metadata)
+    ISkuRepository skuRepository)
     : IRequestHandler<ListSkusQuery, PaginatedSkuListDto>
 {
     private readonly InventoryDbContext db = db;
-    private readonly ISkuMetadataReader metadata = metadata;
+    private readonly ISkuRepository skuRepository = skuRepository;
 
     public async Task<PaginatedSkuListDto> Handle(
         ListSkusQuery request,
@@ -63,17 +65,26 @@ public sealed class ListSkusQueryHandler(
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
+        var skuCodes = rows.Select(r => r.Sku).ToList();
+        var metadata = await this.skuRepository
+            .GetListMetadataAsync(skuCodes, cancellationToken)
+            .ConfigureAwait(false);
+
         var items = rows
-            .Select(r => new SkuListItemDto(
-                Sku: r.Sku,
-                Available: r.Available,
-                Reserved: r.Reserved,
-                Name: r.Sku, // Sprint-7 reads from a real name column
-                Category: null,
-                Threshold: this.metadata.GetThreshold(r.Sku),
-                IsFlashSale: this.metadata.IsFlashSale(r.Sku),
-                Allocations: Array.Empty<ChannelAllocationDto>(),
-                P24Outbound: 0))
+            .Select(r =>
+            {
+                metadata.TryGetValue(r.Sku, out var m);
+                return new SkuListItemDto(
+                    Sku: r.Sku,
+                    Available: r.Available,
+                    Reserved: r.Reserved,
+                    Name: m?.Name ?? r.Sku, // fallback to SKU code when no catalog row
+                    Category: m?.Category,
+                    Threshold: m?.Threshold,
+                    IsFlashSale: m?.IsFlashSale ?? false,
+                    Allocations: Array.Empty<ChannelAllocationDto>(),
+                    P24Outbound: 0);
+            })
             .ToList();
 
         return new PaginatedSkuListDto(items, page, pageSize, total);

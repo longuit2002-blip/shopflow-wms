@@ -1,35 +1,61 @@
 using MediatR;
-using ShopFlow.Inventory.Application.Services;
-using ShopFlow.SharedKernel.Application;
+using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.SharedKernel.Domain;
+using SkuCode = ShopFlow.Inventory.Domain.Sku;
 
 namespace ShopFlow.Inventory.Application.Commands;
 
 /// <summary>
-/// MediatR handler for <see cref="SetThresholdCommand"/> — Sprint-6 plan U8.
-/// Writes to the in-memory metadata store keyed by tenant slug + sku.
+/// MediatR handler for <see cref="SetThresholdCommand"/> — originally
+/// Sprint-6 plan U8 against the in-memory <c>ISkuMetadataStore</c>;
+/// Sprint-7.5 U3 rewires the handler to the real <see cref="ISkuRepository"/>
+/// catalog so threshold survives an Inventory.Api restart.
 /// </summary>
+/// <remarks>
+/// The repository's <c>UpdateThresholdAsync</c> handles the create-or-
+/// update branching: when no <c>skus</c> row exists yet the repository
+/// creates a minimal one (name defaults to the SKU code) so the inline
+/// threshold-edit path does not also force the user through the Create
+/// SKU modal. The user can rename the row later via Sprint-7.5 U4's
+/// edit modal.
+/// </remarks>
 public sealed class SetThresholdCommandHandler(
-    ISkuMetadataStore store,
-    IRequestContext requestContext) : IRequestHandler<SetThresholdCommand, Result>
+    ISkuRepository skuRepository) : IRequestHandler<SetThresholdCommand, Result>
 {
-    private readonly ISkuMetadataStore store = store;
-    private readonly IRequestContext requestContext = requestContext;
+    private readonly ISkuRepository skuRepository = skuRepository;
 
-    public Task<Result> Handle(SetThresholdCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(SetThresholdCommand request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+
         if (string.IsNullOrWhiteSpace(request.Sku))
         {
-            return Task.FromResult(Result.Failure("sku is required.", "stock.sku_required"));
+            return Result.Failure("sku is required.", "stock.sku_required");
         }
         if (request.Threshold < 0)
         {
-            return Task.FromResult(Result.Failure(
-                "threshold must be ≥ 0.",
-                "stock.threshold_negative"));
+            return Result.Failure(
+                "threshold must be >= 0.",
+                "stock.threshold_negative"
+            );
         }
-        this.store.SetThreshold(this.requestContext.TenantSlug, request.Sku, request.Threshold);
-        return Task.FromResult(Result.Success());
+
+        SkuCode code;
+        try
+        {
+            code = SkuCode.Create(request.Sku);
+        }
+        catch (ArgumentException ex)
+        {
+            return Result.Failure(ex.Message, "stock.sku_invalid");
+        }
+
+        var result = await this.skuRepository
+            .UpdateThresholdAsync(code, request.Threshold, cancellationToken)
+            .ConfigureAwait(false);
+
+        return result.IsSuccess
+            ? Result.Success()
+            : Result.Failure(result.Error!, result.ErrorCode);
     }
 }
