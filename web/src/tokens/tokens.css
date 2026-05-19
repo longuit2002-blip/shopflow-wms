@@ -619,14 +619,36 @@ table.t-data {
   margin-top: 4px;
   box-shadow: 0 0 0 2px #FFFFFF;
 }
-.saga-step.pending .dot { background: var(--neutral-400); }
-.saga-step.active  .dot { background: var(--info-500); animation: livePulse 1.5s ease-in-out infinite; }
-.saga-step.fail    .dot { background: var(--danger-500); }
+.saga-step.pending   .dot { background: var(--neutral-400); }
+.saga-step.active    .dot { background: var(--info-500); animation: livePulse 1.5s ease-in-out infinite; }
+.saga-step.completed .dot { background: var(--success-500); }  /* Sprint-7 U11 — explicit completed token */
+.saga-step.fail      .dot { background: var(--danger-500); }
 .saga-line {
   width: 1px;
   background: var(--neutral-200);
   height: 100%;
   margin-left: 6.5px;
+}
+
+/* Sprint-7 U11 — SagaPipeline container + failure caption */
+.saga-pipeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.saga-step .label { color: var(--ink-1, var(--ink)); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.saga-step.pending .label { color: var(--ink-3); }
+.saga-step .elapsed {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  text-align: right;
+}
+.saga-failure-caption {
+  margin-top: 8px;
+  color: var(--bad-ink);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
 }
 
 /* OAuth mark */
