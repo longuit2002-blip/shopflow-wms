@@ -44,6 +44,16 @@ import { fmtNum } from '../../lib/format';
 
 export interface OrdersTableProps {
   filter: OrdersFilter;
+  /**
+   * Current 1-based page number (Sprint-7.5 U7). When provided alongside
+   * `onPageChange`, the table renders a pagination footer reading from the
+   * URL state. Omit to keep the Sprint-7 behaviour (no footer; single page).
+   */
+  page?: number;
+  /** Page size (rows per page) used by the pagination footer math. */
+  pageSize?: number;
+  /** Pagination-footer callback (writes the new page to URL via the route). */
+  onPageChange?: (page: number) => void;
 }
 
 const STATUS_KIND: Record<string, PillKind> = {
@@ -65,7 +75,12 @@ function statusKind(status: string | null): PillKind {
   return STATUS_KIND[status] ?? 'default';
 }
 
-export function OrdersTable({ filter }: OrdersTableProps) {
+export function OrdersTable({
+  filter,
+  page,
+  pageSize,
+  onPageChange,
+}: OrdersTableProps) {
   const { lang } = useLocale();
   const { data, isLoading, isError } = useOrdersListQuery(filter);
 
@@ -81,8 +96,19 @@ export function OrdersTable({ filter }: OrdersTableProps) {
     return <EmptyState />;
   }
 
+  const showPagination = onPageChange != null && page != null && pageSize != null;
+  const totalCount = data?.totalCount ?? 0;
+  const totalPages = pageSize ? Math.max(1, Math.ceil(totalCount / pageSize)) : 1;
+
   return (
-    <div style={{ overflow: 'auto', flex: 1 }}>
+    <div
+      style={{
+        overflow: 'auto',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
       <table className="t-data">
         <thead>
           <tr>
@@ -104,7 +130,64 @@ export function OrdersTable({ filter }: OrdersTableProps) {
               ))}
         </tbody>
       </table>
+      {showPagination && (
+        <OrdersPaginationFooter
+          page={page!}
+          totalPages={totalPages}
+          onPageChange={onPageChange!}
+        />
+      )}
     </div>
+  );
+}
+
+interface OrdersPaginationFooterProps {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}
+
+function OrdersPaginationFooter({
+  page,
+  totalPages,
+  onPageChange,
+}: OrdersPaginationFooterProps) {
+  const canPrev = page > 1;
+  const canNext = page < totalPages;
+  return (
+    <nav
+      aria-label={t('Phân trang đơn hàng', 'Orders pagination')}
+      data-testid="orders-pagination"
+      style={{
+        display: 'flex',
+        gap: 'var(--s-2)',
+        justifyContent: 'flex-end',
+        padding: 'var(--s-3) var(--s-6)',
+        borderTop: '1px solid var(--line)',
+      }}
+    >
+      <button
+        type="button"
+        className="btn"
+        disabled={!canPrev}
+        onClick={() => onPageChange(page - 1)}
+        data-testid="orders-pagination-prev"
+      >
+        {t('Trước', 'Prev')}
+      </button>
+      <span className="t-sm" style={{ alignSelf: 'center', color: 'var(--ink-2)' }}>
+        {t(`Trang ${page} / ${totalPages}`, `Page ${page} / ${totalPages}`)}
+      </span>
+      <button
+        type="button"
+        className="btn"
+        disabled={!canNext}
+        onClick={() => onPageChange(page + 1)}
+        data-testid="orders-pagination-next"
+      >
+        {t('Tiếp', 'Next')}
+      </button>
+    </nav>
   );
 }
 

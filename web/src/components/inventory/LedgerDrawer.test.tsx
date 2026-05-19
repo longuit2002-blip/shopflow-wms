@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement } from 'react';
 import { LedgerDrawer } from './LedgerDrawer';
@@ -173,5 +173,87 @@ describe('LedgerDrawer', () => {
       'aria-checked',
       'true',
     );
+  });
+
+  // ── Sprint-7.5 U7: URL-driven open + stale deep-link recovery (D-005) ──
+
+  it('opens via selectedSku even when item is null (URL-driven open seam)', async () => {
+    // The parent route renders the drawer when `?selected=` is set but the
+    // SKU's full record hasn't arrived yet (loading the inventory list).
+    // The drawer must still mount and kick off the ledger fetch using the
+    // URL-selected SKU.
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      jsonResponse({ items: [], nextCursor: null }),
+    );
+    renderWithClient(
+      <LedgerDrawer
+        item={null}
+        selectedSku="YS-RED-100"
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText(/YS-RED-100/)).toBeInTheDocument();
+  });
+
+  it('renders the D-005 unknown-SKU error state when isUnknownSelectedSku is true', async () => {
+    // Stale deep-link: `?selected=` points at a SKU that no longer exists.
+    // The parent route detects the miss after loading and flips the
+    // `isUnknownSelectedSku` flag; the drawer renders an explicit error
+    // panel with a Close button. The URL param is NOT auto-cleared.
+    renderWithClient(
+      <LedgerDrawer
+        item={null}
+        selectedSku="SKU-NONEXISTENT"
+        isUnknownSelectedSku={true}
+        onClose={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId('ledger-unknown-sku')).toBeInTheDocument();
+    // SKU name appears both in the drawer title and in the unknown-SKU
+    // body — assert via the scoped error panel rather than a global getByText.
+    expect(
+      within(screen.getByTestId('ledger-unknown-sku')).getByText(/SKU-NONEXISTENT/),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId('ledger-unknown-sku-close')).toBeInTheDocument();
+  });
+
+  it('the D-005 Close button invokes onClose (parent then clears ?selected=)', async () => {
+    const onClose = vi.fn();
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderWithClient(
+      <LedgerDrawer
+        item={null}
+        selectedSku="SKU-NONEXISTENT"
+        isUnknownSelectedSku={true}
+        onClose={onClose}
+      />,
+    );
+
+    await user.click(screen.getByTestId('ledger-unknown-sku-close'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('ledgerCursor prop is accepted but does not affect the U7 fetch shape (U6 seam)', async () => {
+    // U6 will wire the cursor into useSkuLedgerQuery; for now the prop is
+    // plumbed end-to-end without changing the URL of the fetch call. This
+    // test pins the contract so U6 can detect when it lands the change.
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      jsonResponse({ items: [], nextCursor: null }),
+    );
+    renderWithClient(
+      <LedgerDrawer
+        item={FIXTURE_ITEM}
+        ledgerCursor="cursor-abc"
+        onClose={() => {}}
+      />,
+    );
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalled();
+    });
+    const [url] = vi.mocked(globalThis.fetch).mock.calls[0]!;
+    // The URL does NOT yet carry `?cursor=` — U6 will change this.
+    expect(String(url)).not.toContain('cursor=');
   });
 });

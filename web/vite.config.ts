@@ -14,6 +14,11 @@ export default defineConfig({
     TanStackRouterVite({
       target: 'react',
       autoCodeSplitting: true,
+      // Sprint-7.5 U7: route-schema tests live next to their routes
+      // (e.g., `inventory.test.tsx` beside `inventory.tsx`). Tell the
+      // generator to skip `.test.` files so they don't get treated as
+      // routes themselves.
+      routeFileIgnorePattern: '\\.(test|spec)\\.[tj]sx?$',
     }),
     react(),
   ],

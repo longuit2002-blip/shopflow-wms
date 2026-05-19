@@ -1,10 +1,17 @@
 /**
- * Filter strip — Sprint-6 plan U9.
+ * Filter strip — Sprint-6 plan U9; Sprint-7.5 U7 URL-state migration.
  *
  * Sprint-6 ships a search box only — the wider filter set (category,
  * channel, state, zone) waits for Sprint-7 when those columns land in
  * the schema. The strip layout matches STYLING_SPECS §2.2 so future
  * filters can be added without churn.
+ *
+ * Sprint-7.5 URL persistence: the component stays a controlled input
+ * (props in, callbacks out). The parent route (`routes/_auth/inventory.tsx`)
+ * holds the URL state via `useFilterSearchParams` and supplies the current
+ * `search` value + an `onSearchChange` that writes back to the URL. This
+ * design keeps the component reusable (e.g., embedded inside a modal
+ * preview later) and isolates the URL-shape concern in the route layer.
  */
 
 import { Search, Plus } from 'lucide-react';

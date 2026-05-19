@@ -13,7 +13,11 @@
  *     ISO 8601 UTC at the route layer)
  *   - search         (free-text, channelExternalOrderId substring)
  *
- * No URL-search-param persistence (Sprint-6 trade-off #4 carries forward).
+ * URL persistence (Sprint-7.5 U7): the component stays a controlled
+ * `value`/`onChange` pair. The parent route (`routes/_auth/orders/index.tsx`)
+ * now holds URL state via `useFilterSearchParams` and adapts the strip's
+ * `OrdersFilter` shape into the route's `OrdersSearch` URL schema. Closes
+ * Sprint-6 trade-off #4.
  *
  * A11y: every input has a visible `<label>` associated via `htmlFor`. The
  * filter region is a `<form>` so screen readers announce the group. No

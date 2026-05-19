@@ -231,4 +231,67 @@ describe('OrdersTable', () => {
     const dashes = screen.getAllByText('—');
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
+
+  // ── Sprint-7.5 U7: pagination footer (URL-state seam) ──
+
+  it('does NOT render the pagination footer when onPageChange is absent', () => {
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 200 };
+    wrap(<OrdersTable filter={{}} />);
+    expect(screen.queryByTestId('orders-pagination')).not.toBeInTheDocument();
+  });
+
+  it('renders the pagination footer when page + pageSize + onPageChange all supplied', () => {
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 130 };
+    const onPageChange = vi.fn();
+    wrap(
+      <OrdersTable
+        filter={{}}
+        page={2}
+        pageSize={50}
+        onPageChange={onPageChange}
+      />,
+    );
+    expect(screen.getByTestId('orders-pagination')).toBeInTheDocument();
+    // 130 / 50 → 3 pages.
+    expect(screen.getByText(/Trang 2 \/ 3/)).toBeInTheDocument();
+  });
+
+  it('Prev button disabled on page 1; Next enabled when more pages exist', () => {
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 130 };
+    wrap(
+      <OrdersTable filter={{}} page={1} pageSize={50} onPageChange={vi.fn()} />,
+    );
+    const prev = screen.getByTestId('orders-pagination-prev') as HTMLButtonElement;
+    const next = screen.getByTestId('orders-pagination-next') as HTMLButtonElement;
+    expect(prev.disabled).toBe(true);
+    expect(next.disabled).toBe(false);
+  });
+
+  it('Next button click invokes onPageChange with page+1 (URL-state seam)', async () => {
+    const user = userEvent.setup();
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 130 };
+    const onPageChange = vi.fn();
+    wrap(
+      <OrdersTable
+        filter={{}}
+        page={1}
+        pageSize={50}
+        onPageChange={onPageChange}
+      />,
+    );
+
+    await user.click(screen.getByTestId('orders-pagination-next'));
+    expect(onPageChange).toHaveBeenCalledTimes(1);
+    expect(onPageChange).toHaveBeenCalledWith(2);
+  });
+
+  it('Next button disabled on the last page', () => {
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 130 };
+    wrap(
+      <OrdersTable filter={{}} page={3} pageSize={50} onPageChange={vi.fn()} />,
+    );
+    expect(
+      (screen.getByTestId('orders-pagination-next') as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
 });

@@ -19,14 +19,32 @@ import { ThresholdInlineEdit } from './ThresholdInlineEdit';
 import { t, useLocale } from '../../hooks/useLocale';
 import { fmtNum } from '../../lib/format';
 
+/** Sortable columns exposed in the URL schema (Sprint-7.5 U7). */
+export type SortColumn = 'sku' | 'available' | 'reserved';
+export type SortDirection = 'asc' | 'desc';
+
 export interface SkuTableProps {
   items: SkuListItem[];
   onSelectSku: (sku: string) => void;
   selectedSku?: string | null;
   isLoading?: boolean;
+  /** Active sort column (Sprint-7.5 U7); undefined = API order (default). */
+  sortColumn?: SortColumn;
+  /** Active sort direction (Sprint-7.5 U7); undefined = neutral. */
+  sortDirection?: SortDirection;
+  /** Called when a sortable column header is activated (Sprint-7.5 U7). */
+  onSortChange?: (column: SortColumn) => void;
 }
 
-export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTableProps) {
+export function SkuTable({
+  items,
+  onSelectSku,
+  selectedSku,
+  isLoading,
+  sortColumn,
+  sortDirection,
+  onSortChange,
+}: SkuTableProps) {
   const { lang } = useLocale();
 
   if (items.length === 0 && !isLoading) {
@@ -38,13 +56,30 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
       <table className="t-data">
         <thead>
           <tr>
-            <th scope="col">{t('SKU', 'SKU')}</th>
-            <th scope="col" style={{ textAlign: 'right' }}>
-              {t('Tồn thực', 'Available')}
-            </th>
-            <th scope="col" style={{ textAlign: 'right' }}>
-              {t('Đã giữ', 'Reserved')}
-            </th>
+            <SortableHeader
+              column="sku"
+              label={t('SKU', 'SKU')}
+              align="left"
+              activeColumn={sortColumn}
+              activeDirection={sortDirection}
+              onSortChange={onSortChange}
+            />
+            <SortableHeader
+              column="available"
+              label={t('Tồn thực', 'Available')}
+              align="right"
+              activeColumn={sortColumn}
+              activeDirection={sortDirection}
+              onSortChange={onSortChange}
+            />
+            <SortableHeader
+              column="reserved"
+              label={t('Đã giữ', 'Reserved')}
+              align="right"
+              activeColumn={sortColumn}
+              activeDirection={sortDirection}
+              onSortChange={onSortChange}
+            />
             <th scope="col" style={{ textAlign: 'right' }}>
               {t('Mức an toàn', 'Threshold')}
             </th>
@@ -127,6 +162,68 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
         </tbody>
       </table>
     </div>
+  );
+}
+
+interface SortableHeaderProps {
+  column: SortColumn;
+  label: string;
+  align: 'left' | 'right';
+  activeColumn: SortColumn | undefined;
+  activeDirection: SortDirection | undefined;
+  onSortChange?: (column: SortColumn) => void;
+}
+
+/**
+ * Column header with an embedded sort-toggle button (Sprint-7.5 U7).
+ *
+ * Click cycle: neutral → asc → desc → neutral. When `onSortChange` is not
+ * provided the header degrades to a static `<th>` (no nested-interactive
+ * regression — see Sprint-6 KTD11). aria-sort drives screen readers.
+ */
+function SortableHeader({
+  column,
+  label,
+  align,
+  activeColumn,
+  activeDirection,
+  onSortChange,
+}: SortableHeaderProps) {
+  const isActive = activeColumn === column;
+  const ariaSort: 'ascending' | 'descending' | 'none' = isActive
+    ? activeDirection === 'desc'
+      ? 'descending'
+      : 'ascending'
+    : 'none';
+
+  if (!onSortChange) {
+    return (
+      <th scope="col" style={{ textAlign: align }}>
+        {label}
+      </th>
+    );
+  }
+
+  const indicator = isActive ? (activeDirection === 'desc' ? ' ↓' : ' ↑') : '';
+
+  return (
+    <th scope="col" aria-sort={ariaSort} style={{ textAlign: align }}>
+      <button
+        type="button"
+        onClick={() => onSortChange(column)}
+        data-testid={`sku-sort-${column}`}
+        aria-label={`${label} — sort`}
+        style={{
+          all: 'unset',
+          cursor: 'pointer',
+          fontWeight: 'inherit',
+          color: 'inherit',
+        }}
+      >
+        {label}
+        {indicator}
+      </button>
+    </th>
   );
 }
 
