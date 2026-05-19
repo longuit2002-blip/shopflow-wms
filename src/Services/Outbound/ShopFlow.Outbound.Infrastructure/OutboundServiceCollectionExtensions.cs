@@ -7,6 +7,7 @@ using Polly.Retry;
 using ShopFlow.Outbound.Application.Ports;
 using ShopFlow.Outbound.Application.Sagas;
 using ShopFlow.Outbound.Infrastructure.Outbox;
+using ShopFlow.Outbound.Infrastructure.Persistence;
 using ShopFlow.Outbound.Infrastructure.Repositories;
 using ShopFlow.Outbound.Infrastructure.Sagas;
 using ShopFlow.Outbound.Infrastructure.Shipping;
@@ -37,9 +38,17 @@ public static class OutboundServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        // Sprint-7.5 U8 — the SagaTransitionDuplicateInterceptor pre-checks
+        // OrderTransition adds against the new composite UNIQUE on
+        // outbound_saga_transitions and detaches duplicates so MT-redelivered
+        // consume scopes never trigger the 23505. Scoped lifetime so the
+        // logger resolves against the same scope as the DbContext.
+        services.AddScoped<SagaTransitionDuplicateInterceptor>();
+
         services.AddScoped<OutboundDbContext>(sp =>
         {
             var ctx = sp.GetRequiredService<IRequestContext>();
+            var dupeInterceptor = sp.GetRequiredService<SagaTransitionDuplicateInterceptor>();
             var options = new DbContextOptionsBuilder<OutboundDbContext>()
                 .UseNpgsql(
                     ctx.DbConnectionString,
@@ -48,6 +57,7 @@ public static class OutboundServiceCollectionExtensions
                             typeof(OutboundServiceCollectionExtensions).Assembly.GetName().Name
                         )
                 )
+                .AddInterceptors(dupeInterceptor)
                 .Options;
             return new OutboundDbContext(options);
         });
