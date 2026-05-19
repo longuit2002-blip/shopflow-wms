@@ -31,6 +31,15 @@ builder.Services.AddShopFlowDefaults(
     configure: o => o.ServiceName = "shopflow-outbound",
     assembliesToScan: new[]
     {
+        // Sprint-7 U4 — Outbound.Application assembly carries the MediatR
+        // queries (ListOrdersQuery / GetOrderDetailQuery /
+        // GetOrderTransitionsQuery) + their handlers introduced in U3.
+        // Without this entry the MediatR RegisterServicesFromAssemblies
+        // scan only sees Infrastructure, the handlers don't resolve, and
+        // OrdersController.ListAsync (U4) throws at _mediator.Send time.
+        // Mirrors Inventory.Api's pattern of scanning the Application
+        // assembly alongside Infrastructure.
+        typeof(ShopFlow.Outbound.Application.PickRequestV1).Assembly,
         typeof(ShopFlow.Outbound.Infrastructure.OutboundDbContext).Assembly,
     }
 );

@@ -1,12 +1,17 @@
 using MassTransit;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using ShopFlow.Contracts.Inventory;
 using ShopFlow.Contracts.Outbound;
 using ShopFlow.Outbound.Api.Contracts;
 using ShopFlow.Outbound.Application.Ports;
+using ShopFlow.Outbound.Application.Queries;
 using ShopFlow.Outbound.Application.Sagas.Events;
 using ShopFlow.Outbound.Domain;
 using ShopFlow.SharedKernel.Application;
+using ShopFlow.SharedKernel.Application.Attributes;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Outbound.Api.Controllers;
@@ -43,9 +48,30 @@ namespace ShopFlow.Outbound.Api.Controllers;
 /// lands in a separate MassTransit transaction.</para>
 /// </remarks>
 [ApiController]
+[Authorize]
 [Route("api/outbound/orders")]
 public sealed class OrdersController : ControllerBase
 {
+    /// <summary>
+    /// Sprint-7 U4 — Idempotency-Key header name. Logged on the seed
+    /// endpoint for audit (Sprint-6 trade-off #2: no dedup table; the
+    /// natural <c>UNIQUE(channel_external_order_id)</c> on the orders
+    /// row is the real defence).
+    /// </summary>
+    private const string IdempotencyHeader = "Idempotency-Key";
+
+    /// <summary>
+    /// Sprint-7 U4 — defensive ceiling on the seed endpoint's
+    /// <c>line_count</c> argument so a malicious payload cannot grow an
+    /// order to thousands of lines on a dev container.
+    /// </summary>
+    private const int MaxSeedLineCount = 50;
+
+    /// <summary>
+    /// Sprint-7 U4 — default page size for <c>GET /api/outbound/orders</c>.
+    /// </summary>
+    private const int DefaultListTake = 50;
+
     /// <summary>
     /// Weight-variance threshold above which <c>confirm-pack</c> flags a
     /// warning. Per the U6 plan spec: |actual - expected| / expected &gt; 10%.
@@ -86,7 +112,19 @@ public sealed class OrdersController : ControllerBase
     private readonly TimeProvider _clock;
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly IMockShippingProvider _shippingProvider;
+    // Sprint-7 U4 — MediatR powers the read endpoints (list / detail /
+    // transitions) per the Sprint-6 Inventory controller pattern. The
+    // handlers (U3) live in ShopFlow.Outbound.Application and are wired
+    // through AddShopFlowDefaults' MediatR assembly scan (see
+    // Program.cs — Outbound.Application is added to assembliesToScan).
+    private readonly IMediator _mediator;
+    // Sprint-7 U4 — IHostEnvironment gates POST /seed to development
+    // only. IsDevelopment() returns true when ASPNETCORE_ENVIRONMENT is
+    // "Development"; production / staging boots return 404 +
+    // environment_not_dev.
+    private readonly IHostEnvironment _env;
 
+    [Microsoft.Extensions.DependencyInjection.ActivatorUtilitiesConstructor]
     public OrdersController(
         IOrderRepository orderRepo,
         IUnitOfWork uow,
@@ -94,7 +132,9 @@ public sealed class OrdersController : ControllerBase
         IRequestContext requestContext,
         TimeProvider clock,
         IPublishEndpoint publishEndpoint,
-        IMockShippingProvider shippingProvider
+        IMockShippingProvider shippingProvider,
+        IMediator mediator,
+        IHostEnvironment env
     )
     {
         _orderRepo = orderRepo;
@@ -104,6 +144,110 @@ public sealed class OrdersController : ControllerBase
         _clock = clock;
         _publishEndpoint = publishEndpoint;
         _shippingProvider = shippingProvider;
+        _mediator = mediator;
+        _env = env;
+    }
+
+    /// <summary>
+    /// Sprint-7 U4 — backward-compat constructor for the pre-Sprint-7
+    /// integration tests that wire the controller directly (no DI).
+    /// The legacy POST + GET + confirm-pick/pack/ship + mark-pick-failed
+    /// endpoints don't touch <see cref="IMediator"/> or
+    /// <see cref="IHostEnvironment"/>; sub-stubs satisfy the field
+    /// initializers so the existing test harnesses don't have to thread
+    /// new dependencies through. DI always picks the 9-arg primary ctor
+    /// at runtime because both stubbed services are registered through
+    /// <c>AddShopFlowDefaults</c>.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage(
+        "Design",
+        "CA1062",
+        Justification = "Test-only ctor; DI selects the 9-arg primary ctor at runtime."
+    )]
+    public OrdersController(
+        IOrderRepository orderRepo,
+        IUnitOfWork uow,
+        IOutboundOutbox outbox,
+        IRequestContext requestContext,
+        TimeProvider clock,
+        IPublishEndpoint publishEndpoint,
+        IMockShippingProvider shippingProvider
+    )
+        : this(
+            orderRepo,
+            uow,
+            outbox,
+            requestContext,
+            clock,
+            publishEndpoint,
+            shippingProvider,
+            mediator: new LegacyTestUnsupportedMediator(),
+            env: new LegacyTestHostEnvironment()
+        )
+    {
+    }
+
+    /// <summary>
+    /// Sprint-7 U4 — placeholder injected by the legacy test-only
+    /// constructor. Throws if a pre-Sprint-7 test inadvertently calls
+    /// one of the new Sprint-7 read endpoints; existing tests never
+    /// touched the new endpoints so this stays unreached in normal use.
+    /// </summary>
+    private sealed class LegacyTestUnsupportedMediator : IMediator
+    {
+        public IAsyncEnumerable<TResponse> CreateStream<TResponse>(
+            IStreamRequest<TResponse> request,
+            CancellationToken cancellationToken = default
+        ) => throw NotSupported();
+
+        public IAsyncEnumerable<object?> CreateStream(
+            object request,
+            CancellationToken cancellationToken = default
+        ) => throw NotSupported();
+
+        public Task Publish(object notification, CancellationToken cancellationToken = default)
+            => throw NotSupported();
+
+        public Task Publish<TNotification>(
+            TNotification notification,
+            CancellationToken cancellationToken = default
+        )
+            where TNotification : INotification => throw NotSupported();
+
+        public Task<TResponse> Send<TResponse>(
+            IRequest<TResponse> request,
+            CancellationToken cancellationToken = default
+        ) => throw NotSupported();
+
+        public Task<object?> Send(
+            object request,
+            CancellationToken cancellationToken = default
+        ) => throw NotSupported();
+
+        public Task Send<TRequest>(TRequest request, CancellationToken cancellationToken = default)
+            where TRequest : IRequest => throw NotSupported();
+
+        private static InvalidOperationException NotSupported() =>
+            new("Sprint-7 U4 — legacy test-only constructor: MediatR is not available. "
+                + "Use the 9-arg constructor to exercise the Sprint-7 list / detail / "
+                + "transitions / seed endpoints.");
+    }
+
+    /// <summary>
+    /// Sprint-7 U4 — placeholder env reporting <c>"Test"</c>. Legacy
+    /// tests never reach <see cref="SeedAsync"/>, so the
+    /// <c>IsDevelopment()</c> path is unused; if reached the env is
+    /// "Test" (not "Development"), which trips the 404 guard.
+    /// </summary>
+    private sealed class LegacyTestHostEnvironment : IHostEnvironment
+    {
+        public string EnvironmentName { get; set; } = "Test";
+        public string ApplicationName { get; set; } = "ShopFlow.Outbound.Api";
+        public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider
+        {
+            get; set;
+        } = new Microsoft.Extensions.FileProviders.NullFileProvider();
     }
 
     [HttpPost]
@@ -183,6 +327,321 @@ public sealed class OrdersController : ControllerBase
             return ProblemFromError($"order {id} not found.", "order.not_found", 404);
         }
         return Ok(Map(order));
+    }
+
+    // ── Sprint-7 U4 — Orders screen read + seed endpoints ───────────────
+    // All four wire through TenantRoutingMiddleware (JWT tenant_slug
+    // claim → per-tenant DbContext). Wire-shape stays PascalCase per
+    // Sprint-6 KTD4.
+
+    /// <summary>
+    /// Sprint-7 U4 — paginated list for the Orders screen
+    /// (<c>GET /api/outbound/orders</c>). Delegates to
+    /// <see cref="ListOrdersQuery"/> (U3); the handler joins
+    /// <c>outbound_saga_transitions</c> for the per-row last-update
+    /// timestamp in a single trip.
+    /// </summary>
+    /// <remarks>
+    /// Query knobs:
+    /// <list type="bullet">
+    ///   <item><description><c>status</c> — case-sensitive enum-name equality on <c>orders.status</c>.</description></item>
+    ///   <item><description><c>channel</c> — case-sensitive prefix match on <c>channel_external_order_id</c> (forwarded verbatim).</description></item>
+    ///   <item><description><c>search</c> — case-insensitive substring match on <c>channel_external_order_id</c>.</description></item>
+    ///   <item><description><c>since</c> / <c>until</c> — ISO 8601 bounds on <c>orders.created_at</c>; invalid formats → 400.</description></item>
+    ///   <item><description><c>skip</c> / <c>take</c> — paging knobs; the handler clamps <c>take</c> to 200.</description></item>
+    /// </list>
+    /// </remarks>
+    [HttpGet]
+    [ProducesResponseType(typeof(OrderListResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ListAsync(
+        [FromQuery] string? status,
+        [FromQuery] string? channel,
+        [FromQuery] string? search,
+        [FromQuery] string? since,
+        [FromQuery] string? until,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = DefaultListTake,
+        CancellationToken ct = default
+    )
+    {
+        DateTime? sinceParsed = null;
+        DateTime? untilParsed = null;
+        if (!string.IsNullOrWhiteSpace(since))
+        {
+            if (!DateTime.TryParse(
+                    since,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind
+                        | System.Globalization.DateTimeStyles.AssumeUniversal,
+                    out var parsed))
+            {
+                return ProblemFromError(
+                    $"since '{since}' is not a valid ISO 8601 timestamp.",
+                    "order.invalid_since",
+                    400
+                );
+            }
+            sinceParsed = parsed.ToUniversalTime();
+        }
+        if (!string.IsNullOrWhiteSpace(until))
+        {
+            if (!DateTime.TryParse(
+                    until,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind
+                        | System.Globalization.DateTimeStyles.AssumeUniversal,
+                    out var parsed))
+            {
+                return ProblemFromError(
+                    $"until '{until}' is not a valid ISO 8601 timestamp.",
+                    "order.invalid_until",
+                    400
+                );
+            }
+            untilParsed = parsed.ToUniversalTime();
+        }
+
+        if (skip < 0)
+        {
+            return ProblemFromError(
+                "skip must be non-negative.",
+                "order.invalid_skip",
+                400
+            );
+        }
+        if (take < 1)
+        {
+            return ProblemFromError(
+                "take must be at least 1.",
+                "order.invalid_take",
+                400
+            );
+        }
+
+        var filter = new OrderListFilter(
+            Status: string.IsNullOrWhiteSpace(status) ? null : status,
+            ChannelPrefix: string.IsNullOrWhiteSpace(channel) ? null : channel,
+            Search: string.IsNullOrWhiteSpace(search) ? null : search,
+            Since: sinceParsed,
+            Until: untilParsed
+        );
+
+        var page = await _mediator
+            .Send(new ListOrdersQuery(filter, skip, take), ct)
+            .ConfigureAwait(false);
+
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var items = page.Items
+            .Select(r => new OrderListItemDto(
+                Id: r.Id,
+                ChannelExternalOrderId: r.ChannelExternalOrderId,
+                Channel: r.Channel,
+                LineCount: r.LineCount,
+                CurrentSagaState: r.CurrentSagaState,
+                Age: now - r.CreatedAt,
+                LastTransitionAt: r.LastTransitionAt
+            ))
+            .ToList();
+
+        return Ok(new OrderListResponse(items, page.TotalCount));
+    }
+
+    /// <summary>
+    /// Sprint-7 U4 — KPI strip aggregate for the Orders screen
+    /// (<c>GET /api/outbound/orders/kpis</c>). Returns four counts:
+    /// active orders (non-terminal), AwaitingPick, AwaitingShip, and
+    /// "failed today" (Cancelled rows with <c>created_at</c> ≥ start-of-
+    /// UTC-today). Implemented as four <see cref="ListOrdersQuery"/>
+    /// dispatches over <c>TotalCount</c> only — the per-row Items payload
+    /// is discarded. Cleanest path that re-uses the existing handler +
+    /// repo infrastructure without bolting a separate query type onto U3.
+    /// </summary>
+    [HttpGet("kpis")]
+    [ProducesResponseType(typeof(OrderKpiResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetKpisAsync(CancellationToken ct)
+    {
+        var startOfTodayUtc = _clock.GetUtcNow().UtcDateTime.Date;
+
+        // Serialize the six reads — EF Core's scoped DbContext is single-
+        // threaded and Task.WhenAll on the shared scope races the same
+        // DbCommand. The handler asks for one row + reads TotalCount so
+        // each call is a single COUNT(*) plus a 1-row materialise; total
+        // wall-time is acceptable for the KPI strip's 2-s polling cadence.
+        var awaitingPick = (await _mediator.Send(
+            new ListOrdersQuery(
+                new OrderListFilter(Status: nameof(OrderStatus.AwaitingPick)),
+                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
+        var awaitingShip = (await _mediator.Send(
+            new ListOrdersQuery(
+                new OrderListFilter(Status: nameof(OrderStatus.AwaitingShip)),
+                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
+        var failedToday = (await _mediator.Send(
+            new ListOrdersQuery(
+                new OrderListFilter(
+                    Status: nameof(OrderStatus.Cancelled),
+                    Since: startOfTodayUtc),
+                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
+
+        // Active = total - shipped - cancelled. Three reads against the
+        // status-indexed orders table; the SQL planner picks the right
+        // path for each filter.
+        var total = (await _mediator.Send(
+            new ListOrdersQuery(new OrderListFilter(), Skip: 0, Take: 1),
+            ct).ConfigureAwait(false)).TotalCount;
+        var shipped = (await _mediator.Send(
+            new ListOrdersQuery(
+                new OrderListFilter(Status: nameof(OrderStatus.Shipped)),
+                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
+        var cancelled = (await _mediator.Send(
+            new ListOrdersQuery(
+                new OrderListFilter(Status: nameof(OrderStatus.Cancelled)),
+                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
+        var active = Math.Max(0, total - shipped - cancelled);
+
+        return Ok(new OrderKpiResponse(
+            ActiveOrders: active,
+            AwaitingPick: awaitingPick,
+            AwaitingShip: awaitingShip,
+            FailedToday: failedToday
+        ));
+    }
+
+    /// <summary>
+    /// Sprint-7 U4 — audit log for one order
+    /// (<c>GET /api/outbound/orders/{id}/transitions</c>). Returns the
+    /// rows in <c>occurred_at</c> ASC order so the frontend renders them
+    /// top-to-bottom chronologically. Empty list when the saga has not
+    /// produced any transitions yet — the handler intentionally does NOT
+    /// 404 on unknown order ids (the audit is independent of the orders
+    /// table per Sprint-7 R14).
+    /// </summary>
+    [HttpGet("{id:guid}/transitions")]
+    [ProducesResponseType(typeof(IReadOnlyList<OrderTransitionDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetTransitionsAsync(Guid id, CancellationToken ct)
+    {
+        var rows = await _mediator
+            .Send(new GetOrderTransitionsQuery(id), ct)
+            .ConfigureAwait(false);
+
+        var dtos = rows
+            .Select(r => new OrderTransitionDto(
+                Id: r.Id,
+                OrderId: r.OrderId,
+                FromState: r.FromState,
+                ToState: r.ToState,
+                OccurredAt: r.OccurredAt,
+                EventType: r.EventType,
+                CorrelationId: r.CorrelationId
+            ))
+            .ToList();
+
+        return Ok(dtos);
+    }
+
+    /// <summary>
+    /// Sprint-7 U4 — dev-mode seed endpoint
+    /// (<c>POST /api/outbound/orders/seed</c>). Creates an
+    /// <see cref="Order"/> with N synthesized lines (default 3) +
+    /// emits <c>OrderPlacedV1</c> via the same outbox path the
+    /// <see cref="CreateAsync"/> endpoint uses, so the saga starts
+    /// naturally on the next dispatcher tick. Returns <c>404</c> +
+    /// <c>environment_not_dev</c> outside Development.
+    /// </summary>
+    /// <remarks>
+    /// <para>Per AGENTS.md §6.40 the endpoint is tagged
+    /// <see cref="IdempotentAttribute"/> — the <c>Idempotency-Key</c>
+    /// header value is read into the audit logs (Sprint-6 trade-off #2:
+    /// no <c>inventory_idempotency_records</c> table; the natural
+    /// <c>UNIQUE(channel_external_order_id)</c> on the orders row is
+    /// the real dedup defence).</para>
+    ///
+    /// <para>Seed defaults per plan: lines are <c>SEED-SKU-1</c>,
+    /// <c>SEED-SKU-2</c>, … each qty=1, expectedWeight=100,
+    /// shippingProfile="standard". The channel-external-order-id is
+    /// <c>{prefix}{ulid-ish-suffix}</c> where the suffix is a fresh
+    /// timestamp + GUID prefix so repeated calls don't collide on the
+    /// UNIQUE index.</para>
+    /// </remarks>
+    [HttpPost("seed")]
+    [Idempotent]
+    [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SeedAsync(
+        [FromBody] SeedOrderRequest? request,
+        [FromHeader(Name = IdempotencyHeader)] string? idempotencyKey,
+        CancellationToken ct
+    )
+    {
+        if (!_env.IsDevelopment())
+        {
+            return ProblemFromError(
+                "POST /seed is only available in Development environments.",
+                "environment_not_dev",
+                404
+            );
+        }
+
+        request ??= new SeedOrderRequest();
+        var lineCount = Math.Clamp(request.LineCount, 1, MaxSeedLineCount);
+        var prefix = string.IsNullOrWhiteSpace(request.ChannelPrefix)
+            ? "SEED_"
+            : request.ChannelPrefix.Trim();
+        // Idempotency-Key is read into the controller for audit-only
+        // logging (Sprint-6 trade-off #2). The variable is intentionally
+        // discarded — the real dedup is the UNIQUE channel ref index.
+        _ = idempotencyKey;
+
+        // Build a fresh channel ref per call so the UNIQUE index does
+        // not block repeated seeds. ULID-shaped suffix mirrors the
+        // frontend's idempotency-key shape.
+        var now = _clock.GetUtcNow().UtcDateTime;
+        var suffix = now.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture)
+            + "-"
+            + Guid.NewGuid().ToString("N")[..8];
+        var channelRef = $"{prefix}{suffix}";
+
+        var lines = Enumerable
+            .Range(1, lineCount)
+            .Select(i => ($"SEED-SKU-{i}", 1, (int?)100))
+            .ToArray();
+
+        var orderResult = Order.Create(
+            channelExternalOrderId: channelRef,
+            shippingProfile: "standard",
+            lines: lines
+        );
+        if (!orderResult.IsSuccess)
+        {
+            return ProblemFromResult(orderResult.Error!, orderResult.ErrorCode!);
+        }
+
+        var order = orderResult.Value!;
+        await _orderRepo.AddAsync(order, ct).ConfigureAwait(false);
+
+        var placedPayload = new OrderPlacedV1(
+            OrderId: order.Id,
+            TenantId: _requestContext.TenantId,
+            ChannelExternalOrderId: order.ChannelExternalOrderId,
+            ShippingProfile: order.ShippingProfile,
+            Lines: order
+                .Lines.Select(l => new OrderPlacedLineV1(
+                    OrderLineId: l.Id.ToString(),
+                    Sku: l.Sku,
+                    Qty: l.Qty,
+                    ExpectedWeight: l.ExpectedWeight
+                ))
+                .ToArray(),
+            OccurredAt: now
+        );
+        await _outbox
+            .AppendAsync(OrderPlacedV1EventType, placedPayload, ct)
+            .ConfigureAwait(false);
+
+        await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        return CreatedAtAction(nameof(GetByIdAsync), new { id = order.Id }, Map(order));
     }
 
     /// <summary>
