@@ -1,17 +1,23 @@
+using System.Text;
 using FluentValidation;
 using Hellang.Middleware.ProblemDetails;
 using MassTransit;
 using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Application.Behaviors;
+using ShopFlow.SharedKernel.Infrastructure.SignalR;
 using HttpStatus = Microsoft.AspNetCore.Http.StatusCodes;
 
 namespace ShopFlow.SharedKernel.Infrastructure;
@@ -204,6 +210,95 @@ public static class ShopFlowDefaultsExtensions
                     }
                 );
             }
+        });
+
+        // ---- JwtBearer authentication (Sprint-7 U5: lifted from Inventory.Api) -
+        // Every module's API goes through the same dev-secret HMAC verification
+        // that Auth.Api signs with. Closes Sprint-6 trade-off #8 — JWT bearer
+        // registration was duplicated in Inventory.Api; lifting it here makes
+        // it kernel-wide so Outbound.Api, Channel.Api, Inbound.Api, StockSync.Api
+        // all inherit the same scheme via AddShopFlowDefaults. Sprint-7 still
+        // uses the dev secret; Sprint-8 replaces with a real signer.
+        //
+        // The OnMessageReceived handler is the SignalR-specific bit: the
+        // browser SignalR client cannot set Authorization headers on the
+        // WebSocket upgrade (HTML spec restriction), so it falls back to
+        // ?access_token=... query string. We copy that into context.Token
+        // and IMMEDIATELY strip the parameter from the URL so request
+        // logging middleware does NOT leak the bearer credential to access
+        // logs (doc-review SEC-001 mitigation).
+        var devSecret = configuration["Auth:DevSecret"]
+            ?? throw new InvalidOperationException(
+                "Auth:DevSecret missing. AddShopFlowDefaults requires a shared "
+                + "secret with Auth.Api so each module API can validate JWTs "
+                + "issued by the auth module. Sprint-7 swaps for a shared signer."
+            );
+        var issuer = configuration["Auth:Issuer"] ?? "shopflow-dev";
+        var audience = configuration["Auth:Audience"] ?? "shopflow-api";
+
+        services
+            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(opts =>
+            {
+                opts.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = issuer,
+                    ValidateAudience = true,
+                    ValidAudience = audience,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(devSecret)),
+                    ClockSkew = TimeSpan.FromSeconds(30),
+                };
+
+                opts.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = ctx =>
+                    {
+                        var path = ctx.HttpContext.Request.Path;
+                        if (!path.StartsWithSegments(SignalRRoutingExtensions.HubPath))
+                        {
+                            return Task.CompletedTask;
+                        }
+
+                        var query = ctx.HttpContext.Request.Query;
+                        if (!query.TryGetValue("access_token", out var token)
+                            || string.IsNullOrWhiteSpace(token))
+                        {
+                            return Task.CompletedTask;
+                        }
+
+                        ctx.Token = token.ToString();
+
+                        // SEC-001 — rebuild the QueryString without
+                        // access_token so request-logging middleware does
+                        // NOT capture the bearer credential.
+                        var sanitized = query
+                            .Where(p => !string.Equals(
+                                p.Key,
+                                "access_token",
+                                StringComparison.OrdinalIgnoreCase))
+                            .Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value.ToString())}");
+                        var rebuilt = string.Join("&", sanitized);
+                        ctx.HttpContext.Request.QueryString =
+                            rebuilt.Length == 0 ? QueryString.Empty : new QueryString("?" + rebuilt);
+
+                        return Task.CompletedTask;
+                    },
+                };
+            });
+        services.AddAuthorization();
+
+        // ---- SignalR (Sprint-7 U5) ----------------------------------------
+        // Single tenant-aware hub (TenantHub) mapped at /hub by Outbound.Api
+        // only — see SignalRRoutingExtensions remarks. The IHubFilter binds
+        // tenancy on connect + on each method invocation; registered scoped
+        // because it opens its own DI scopes inside the catalog lookup.
+        services.AddScoped<TenantBindingHubFilter>();
+        services.AddSignalR(o =>
+        {
+            o.AddFilter<TenantBindingHubFilter>();
         });
 
         // ---- ProblemDetails -------------------------------------------------

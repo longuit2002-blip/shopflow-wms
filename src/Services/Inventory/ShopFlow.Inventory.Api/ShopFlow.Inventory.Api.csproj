@@ -21,9 +21,12 @@
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- Sprint-6 U4 — JwtBearer authentication for Owner role calls from the frontend. -->
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-  </ItemGroup>
+  <!--
+    Sprint-7 U5 — Microsoft.AspNetCore.Authentication.JwtBearer is now
+    referenced transitively via ShopFlow.SharedKernel (AddShopFlowDefaults
+    registers the JwtBearer auth scheme kernel-wide). The Sprint-6
+    duplicate PackageReference here is removed; nothing in Inventory.Api
+    uses JwtBearer types directly.
+  -->
 
 </Project>
