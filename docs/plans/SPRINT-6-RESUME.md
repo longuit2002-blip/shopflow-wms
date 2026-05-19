@@ -1,4 +1,4 @@
-# Sprint-6 Resume Note — 2026-05-19
+# Sprint-6 Resume Note — 2026-05-19 (updated after U10)
 
 Branch: `feat/sprint-6-frontend-vertical-slice` (pushed to `origin`).
 Cut from tag `v0.8.0-methodology-writeup`.
@@ -7,11 +7,12 @@ Plan file (source of truth): [`docs/plans/2026-05-18-002-feat-sprint-6-frontend-
 
 ## Where I stopped
 
-**Through U9 inclusive shipped.** 4 units remain: U10, U11, U12, U13, U14.
+**Through U10 inclusive shipped.** 4 units remain: U11, U12, U13, U14.
 
 ### Commit log (newest first, all on the branch)
 
 ```
+0104dcd feat(sprint-6 U10): reservation-ledger drawer — Drawer primitive + AllocationBar + LedgerRow + LedgerDrawer; no-poll
 c3916ba feat(sprint-6 U9): inventory screen — SKU table + filter strip + KPI strip + 2s polling
 1ced521 feat(sprint-6 U8): Inventory.Api WRITE controllers — adjustments + threshold + flash-sale + create-sku
 0589aca feat(sprint-6 U7): Inventory.Api READ controllers — skus list + ledger + summary
@@ -22,6 +23,18 @@ c15638d feat(sprint-6 U3): app shell — TopBar + Sidebar + Logo + i18n + Coming
 4729348 feat(sprint-6 U2): token CSS layer + IBM Plex self-host + a11y fixes
 b3bc591 feat(sprint-6 U1): web/ Vite + React 19 + TypeScript scaffold
 ```
+
+### U10 additions (2026-05-19 session — fresh-machine resume)
+
+- `web/src/components/primitives/Drawer.tsx` (+ test, 10 cases) — reusable right-side drawer; 150 ms slide-in; ARIA dialog; Esc/backdrop/X close; basic Tab focus trap.
+- `web/src/components/inventory/AllocationBar.tsx` (+ test, 7 cases) — per-channel stacked bar; empty placeholder when `Allocations: []` (Sprint-6 trade-off #3).
+- `web/src/components/inventory/LedgerRow.tsx` (+ test, 9 cases) — single ledger row; signed quantity; localized status pills.
+- `web/src/components/inventory/LedgerDrawer.tsx` (+ test, 6 cases) — composes the above; `useSkuLedgerQuery` with **no polling** (U11 mutations invalidate; Sprint-7 SignalR push).
+- `web/src/hooks/useInventoryQuery.ts` — flipped `useSkuLedgerQuery.refetchInterval` from `POLL_MS` to `false` (matches U10 spec; the plan called for a new `useLedgerQuery.ts` file but U7 had already consolidated the hook into `useInventoryQuery.ts`).
+- `web/src/routes/_auth/inventory.tsx` — mounts `<LedgerDrawer>`; derives `selectedItem` from the inventory query result + the existing `selectedSku` state from U9.
+- `web/src/tokens/tokens.css` — appended `@keyframes drawerSlideIn` + `@keyframes drawerMaskFadeIn` + `prefers-reduced-motion` override.
+
+Vitest count: 78 → 111 (+33).
 
 ## Frontend state (`web/`)
 
@@ -70,17 +83,7 @@ dotnet build                                          # 0 errors, 0 warnings exp
 dotnet test --filter "Category!=Integration"          # adds 2 Auth.UnitTests cases
 ```
 
-## What remains (~4 units, ~30-40% of Sprint-6)
-
-### U10 — Reservation Ledger drawer + AllocationBar + Drawer primitive
-
-- Click an SKU row in U9's table → opens a 620 px drawer on the right with the ledger entries.
-- Plan section: `docs/plans/2026-05-18-002-feat-sprint-6-frontend-vertical-slice-plan.md` line 760.
-- Backend already done: `GET /api/v1/inventory/skus/{sku}/ledger` returns `{ Items, NextCursor }` with `RunningBalance` per entry.
-- Frontend hook already done: `useSkuLedgerQuery(sku)` in `web/src/hooks/useInventoryQuery.ts`.
-- New files needed: `web/src/components/primitives/Drawer.tsx`, `web/src/components/inventory/ReservationLedgerDrawer.tsx`, `web/src/components/inventory/AllocationBar.tsx` (channel allocation chips — Sprint-6 stubs empty since backend ships empty list).
-- Drawer slides in 150 ms per STYLING_SPECS §4; `Esc` / click-outside / X closes; focus trap inside.
-- Wire `selectedSku` state in `inventory.tsx` to the drawer's `open` prop.
+## What remains (~4 units, ~30 % of Sprint-6)
 
 ### U11 — Adjust stock modal + Set threshold inline edit
 
@@ -126,7 +129,12 @@ cd web && pnpm install && pnpm test && pnpm build && cd ..
 dotnet build
 ```
 
-Then continue with `/ce-work docs/plans/2026-05-18-002-feat-sprint-6-frontend-vertical-slice-plan.md` and pick up at **U10**. The plan unit numbering matches my todo state — agent will infer "U1-U9 already shipped" from the commit log on the branch.
+Then continue with `/ce-work docs/plans/2026-05-18-002-feat-sprint-6-frontend-vertical-slice-plan.md` and pick up at **U11**. The plan unit numbering matches my todo state — agent will infer "U1-U10 already shipped" from the commit log on the branch.
+
+### Vercel agent-skills (installed 2026-05-19)
+
+`.claude/skills/` ships 7 skills cloned from `vercel-labs/agent-skills`:
+`vercel-react-best-practices`, `web-design-guidelines`, `vercel-composition-patterns`, `vercel-react-view-transitions`, `vercel-react-native-skills`, `deploy-to-vercel`, `vercel-cli-with-tokens`. The first three are the most relevant for U11-U14 frontend work; the last three (deploy/CLI/RN) are not directly applicable but kept for completeness. They auto-load on the next Claude Code session boot.
 
 ## Sprint-6 trade-offs locked in (carry into U10-U14)
 
