@@ -1,5 +1,6 @@
 using Hellang.Middleware.ProblemDetails;
 using ShopFlow.Auth.Api;
+using ShopFlow.SharedKernel.Infrastructure;
 
 // ─────────────────────────────────────────────────────────────────────────
 // ShopFlow.Auth.Api — dev-mode fake login service (Sprint-6 plan U4).
@@ -22,7 +23,7 @@ builder.Services
     .ValidateOnStart();
 
 builder.Services.AddProblemDetails();
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 

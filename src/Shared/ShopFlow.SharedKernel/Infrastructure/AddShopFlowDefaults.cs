@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using FluentValidation;
 using Hellang.Middleware.ProblemDetails;
 using MassTransit;
@@ -290,15 +291,29 @@ public static class ShopFlowDefaultsExtensions
             });
         services.AddAuthorization();
 
-        // ---- SignalR (Sprint-7 U5) ----------------------------------------
+        // ---- SignalR (Sprint-7 U5 + Sprint-7.5 U1) ------------------------
         // Single tenant-aware hub (TenantHub) mapped at /hub by Outbound.Api
         // only — see SignalRRoutingExtensions remarks. The IHubFilter binds
         // tenancy on connect + on each method invocation; registered scoped
         // because it opens its own DI scopes inside the catalog lookup.
+        //
+        // Sprint-7.5 U1 extends the SignalR config with .AddJsonProtocol so
+        // hub event payloads (HubEventPayloads.StockChangedPayload,
+        // SagaTransitionedPayload) serialize in camelCase — same wire
+        // convention as the MVC controllers (AddShopFlowControllers). Without
+        // this, MVC endpoints would ship camelCase while hub frames stayed
+        // PascalCase — exactly the mixed-shape failure the brainstorm names
+        // as the worst outcome. AddJsonProtocol owns its OWN
+        // JsonSerializerOptions independent from the MVC pipeline.
         services.AddScoped<TenantBindingHubFilter>();
         services.AddSignalR(o =>
         {
             o.AddFilter<TenantBindingHubFilter>();
+        })
+        .AddJsonProtocol(opts =>
+        {
+            opts.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            opts.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
         });
 
         // ---- ProblemDetails -------------------------------------------------

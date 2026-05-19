@@ -44,7 +44,7 @@ builder.Services.AddShopFlowDefaults(
     }
 );
 builder.Services.AddOutboundModule(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();

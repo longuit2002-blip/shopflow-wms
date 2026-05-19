@@ -34,7 +34,7 @@ builder.Services.AddShopFlowDefaults(
 );
 builder.Services.AddInventoryModule(builder.Configuration);
 
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();

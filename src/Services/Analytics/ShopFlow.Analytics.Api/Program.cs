@@ -5,8 +5,10 @@
 // (AddShopFlowDefaults then Add<Name>Module) is locked into CI.
 // ─────────────────────────────────────────────────────────────────────────
 
+using ShopFlow.SharedKernel.Infrastructure;
+
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 var app = builder.Build();
 app.MapControllers();
 await app.RunAsync().ConfigureAwait(false);

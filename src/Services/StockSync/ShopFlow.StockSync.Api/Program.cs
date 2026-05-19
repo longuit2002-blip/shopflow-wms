@@ -39,7 +39,7 @@ builder.Services.AddShopFlowDefaults(
 );
 builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddStockSyncModule(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();

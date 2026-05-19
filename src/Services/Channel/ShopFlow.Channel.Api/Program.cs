@@ -32,7 +32,7 @@ builder.Services.AddShopFlowDefaults(
 );
 builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddChannelModule(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();
