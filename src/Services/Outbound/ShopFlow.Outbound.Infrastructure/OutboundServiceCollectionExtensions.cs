@@ -108,6 +108,22 @@ public static class OutboundServiceCollectionExtensions
                     // repository's pessimistic concurrency (R5).
                     r.UsePostgres();
                 });
+
+            // Sprint-7 U6 — SignalR relay consumers register HERE (inside
+            // the Outbound MassTransit block) rather than in
+            // AddShopFlowDefaults. Reason: AddShopFlowDefaults runs for
+            // every module API (Inventory / StockSync / Channel / Inbound /
+            // Auth); if the relays subscribed there, every module process
+            // would join the same RabbitMQ pub/sub topology and the
+            // competing-consumer semantics would deliver each event to
+            // only ONE process per round-robin. The connected SignalR
+            // client lives on whichever process the Gateway routes /hub
+            // to (Outbound.Api per the SINGLE-HUB-HOST decision), so a
+            // miss-routed delivery would silently drop the event.
+            // Registering only here keeps the relay process == the hub
+            // host process, eliminating the race.
+            bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.StockChangedRelayConsumer>();
+            bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.SagaTransitionedRelayConsumer>();
         });
 
         // U4 K12 (primary path) — the open-generic filter is registered

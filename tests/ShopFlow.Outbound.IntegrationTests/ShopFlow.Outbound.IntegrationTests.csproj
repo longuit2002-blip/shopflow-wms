@@ -12,6 +12,10 @@
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- Sprint-7 U6 — NSubstitute for the SagaTransitionsEndToEndSignalRTests
+         mock IHubContext + ITenantCatalog (real SignalR transport would
+         require booting WebApplicationFactory<Program>). -->
+    <PackageReference Include="NSubstitute" />
   </ItemGroup>
 
   <ItemGroup>
