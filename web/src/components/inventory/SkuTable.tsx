@@ -61,19 +61,35 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
                 key={row.Sku}
                 className={isSelected ? 'sel' : undefined}
                 onClick={() => onSelectSku(row.Sku)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onSelectSku(row.Sku);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                aria-pressed={isSelected}
                 style={{ cursor: 'pointer' }}
               >
+                {/*
+                  Mouse-anywhere-in-row → drawer is a convenience; the
+                  semantic focus target is the SKU button in the first
+                  cell. Row itself is NOT role=button (otherwise the
+                  threshold-cell button below nests two interactives,
+                  per axe `nested-interactive`).
+                */}
                 <td>
-                  <span className="mono">{row.Sku}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectSku(row.Sku);
+                    }}
+                    aria-pressed={isSelected}
+                    aria-label={`${t('Mở sổ giữ chỗ cho', 'Open reservation ledger for')} ${row.Sku}`}
+                    className="row-link"
+                    data-testid={`sku-row-${row.Sku}`}
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      fontFamily: 'var(--font-mono)',
+                      color: 'inherit',
+                    }}
+                  >
+                    {row.Sku}
+                  </button>
                   {row.IsFlashSale && (
                     <Pill kind="accent" style={{ marginLeft: 6 }}>
                       {t('Flash', 'Flash')}
