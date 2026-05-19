@@ -63,6 +63,22 @@ public static class OutboundServiceCollectionExtensions
         // commits atomically with the saga state row.
         services.AddScoped<IOrderTransitionRepository, OrderTransitionRepository>();
 
+        // Sprint-7 U2 — SagaTransitionObserver writes one audit row +
+        // appends one SagaTransitionedV1 to the outbox per state transition.
+        // Scoped lifetime so it shares the consume-scope DbContext + outbox
+        // surface with the saga's MT EF repository commit (co-transactional).
+        // FulfillmentSaga's static RecordTransitionAsync helper resolves
+        // this via ctx.GetPayload<IServiceProvider>() at every TransitionTo
+        // site (including WhenEnter IfElse branches + If counter-drain
+        // branch per the Sprint-7 doc-review IStateObserver decision).
+        services.AddScoped<Application.Sagas.SagaTransitionObserver>();
+
+        // Sprint-7 U2 — route SagaTransitionedV1 outbox rows through the
+        // multiplexed dispatcher as a Publish (broadcast). The relay
+        // consumer (Sprint-7 U6) subscribes from a queue per the standard
+        // MT pub/sub binding and pushes to the tenant-scoped SignalR group.
+        services.AddOutboxRoute<ShopFlow.Contracts.Outbound.SagaTransitionedV1>(SendKind.Publish);
+
         // U5 — pick wave generator dependencies. PickQueue is Singleton
         // so the per-tenant Channel registry survives across consume
         // scopes (saga writers + generator reader share the same

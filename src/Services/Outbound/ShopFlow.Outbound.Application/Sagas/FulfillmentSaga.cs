@@ -71,6 +71,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(AwaitingReservation)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Initial", "AwaitingReservation", nameof(OrderPlacedV1)))
                 .Publish(ctx => new ReserveStockV1(
                     OrderId: ctx.Message.OrderId,
                     TenantId: ctx.Message.TenantId,
@@ -99,6 +100,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(Reserved)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingReservation", "Reserved", nameof(StockReservedV1)))
                 // U5 — Reserved → AwaitingPick auto-transition. The Then
                 // handler below writes one PickRequestV1 envelope to the
                 // tenant's in-process Channel via IPickQueue, then the
@@ -143,7 +145,8 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     // shutdown path bubbles cleanly.
                     await writer.WriteAsync(request, ctx.CancellationToken).ConfigureAwait(false);
                 })
-                .TransitionTo(AwaitingPick),
+                .TransitionTo(AwaitingPick)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Reserved", "AwaitingPick", nameof(StockReservedV1))),
             When(StockReservationFailedEvent)
                 .Then(ctx =>
                 {
@@ -157,6 +160,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(CompensatingReservation)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingReservation", "CompensatingReservation", nameof(StockReservationFailedV1)))
         );
 
         // ---- Reserved transitions ----------------------------------------
@@ -173,7 +177,8 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
             AwaitingPick,
             When(PickConfirmed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
-                .TransitionTo(Picked),
+                .TransitionTo(Picked)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingPick", "Picked", nameof(PickConfirmed))),
             // U7 Path B — pick failure. The StockReserved handler in the
             // AwaitingReservation block above already populated
             // ReservedLineSkus + LinesAwaitingRelease for this saga; the
@@ -184,6 +189,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
             When(PickFailed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
                 .TransitionTo(CompensatingReservation)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingPick", "CompensatingReservation", nameof(PickFailed)))
         );
 
         // ---- Picked / AwaitingPack / Packed / AwaitingShip / Shipped ----
@@ -199,6 +205,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(Packed)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Picked", "Packed", nameof(PackConfirmed)))
         );
 
         During(
@@ -209,6 +216,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
             When(ShipConfirmed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
                 .TransitionTo(Shipped)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Packed", "Shipped", nameof(ShipConfirmed)))
         );
 
         // ---- CompensatingReservation transitions (U7) -------------------
@@ -235,7 +243,9 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     // directly to Cancelled. The WhenEnter(Cancelled, ...)
                     // activity below publishes OrderCancelled to drive the
                     // Order row update.
-                    then => then.TransitionTo(Cancelled),
+                    then =>
+                        then.TransitionTo(Cancelled)
+                            .ThenAsync(ctx => RecordTransitionAsync(ctx, "CompensatingReservation", "Cancelled", "PathA_EmptyReleaseSet")),
                     // Else-branch: Path B. Publish ONE ReleaseStockV1 with
                     // the OrderLineIds parsed from ReservedLineSkus. K13's
                     // accepted Publish-for-commands trade-off applies (saga
@@ -292,7 +302,9 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     // line that was never reserved would drive the counter
                     // negative without this).
                     ctx => ctx.Saga.LinesAwaitingRelease <= 0,
-                    branch => branch.TransitionTo(Cancelled)
+                    branch =>
+                        branch.TransitionTo(Cancelled)
+                            .ThenAsync(ctx => RecordTransitionAsync(ctx, "CompensatingReservation", "Cancelled", nameof(StockReleasedV1)))
                 )
         );
 
@@ -372,5 +384,57 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
             ),
             StringComparer.Ordinal
         );
+    }
+
+    /// <summary>
+    /// Sprint-7 U2 — dispatch a state-transition record to the
+    /// <see cref="SagaTransitionObserver"/>. Resolved from the MT consume
+    /// scope's <see cref="IServiceProvider"/> so the observer's scoped
+    /// dependencies (<see cref="IOrderTransitionRepository"/>,
+    /// <see cref="IOutboundOutbox"/>) share the same per-tenant
+    /// <c>OutboundDbContext</c> the saga's MT EF repository commits.
+    /// </summary>
+    /// <remarks>
+    /// <para>Doc-review architectural decision: this static helper replaces
+    /// MT's <c>IStateObserver&lt;T&gt;</c> interface mechanism (which is not
+    /// reliably wired through <c>MassTransitStateMachine&lt;T&gt;</c> in
+    /// MT 8.3.4) with explicit per-branch <c>.ThenAsync(...)</c> invocation.
+    /// The class-shape decision is preserved (single observer class,
+    /// comprehensive branch coverage) — including the <c>WhenEnter</c>
+    /// <c>IfElse</c> Path A branch and the <c>If</c> StockReleased
+    /// counter-drain branch — so the audit log captures every TransitionTo
+    /// regardless of which DSL construct fired it.</para>
+    /// </remarks>
+    private static async Task RecordTransitionAsync(
+        BehaviorContext<FulfillmentSagaState> ctx,
+        string fromState,
+        string toState,
+        string eventType
+    )
+    {
+        // GetService (nullable) instead of GetRequiredService: Sprint-3-redux's
+        // FulfillmentSaga unit tests build the MT TestHarness without registering
+        // the Sprint-7 observer, and re-wiring every legacy test to register a
+        // no-op observer chain (IOrderTransitionRepository + IOutboundOutbox +
+        // TimeProvider) would balloon the diff. Production registration lives in
+        // OutboundServiceCollectionExtensions.AddOutboundModule (Sprint-7 U2) and
+        // is guarded by the SagaTransitionObserverWiringTests integration test.
+        // When the observer is missing in test scope, audit-write is a no-op.
+        var sp = ctx.GetPayload<IServiceProvider>();
+        var observer = sp.GetService<SagaTransitionObserver>();
+        if (observer is null)
+        {
+            return;
+        }
+        await observer
+            .RecordAsync(
+                orderId: ctx.Saga.CorrelationId,
+                tenantId: ctx.Saga.TenantId,
+                fromState: fromState,
+                toState: toState,
+                eventType: eventType,
+                ct: ctx.CancellationToken
+            )
+            .ConfigureAwait(false);
     }
 }
