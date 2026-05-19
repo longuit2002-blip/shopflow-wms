@@ -1,15 +1,23 @@
 /**
  * SagaPipeline — Sprint-7 plan U11 / R4 / R7 / R17.
+ * Sprint-7.5 U9: 9-node split — `Created` and `AwaitingReservation` are
+ * now distinct nodes (no longer collapsed into a single "Placed" label).
+ * The `Created → AwaitingReservation` gap is bus latency; the
+ * `AwaitingReservation → Reserved` gap is Inventory consumer latency.
+ * Splitting them surfaces the slow link under real load.
  *
- * Horizontal pipeline visualising the 8 canonical FulfillmentSaga states.
+ * Scope: this 9-node expansion is for the Order *detail* route
+ * (`/orders/$orderId`). The Orders *list* route's `OrdersTable`
+ * cell-level state indicator keeps its existing condensed shape.
+ *
+ * Horizontal pipeline visualising the 9 canonical FulfillmentSaga states.
  * Pure presentation: pulls everything from props. No data fetching, no
  * mutations, no router coupling.
  *
- * Canonical state order (8 visible nodes; `Created` + `AwaitingReservation`
- * collapse into the single user-facing label "Placed"):
+ * Canonical state order (9 visible nodes):
  *
- *   Placed → Reserved → AwaitingPick → Picked → AwaitingPack
- *           → Packed → AwaitingShip → Shipped
+ *   Created → AwaitingReservation → Reserved → AwaitingPick → Picked
+ *           → AwaitingPack → Packed → AwaitingShip → Shipped
  *
  * The terminal `Cancelled` / mid-flight `CompensatingReservation` states
  * render as a forked failure node with `.saga-step.fail` styling, plus a
@@ -53,9 +61,11 @@ export type OrderTransitionDto = {
 
 export type SagaPipelineProps = {
   /**
-   * One of the FulfillmentSaga state names. Includes the eight visible
-   * pipeline states + `Created` + `AwaitingReservation` (which collapse
-   * into "Placed") + `CompensatingReservation` + `Cancelled`.
+   * One of the FulfillmentSaga state names. Includes the nine visible
+   * pipeline states (`Created`, `AwaitingReservation`, `Reserved`,
+   * `AwaitingPick`, `Picked`, `AwaitingPack`, `Packed`, `AwaitingShip`,
+   * `Shipped`) plus the failure-side `CompensatingReservation` and
+   * terminal `Cancelled` states.
    */
   currentState: string;
   /**
@@ -71,13 +81,13 @@ export type SagaPipelineProps = {
 };
 
 /**
- * Visible pipeline nodes in canonical order. The keys are the saga
- * state names that "own" each node — for the first node ("Placed") we
- * use `AwaitingReservation` because `Created` lasts microseconds and
- * the user-facing meaning is "the order is in the system, waiting for
- * the reservation step". The rest map 1:1.
+ * Visible pipeline nodes in canonical order (Sprint-7.5 U9: 9 nodes;
+ * `Created` and `AwaitingReservation` are distinct so operators can see
+ * bus latency (`Created → AwaitingReservation`) separately from Inventory
+ * consumer latency (`AwaitingReservation → Reserved`)).
  */
 const PIPELINE_NODES = [
+  'Created',
   'AwaitingReservation',
   'Reserved',
   'AwaitingPick',
@@ -90,16 +100,14 @@ const PIPELINE_NODES = [
 
 type PipelineNode = (typeof PIPELINE_NODES)[number];
 
-/** States that collapse into "Placed" on the front-end node. */
-const PLACED_ALIASES = new Set(['Created', 'AwaitingReservation']);
-
 /** Terminal/failure states. */
 const FAIL_STATES = new Set(['Cancelled', 'CompensatingReservation']);
 
 type NodeStatus = 'pending' | 'active' | 'completed' | 'fail';
 
 interface NodeLabels {
-  Placed: string;
+  Created: string;
+  AwaitingReservation: string;
   Reserved: string;
   AwaitingPick: string;
   Picked: string;
@@ -114,7 +122,8 @@ interface NodeLabels {
 function labelsFor(lang: 'vi' | 'en'): NodeLabels {
   if (lang === 'en') {
     return {
-      Placed: 'Placed',
+      Created: 'Created',
+      AwaitingReservation: 'Awaiting reservation',
       Reserved: 'Reserved',
       AwaitingPick: 'Awaiting pick',
       Picked: 'Picked',
@@ -127,7 +136,8 @@ function labelsFor(lang: 'vi' | 'en'): NodeLabels {
     };
   }
   return {
-    Placed: 'Đã đặt',
+    Created: 'Đã tạo',
+    AwaitingReservation: 'Chờ giữ chỗ',
     Reserved: 'Đã giữ hàng',
     AwaitingPick: 'Chờ soạn',
     Picked: 'Đã soạn',
@@ -142,8 +152,10 @@ function labelsFor(lang: 'vi' | 'en'): NodeLabels {
 
 function nodeLabel(node: PipelineNode, labels: NodeLabels): string {
   switch (node) {
+    case 'Created':
+      return labels.Created;
     case 'AwaitingReservation':
-      return labels.Placed;
+      return labels.AwaitingReservation;
     case 'Reserved':
       return labels.Reserved;
     case 'AwaitingPick':
@@ -163,11 +175,10 @@ function nodeLabel(node: PipelineNode, labels: NodeLabels): string {
 
 /**
  * Normalise a raw saga state to the pipeline-node it maps to, OR `null`
- * if the state is failure-side / unmapped (Created collapses to
- * AwaitingReservation; Cancelled / CompensatingReservation return null).
+ * if the state is failure-side / unmapped (`Cancelled` /
+ * `CompensatingReservation` return null).
  */
 function nodeForState(state: string): PipelineNode | null {
-  if (PLACED_ALIASES.has(state)) return 'AwaitingReservation';
   return (PIPELINE_NODES as readonly string[]).includes(state)
     ? (state as PipelineNode)
     : null;
@@ -210,6 +221,7 @@ function computeElapsedByNode(
   now: number,
 ): Record<PipelineNode, number | null> {
   const result: Record<PipelineNode, number | null> = {
+    Created: null,
     AwaitingReservation: null,
     Reserved: null,
     AwaitingPick: null,
@@ -267,12 +279,12 @@ function failureNode(transitions: OrderTransitionDto[]): PipelineNode | null {
   const idx = transitions.findIndex((t) => t.toState === 'CompensatingReservation');
   if (idx === -1) {
     // No compensation row yet — the failure point is the last pipeline
-    // node entered (could be the initial AwaitingReservation).
+    // node entered (could be the initial Created node).
     for (let i = transitions.length - 1; i >= 0; i--) {
       const node = nodeForState(transitions[i].toState);
       if (node !== null) return node;
     }
-    return 'AwaitingReservation';
+    return 'Created';
   }
   for (let i = idx - 1; i >= 0; i--) {
     const node = nodeForState(transitions[i].toState);
@@ -280,7 +292,7 @@ function failureNode(transitions: OrderTransitionDto[]): PipelineNode | null {
   }
   // Compensation fired before any forward transition (atomic-fail
   // path) → the failure visually lives on the first node.
-  return 'AwaitingReservation';
+  return 'Created';
 }
 
 export function SagaPipeline({

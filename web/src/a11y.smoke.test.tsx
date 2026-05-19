@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { axe } from 'vitest-axe';
 import type { ReactElement } from 'react';
@@ -172,9 +172,9 @@ const FIXTURE_LINES: OrderLineResponse[] = [
   { id: '00000000-0000-0000-0000-000000000333', sku: 'YN-CLASSIC-50', qty: 5, expectedWeight: null },
 ];
 
-describe('A11y smoke — Sprint-7 Orders surfaces', () => {
-  it('SagaPipeline (happy path + failure variant) has no axe violations', async () => {
-    const { container } = render(
+describe('A11y smoke — Sprint-7 Orders surfaces (Sprint-7.5 U9: 9 nodes)', () => {
+  it('SagaPipeline (happy path + failure variant) has no axe violations and renders 9 nodes', async () => {
+    const { container, getAllByRole } = render(
       <>
         <SagaPipeline
           currentState="AwaitingPick"
@@ -207,6 +207,13 @@ describe('A11y smoke — Sprint-7 Orders surfaces', () => {
         />
       </>,
     );
+    // Sprint-7.5 U9: both pipelines render exactly 9 list items each (the
+    // 9-node split exposed Created + AwaitingReservation as distinct).
+    const lists = getAllByRole('list', { name: 'Saga progress' });
+    expect(lists).toHaveLength(2);
+    for (const list of lists) {
+      expect(within(list).getAllByRole('listitem')).toHaveLength(9);
+    }
     expect(await axe(container)).toHaveNoViolations();
   });
 
