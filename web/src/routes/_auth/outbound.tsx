@@ -1,23 +1,16 @@
-import { createFileRoute } from '@tanstack/react-router';
-import { Receipt } from 'lucide-react';
-import { ComingSoon } from '../../components/primitives/ComingSoon';
-import { t, useLocale } from '../../hooks/useLocale';
+import { createFileRoute, redirect } from '@tanstack/react-router';
 
+/**
+ * Sprint-6 placed an `Outbound` ComingSoon stub at `/outbound`. Sprint-7
+ * U10 replaces it with the real Orders list at `/orders`. We cannot delete
+ * the file from inside this dispatch (no Delete tool available); the
+ * sibling `/orders/index.tsx` is the live route and this entry redirects
+ * any stale `/outbound` links so users land on the new screen. A
+ * follow-up housekeeping commit can drop this file and let the router's
+ * file-scan regenerate `routeTree.gen.ts` without the redirect.
+ */
 export const Route = createFileRoute('/_auth/outbound')({
-  component: OutboundStub,
+  beforeLoad: () => {
+    throw redirect({ to: '/orders' });
+  },
 });
-
-function OutboundStub() {
-  useLocale();
-  return (
-    <ComingSoon
-      icon={Receipt}
-      screen={t('Đơn hàng', 'Outbound')}
-      targetLabel={t('Sprint 7', 'Sprint 7')}
-      blurb={t(
-        'Quản lý đơn hàng, pick → pack → ship saga + tracking sẽ landed ở Sprint 7.',
-        'Order management, pick → pack → ship saga, and tracking land in Sprint 7.',
-      )}
-    />
-  );
-}

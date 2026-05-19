@@ -32,7 +32,7 @@ function renderSidebarAt(pathname: string) {
     '/dashboard',
     '/inventory',
     '/inbound',
-    '/outbound',
+    '/orders',
     '/channels',
     '/sync',
     '/settings',

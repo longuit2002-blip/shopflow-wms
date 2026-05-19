@@ -25,7 +25,7 @@ import {
   LayoutDashboard,
   Boxes,
   Truck,
-  Receipt,
+  ShoppingBag,
   Plug,
   RefreshCw,
   Settings,
@@ -44,7 +44,7 @@ export type ScreenId =
   | 'dashboard'
   | 'inventory'
   | 'inbound'
-  | 'outbound'
+  | 'orders'
   | 'channels'
   | 'sync'
   | 'settings'
@@ -82,10 +82,9 @@ export function Sidebar() {
       upcoming: 'Sprint 8',
     },
     {
-      id: 'outbound',
-      label: t('Đơn hàng', 'Outbound'),
-      icon: Receipt,
-      upcoming: 'Sprint 7',
+      id: 'orders',
+      label: t('Đơn hàng', 'Orders'),
+      icon: ShoppingBag,
     },
     {
       id: 'channels',
