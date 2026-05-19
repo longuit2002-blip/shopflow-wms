@@ -81,9 +81,24 @@ export function LedgerDrawer({
   // latter triggers the network request even when the SKU isn't in the
   // current page of the list, so the error state can show the real
   // "SKU not found" diagnosis rather than a generic empty drawer.
-  // U6 will read `ledgerCursor` here when it lands.
+  //
+  // Sprint-7.5 U6: `useSkuLedgerQuery` is now an infinite query.
+  // `data.pages` is the accumulated array of `SkuLedger` page-results;
+  // we flatten them into a single entries list for rendering. The Load
+  // more button advances the cursor via `fetchNextPage`. `ledgerCursor`
+  // from the URL is reserved for future deep-link-into-page semantics;
+  // for now the drawer always starts from page 0 when opened.
+  void ledgerCursor;
   const sku = item?.sku ?? selectedSku ?? null;
-  const { data, isLoading, isError } = useSkuLedgerQuery(sku);
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useSkuLedgerQuery(sku);
+  const entries: SkuLedgerEntry[] = (data?.pages ?? []).flatMap((p) => p.items);
 
   // Open semantics: backwards-compatible with the Sprint-6 contract
   // (open iff `item !== null`) PLUS the new URL-driven contract (open iff
@@ -135,9 +150,12 @@ export function LedgerDrawer({
               {t('Lịch sử giao dịch', 'Ledger entries')}
             </div>
             <LedgerBody
-              data={data?.items ?? []}
+              data={entries}
               isLoading={isLoading}
               isError={isError}
+              hasNextPage={!!hasNextPage}
+              isFetchingNextPage={isFetchingNextPage}
+              onLoadMore={() => { void fetchNextPage(); }}
             />
           </section>
         </div>
@@ -150,9 +168,19 @@ interface LedgerBodyProps {
   data: SkuLedgerEntry[];
   isLoading: boolean;
   isError: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onLoadMore: () => void;
 }
 
-function LedgerBody({ data, isLoading, isError }: LedgerBodyProps) {
+function LedgerBody({
+  data,
+  isLoading,
+  isError,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
+}: LedgerBodyProps) {
   if (isError) {
     return (
       <div
@@ -206,6 +234,66 @@ function LedgerBody({ data, isLoading, isError }: LedgerBodyProps) {
           ))}
         </tbody>
       </table>
+      <LoadMoreFooter
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={onLoadMore}
+      />
+    </div>
+  );
+}
+
+interface LoadMoreFooterProps {
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onLoadMore: () => void;
+}
+
+/**
+ * Sprint-7.5 U6 / D-004 — explicit Load-more affordance + end-of-list
+ * indicator. No infinite scroll (per origin R14 — operator triage
+ * workflow needs to know when all rows are visible).
+ */
+function LoadMoreFooter({
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
+}: LoadMoreFooterProps) {
+  if (!hasNextPage) {
+    return (
+      <div
+        data-testid="ledger-end"
+        className="t-sm"
+        style={{
+          padding: 'var(--s-3) var(--s-4)',
+          color: 'var(--ink-2)',
+          textAlign: 'center',
+        }}
+      >
+        {t('Đã hiển thị toàn bộ', 'All entries loaded')}
+      </div>
+    );
+  }
+  return (
+    <div
+      style={{
+        padding: 'var(--s-3) var(--s-4)',
+        display: 'flex',
+        justifyContent: 'center',
+      }}
+    >
+      <button
+        type="button"
+        className="btn"
+        onClick={onLoadMore}
+        disabled={isFetchingNextPage}
+        aria-busy={isFetchingNextPage || undefined}
+        data-testid="ledger-load-more"
+      >
+        {isFetchingNextPage
+          ? t('Đang tải…', 'Loading…')
+          : t('Tải thêm', 'Load more')}
+      </button>
     </div>
   );
 }

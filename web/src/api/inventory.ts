@@ -85,9 +85,9 @@ export const inventoryApi = {
     );
   },
 
-  ledger(sku: string, limit = 100) {
+  ledger(sku: string, limit = 50, cursor?: string | null) {
     return httpClient.get<SkuLedger>(
-      `/api/v1/inventory/skus/${encodeURIComponent(sku)}/ledger${buildQuery({ limit })}`,
+      `/api/v1/inventory/skus/${encodeURIComponent(sku)}/ledger${buildQuery({ limit, cursor: cursor ?? undefined })}`,
     );
   },
 

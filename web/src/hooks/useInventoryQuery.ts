@@ -24,7 +24,7 @@
  */
 
 import { useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { inventoryApi, type ListSkusParams } from '../api/inventory';
 import { useSignalR } from './useSignalR';
 import { useAuth } from './useAuth';
@@ -94,18 +94,26 @@ export function useInventorySummaryQuery() {
 }
 
 /**
- * Ledger fetcher for the reservation drawer (U10). Intentionally NOT
- * polled even when the hub is disconnected — the drawer opens on demand,
- * fetches once, and is invalidated by U11's adjust/threshold mutations
- * (TanStack Query key match). Sprint-7 U9 still wires the SignalR
- * subscription so a `stock_changed` event for the displayed SKU
- * triggers a refetch via the broad `['inventory']` invalidation.
+ * Ledger fetcher for the reservation drawer. Sprint-7.5 U6 switched to
+ * `useInfiniteQuery` for cursor pagination — drawer renders an explicit
+ * "Load more" button (no infinite scroll) per origin R14. Default page
+ * size 50; backend clamps to [1, 200].
+ *
+ * Intentionally NOT polled even when the hub is disconnected — the
+ * drawer opens on demand, fetches once per cursor advance, and is
+ * invalidated by adjust/threshold mutations (TanStack Query key match).
+ * Sprint-7 U9 still wires the SignalR subscription so a `stock_changed`
+ * event for the displayed SKU triggers a refetch via the broad
+ * `['inventory']` invalidation.
  */
-export function useSkuLedgerQuery(sku: string | null, limit = 100) {
+export function useSkuLedgerQuery(sku: string | null, limit = 50) {
   useStockChangedSubscription();
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ['inventory', 'ledger', sku, limit],
-    queryFn: () => inventoryApi.ledger(sku!, limit),
+    queryFn: ({ pageParam }) =>
+      inventoryApi.ledger(sku!, limit, pageParam as string | null),
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? null,
     enabled: sku !== null,
     refetchInterval: false,
   });

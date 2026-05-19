@@ -41,20 +41,34 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
-    /// GET /api/v1/inventory/skus/{sku}/ledger?limit=
+    /// GET /api/v1/inventory/skus/{sku}/ledger?limit=&cursor=
+    ///
+    /// Sprint-7.5 U6: opaque base64 cursor pagination. Default page size 50
+    /// (was 100); clamps to [1, 200]. Returns <c>nextCursor</c> non-null
+    /// when more rows remain.
     /// </summary>
     [HttpGet("{sku}/ledger")]
     [ProducesResponseType(typeof(SkuLedgerDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SkuLedgerDto>> Ledger(
         string sku,
-        [FromQuery] int limit = 100,
+        [FromQuery] int limit = 50,
+        [FromQuery] string? cursor = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
             return this.ValidationProblem("sku is required.");
         }
-        var result = await this.mediator.Send(new GetSkuLedgerQuery(sku, limit), cancellationToken);
+        if (!string.IsNullOrEmpty(cursor) &&
+            ShopFlow.Inventory.Infrastructure.Pagination.OpaqueCursor.TryDecode(cursor) is null)
+        {
+            return this.Problem(
+                title: "Invalid cursor",
+                detail: "ledger.cursor_invalid",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+        var result = await this.mediator.Send(new GetSkuLedgerQuery(sku, limit, cursor), cancellationToken);
         return this.Ok(result);
     }
 

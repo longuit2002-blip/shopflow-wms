@@ -235,6 +235,83 @@ describe('LedgerDrawer', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('renders the "All entries loaded" end-of-list indicator when nextCursor is null', async () => {
+    const fixture: SkuLedger = {
+      items: [
+        {
+          id: '01',
+          orderId: 'order-1',
+          orderLineId: 'line-1',
+          status: 'Reserved',
+          quantity: -3,
+          timestamp: '2026-05-18T10:00:00Z',
+          runningBalance: 92,
+        },
+      ],
+      nextCursor: null,
+    };
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse(fixture));
+
+    renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('ledger-end')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('ledger-load-more')).not.toBeInTheDocument();
+  });
+
+  it('renders the "Load more" button when nextCursor is non-null and advances cursor on click', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup();
+    const page1: SkuLedger = {
+      items: [
+        {
+          id: '01',
+          orderId: 'order-1',
+          orderLineId: 'line-1',
+          status: 'Reserved',
+          quantity: -3,
+          timestamp: '2026-05-18T10:00:00Z',
+          runningBalance: 92,
+        },
+      ],
+      nextCursor: 'cursor-page-2',
+    };
+    const page2: SkuLedger = {
+      items: [
+        {
+          id: '02',
+          orderId: 'order-2',
+          orderLineId: 'line-1',
+          status: 'Confirmed',
+          quantity: -2,
+          timestamp: '2026-05-18T11:00:00Z',
+          runningBalance: 90,
+        },
+      ],
+      nextCursor: null,
+    };
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(jsonResponse(page1))
+      .mockResolvedValueOnce(jsonResponse(page2));
+
+    renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
+
+    const loadMore = await screen.findByTestId('ledger-load-more');
+    expect(loadMore).toBeInTheDocument();
+
+    await user.click(loadMore);
+
+    // After advancing, page 2 fetches with the cursor + replaces with end-state.
+    await waitFor(() => {
+      expect(screen.getByTestId('ledger-end')).toBeInTheDocument();
+    });
+    // Second fetch carried the cursor query param.
+    const calls = vi.mocked(globalThis.fetch).mock.calls;
+    expect(calls).toHaveLength(2);
+    const secondCallUrl = String(calls[1][0]);
+    expect(secondCallUrl).toContain('cursor=cursor-page-2');
+  });
+
   it('ledgerCursor prop is accepted but does not affect the U7 fetch shape (U6 seam)', async () => {
     // U6 will wire the cursor into useSkuLedgerQuery; for now the prop is
     // plumbed end-to-end without changing the URL of the fetch call. This
