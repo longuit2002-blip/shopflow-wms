@@ -56,6 +56,13 @@ public static class OutboundServiceCollectionExtensions
         services.AddScoped<IUnitOfWork, OutboundUnitOfWork>();
         services.AddScoped<IOutboundOutbox, OutboundOutbox>();
 
+        // Sprint-7 U1 — append-only saga-transitions audit surface.
+        // Scoped so it shares the per-tenant OutboundDbContext registered
+        // above; the saga's IStateObserver (U2) resolves this repository
+        // from the consume scope's IServiceProvider so the audit write
+        // commits atomically with the saga state row.
+        services.AddScoped<IOrderTransitionRepository, OrderTransitionRepository>();
+
         // U5 — pick wave generator dependencies. PickQueue is Singleton
         // so the per-tenant Channel registry survives across consume
         // scopes (saga writers + generator reader share the same
