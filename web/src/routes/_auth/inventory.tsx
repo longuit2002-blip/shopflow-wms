@@ -5,6 +5,7 @@ import { KpiStrip } from '../../components/inventory/KpiStrip';
 import { FilterStrip } from '../../components/inventory/FilterStrip';
 import { SkuTable } from '../../components/inventory/SkuTable';
 import { LedgerDrawer } from '../../components/inventory/LedgerDrawer';
+import { AdjustStockModal } from '../../components/inventory/AdjustStockModal';
 import { t, useLocale } from '../../hooks/useLocale';
 
 /**
@@ -22,6 +23,7 @@ function InventoryRouteComponent() {
   useLocale();
   const [search, setSearch] = useState('');
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
+  const [adjustingSku, setAdjustingSku] = useState<string | null>(null);
 
   const params = useMemo(() => ({ search: search || undefined, pageSize: 100 }), [search]);
   const { data, isLoading, isError } = useInventoryQuery(params);
@@ -31,6 +33,8 @@ function InventoryRouteComponent() {
     [data, selectedSku],
   );
   const closeDrawer = useCallback(() => setSelectedSku(null), []);
+  const openAdjust = useCallback((sku: string) => setAdjustingSku(sku), []);
+  const closeAdjust = useCallback(() => setAdjustingSku(null), []);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
@@ -46,7 +50,16 @@ function InventoryRouteComponent() {
           isLoading={isLoading}
         />
       )}
-      <LedgerDrawer item={selectedItem} onClose={closeDrawer} />
+      <LedgerDrawer
+        item={selectedItem}
+        onClose={closeDrawer}
+        onAdjustClick={openAdjust}
+      />
+      <AdjustStockModal
+        isOpen={adjustingSku !== null}
+        sku={adjustingSku ?? ''}
+        onClose={closeAdjust}
+      />
     </div>
   );
 }

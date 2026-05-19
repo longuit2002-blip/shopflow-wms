@@ -123,4 +123,39 @@ describe('LedgerDrawer', () => {
     await new Promise((r) => setTimeout(r, 250));
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
+
+  it('renders the "Điều chỉnh tồn" CTA when onAdjustClick is provided', () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      jsonResponse({ Items: [], NextCursor: null }),
+    );
+    renderWithClient(
+      <LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} onAdjustClick={() => {}} />,
+    );
+    expect(screen.getByTestId('ledger-adjust-cta')).toBeInTheDocument();
+  });
+
+  it('omits the Adjust CTA when no onAdjustClick handler is wired (read-only consumers)', () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      jsonResponse({ Items: [], NextCursor: null }),
+    );
+    renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
+    expect(screen.queryByTestId('ledger-adjust-cta')).not.toBeInTheDocument();
+  });
+
+  it('clicking the Adjust CTA invokes onAdjustClick with the item SKU', async () => {
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+      jsonResponse({ Items: [], NextCursor: null }),
+    );
+    const onAdjustClick = vi.fn();
+    const user = (await import('@testing-library/user-event')).default.setup();
+    renderWithClient(
+      <LedgerDrawer
+        item={FIXTURE_ITEM}
+        onClose={() => {}}
+        onAdjustClick={onAdjustClick}
+      />,
+    );
+    await user.click(screen.getByTestId('ledger-adjust-cta'));
+    expect(onAdjustClick).toHaveBeenCalledWith('YS-RED-100');
+  });
 });

@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { Sidebar } from '../components/shell/Sidebar';
 import { TopBar } from '../components/shell/TopBar';
+import { ToastViewport } from '../components/primitives/Toast';
 
 /**
  * Authenticated layout — wraps every child route in the
@@ -54,6 +55,7 @@ function AuthLayout() {
           <Outlet />
         </main>
       </div>
+      <ToastViewport />
     </div>
   );
 }

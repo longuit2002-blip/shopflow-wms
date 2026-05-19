@@ -503,6 +503,53 @@ table.t-data {
   }
 }
 
+/* Modal — centered overlay used by Adjust + Create-SKU modals (Sprint-6 U11/U12).
+ * Backdrop reuses .drawer-mask for visual parity (slightly tinted, blurred). */
+.modal-mask {
+  position: fixed; inset: 0;
+  background: rgba(26, 26, 24, 0.40);
+  backdrop-filter: blur(2px);
+  z-index: var(--z-drawer-mask);
+}
+.modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  background: #FFFFFF;
+  border: 1px solid var(--neutral-200);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  z-index: var(--z-modal);
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 2 * var(--s-5));
+  overflow: hidden;
+}
+@keyframes modalPopIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal,
+  .modal-mask {
+    animation: none !important;
+  }
+}
+
+/* Toast — bottom-right anchored stack (Sprint-6 U11). */
+.toast-viewport {
+  pointer-events: none;
+}
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-testid='toast-success'],
+  [data-testid='toast-error'] {
+    animation: none !important;
+  }
+}
+
 .popover, .dropdown {
   background: #FFFFFF;
   border: 1px solid var(--neutral-200);

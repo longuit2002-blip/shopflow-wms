@@ -94,28 +94,44 @@ export const inventoryApi = {
     return httpClient.get<InventorySummary>('/api/v1/inventory/summary');
   },
 
-  adjust(body: { sku: string; delta: number; reason: string; note?: string }) {
-    return httpClient.post<void>('/api/v1/inventory/adjustments', body);
+  adjust(
+    body: { sku: string; delta: number; reason: string; note?: string },
+    options: MutationOptions = {},
+  ) {
+    return httpClient.post<void>('/api/v1/inventory/adjustments', body, options);
   },
 
-  setThreshold(sku: string, threshold: number) {
+  setThreshold(sku: string, threshold: number, options: MutationOptions = {}) {
     return httpClient.put<void>(
       `/api/v1/inventory/skus/${encodeURIComponent(sku)}/threshold`,
       { Threshold: threshold },
+      options,
     );
   },
 
-  setFlashSale(sku: string, active: boolean) {
+  setFlashSale(sku: string, active: boolean, options: MutationOptions = {}) {
     return httpClient.put<void>(
       `/api/v1/inventory/skus/${encodeURIComponent(sku)}/flash-sale`,
       { Active: active },
+      options,
     );
   },
 
-  create(body: { sku: string; initialAvailable: number }) {
+  create(body: { sku: string; initialAvailable: number }, options: MutationOptions = {}) {
     return httpClient.post<void>(
       '/api/v1/inventory/skus',
       { Sku: body.sku, InitialAvailable: body.initialAvailable },
+      options,
     );
   },
 };
+
+/**
+ * Options forwarded to httpClient for mutation calls. Currently exposes
+ * `idempotencyKey` so callers can pin the same ULID across retries; the
+ * type stays open for future extension (e.g. `signal` for cancellation).
+ */
+export interface MutationOptions {
+  idempotencyKey?: string;
+  signal?: AbortSignal;
+}

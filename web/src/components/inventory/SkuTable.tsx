@@ -15,6 +15,7 @@
 
 import type { SkuListItem } from '../../api/inventory';
 import { Pill } from '../primitives/Pill';
+import { ThresholdInlineEdit } from './ThresholdInlineEdit';
 import { t, useLocale } from '../../hooks/useLocale';
 import { fmtNum } from '../../lib/format';
 
@@ -85,8 +86,15 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
                 <td className="num" style={{ textAlign: 'right' }}>
                   {fmtNum(row.Reserved, lang)}
                 </td>
-                <td className="num" style={{ textAlign: 'right' }}>
-                  {row.Threshold != null ? fmtNum(row.Threshold, lang) : '—'}
+                <td
+                  className="num"
+                  style={{ textAlign: 'right' }}
+                  // The cell hosts an interactive editor; clicks on the
+                  // editor must not bubble up and open the ledger drawer.
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <ThresholdInlineEdit sku={row.Sku} value={row.Threshold} />
                 </td>
                 <td>
                   {isRisk ? (

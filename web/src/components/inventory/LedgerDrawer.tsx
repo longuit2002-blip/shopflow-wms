@@ -27,9 +27,11 @@ import { t, useLocale } from '../../hooks/useLocale';
 export interface LedgerDrawerProps {
   item: SkuListItem | null;
   onClose: () => void;
+  /** Click handler for the "Điều chỉnh tồn" CTA (U11). Receives the SKU. */
+  onAdjustClick?: (sku: string) => void;
 }
 
-export function LedgerDrawer({ item, onClose }: LedgerDrawerProps) {
+export function LedgerDrawer({ item, onClose, onAdjustClick }: LedgerDrawerProps) {
   useLocale();
   const sku = item?.Sku ?? null;
   const { data, isLoading, isError } = useSkuLedgerQuery(sku);
@@ -47,6 +49,24 @@ export function LedgerDrawer({ item, onClose }: LedgerDrawerProps) {
             </div>
             <AllocationBar allocations={item.Allocations} />
           </section>
+          {onAdjustClick ? (
+            <section
+              style={{
+                marginBottom: 'var(--s-5)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => onAdjustClick(item.Sku)}
+                data-testid="ledger-adjust-cta"
+              >
+                {t('Điều chỉnh tồn', 'Adjust stock')}
+              </button>
+            </section>
+          ) : null}
           <section>
             <div className="lbl" style={{ marginBottom: 'var(--s-2)' }}>
               {t('Lịch sử giao dịch', 'Ledger entries')}
