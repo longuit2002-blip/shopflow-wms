@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="MassTransit" />
+    <!-- Sprint-7 U3 — MediatR query records + handlers for the Orders read endpoints. -->
+    <PackageReference Include="MediatR" />
   </ItemGroup>
 
   <ItemGroup>
