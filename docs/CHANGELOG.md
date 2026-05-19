@@ -293,3 +293,32 @@ Parallel option: Sprint-4.5 follow-up commit landing the parser wire-up + harnes
 **Next**: cut a fresh branch from `v0.8.0-methodology-writeup` and start either **Sprint-5.5** (close scale-gate harness; see methodology friction mode 4), **Sprint-6** (Analytics module W9-W10), **public blog derivative**, or **process improvements sprint** (`.gitattributes` config, plan-time port-shape checklist, granular checkpoint commits — see methodology forward-looking section).
 
 ---
+
+## 2026-05-19 — Sprint-6 Frontend Vertical Slice complete
+
+**Tag**: `v0.9.0-frontend-vertical-slice`. Closes [Sprint-6 plan](plans/2026-05-18-002-feat-sprint-6-frontend-vertical-slice-plan.md) U1-U14 on branch `feat/sprint-6-frontend-vertical-slice` (cut from `v0.8.0-methodology-writeup`). Sign-off: [docs/phase-gates/2026-05-19-sprint-6-signoff.md](phase-gates/2026-05-19-sprint-6-signoff.md).
+
+**Shipped**:
+
+- **First frontend surface**. New top-level `web/` subdirectory holds a Vite 5 + React 19 + TypeScript strict + TanStack Router + TanStack Query + Zustand application. Inventory screen × Owner role end-to-end through real `Inventory.Api` WRITE controllers; 8 other screens ship as `ComingSoon` placeholders behind the auth guard so the navigation shell is complete on day one.
+- **Stub-grade Auth module**. New 4-csproj quartet `ShopFlow.Auth.{Domain,Application,Infrastructure,Api}` ships a dev-mode `POST /auth/login` returning a baked JWT (`tenant_slug=yensaokhanhhoa`, `role=tenant_seller`) signed via `Auth:DevSecret`. JwtBearer scheme wired in `Inventory.Api`. Gateway route `/auth/**` registered. Sprint-7 replaces with real password hashing + refresh tokens + MFA.
+- **Inventory HTTP surface**. `Inventory.Api` gains 3 controllers (`SkusController`, `InventoryController`, `AdjustmentsController`) plus MediatR queries (list SKUs, ledger, summary) + commands (adjust, create-SKU, set-threshold, set-flash-sale). `Idempotency-Key` header logged in audit table; no server-side dedup (natural dedupe via `stock_adjustments`).
+- **Design canon ported**. `tokens.css` warm-neutral palette + amber-ochre accent + IBM Plex Sans/Mono self-hosted via `@fontsource`. STYLING_SPECS §3.3 delta inlined + §6.1 a11y fixes (`--ink-3` re-pointed to `--neutral-500` for AA contrast).
+- **Auth + http baseline**. `useAuth` Zustand store + JWT-in-localStorage persistence + `httpClient` auto-injects `Authorization: Bearer` + `X-Tenant-Slug` + `Idempotency-Key` (per-mutation ULID) headers; 401 → logout + redirect. Login form validates email + password non-empty; dev-mode any-non-empty pair succeeds.
+- **Inventory screen primitives**. `<KpiStrip>` + `<FilterStrip>` + `<SkuTable>` (driven by 2s-polling `useInventoryQuery`); `<Drawer>` primitive with focus trap + Esc handler + 150 ms slide-in; `<AllocationBar>` per-channel stacked bar (empty placeholder per trade-off #3); `<LedgerRow>` + `<LedgerDrawer>` (no-poll, invalidated by mutations).
+- **Owner write paths**. `<Modal>` primitive (centered, focus trap, capture-phase Esc to coexist with Drawer); `<Toast>` + `useToast` Zustand global queue (4s success / 8s error dwell, error toasts surface idempotency-key + trace-id); `useInventoryMutations` test-first (ULID-per-call, query invalidation, error toast with key + trace-id); `<AdjustStockModal>` (delta + reason + 240-char note); `<ThresholdInlineEdit>` (optimistic UI via React 19 set-state-during-render pattern); `<Toggle>` primitive + `<FlashSaleToggle>` (optimistic + disabled-while-pending); `<CreateSkuModal>` (sku regex + 409 → inline duplicate error).
+- **CI + a11y harness**. New `frontend` job in `.github/workflows/ci.yml` runs pnpm typecheck → lint → vitest (incl. a11y smoke) → build in parallel with .NET jobs. `web/src/a11y.smoke.test.tsx` runs axe-core against 6 surfaces (LoginScreen + SkuTable + AdjustStockModal + CreateSkuModal + FlashSaleToggle + ToastViewport). vitest-axe@0.1.0 type augmentation shim added (`web/src/types/vitest-axe.d.ts`) for Vitest 2.x compatibility. **SkuTable `nested-interactive` violation caught + fixed by the new harness** (row dropped button semantics; SKU cell hosts the button).
+- **Test counts**: 221 frontend Vitest tests across 27 test files (Sprint-6 baseline; was 0); +2 backend Auth.UnitTests = 361 total backend unit. 6 axe assertions in the a11y smoke suite. Bundle size: vendors `index.js` 311.16 kB (gz 97.93 kB); inventory chunk 42.15 kB (gz 13.44 kB).
+- **Vercel agent-skills applied**. `.claude/skills/` ships 7 skills from `vercel-labs/agent-skills`; U11-U13 audited code against `vercel-react-best-practices` (`rerender-derived-state-no-effect` applied to ThresholdInlineEdit + FlashSaleToggle), `vercel-composition-patterns` (children + footer slot composition, no boolean-prop proliferation), and `web-design-guidelines` / `vercel-labs/web-interface-guidelines` (autoComplete, inputMode, spellCheck, aria-live, aria-label, htmlFor, role=alert; jsx-a11y/no-autofocus respected). Caught the SkuTable nested-interactive regression in U13.
+
+**Documented limitations / carried-forward deferrals** (full list in [sign-off](phase-gates/2026-05-19-sprint-6-signoff.md) "Sprint-6 trade-offs locked in" + "Carried-forward deferrals" sections):
+
+- No new schema migration this sprint (cosmetic SKU columns wait for Sprint-7); threshold + flash-sale held in `InMemorySkuMetadataStore` singleton.
+- Fake auth (Sprint-7 ships real); 2-s polling (Sprint-7 swaps in SignalR push); flash-sale single-endpoint (Sprint-7 also writes StockSync `/flag`).
+- vitest-axe@0.1.0 type shim is a workaround pending upstream PR or fork migration.
+- Inbound module has no frontend UI yet (only Inventory ships in this slice).
+- Sprint-5.5 scale-gate harness still deferred (Sprint-4 U9 → Sprint-4.5 precedent).
+
+**Next**: cut a fresh branch from `v0.9.0-frontend-vertical-slice` and start either **Sprint-7** (real auth + SignalR push + cosmetic SKU schema expansion), **Sprint-7 alt** (Orders screen or Dashboard — second vertical slice), **Sprint-5.5** (backend-only scale-gate closure, runs parallel to Sprint-7), or the **public blog derivative** / **process improvements** items still carried from the methodology writeup.
+
+---

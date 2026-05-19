@@ -49,15 +49,61 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 **Multi-tenancy redesign accepted (2026-05-11)**. Phase-0 (RLS-shared) and Phase-1 Sprint-1 work-in-progress are archived at `archive/phase-1-sprint-1-rls-shared` branch and `archive/v0.1.0-phase-0-rls-shared` tag. The system pivots to **database-per-tenant on shared Postgres cluster** under [ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md).
 
-**Active branch**: `feat/phase-3-methodology-writeup` (cut from `v0.7.0-sprint-5`).
+**Active branch**: `feat/sprint-6-frontend-vertical-slice` (cut from `v0.8.0-methodology-writeup`).
 
-**Phase-3 Methodology Writeup is complete.** Tag: `v0.8.0-methodology-writeup`. Sign-off: [`docs/phase-gates/2026-05-18-methodology-writeup-signoff.md`](./docs/phase-gates/2026-05-18-methodology-writeup-signoff.md). Ships [`docs/methodology.md`](./docs/methodology.md) (~8500 words) — comprehensive 7-sprint chronological case study + synthesis pattern catalog + friction section documenting the AI-assisted development methodology used to build ShopFlow WMS. Audience: future-self + developers cloning the repo (not HR/recruiter). 100% in `docs/`; no source code changes. Seven units U1-U7: skeleton + lead-in + reference inventory; Phase-0-redux + Sprint-1-redux sections; Sprint-2-redux + 2.5 + 3-redux sections; Sprint-4 + 4.5 sections; Sprint-5 section (most-detailed); synthesis pattern catalog (5 patterns, 2 Mermaid diagrams); friction section (7 named modes) + forward-looking section + wrap-up. Closing: "one project, one solo dev, one stack — read this as evidence, not prescription".
+**Sprint-6 Frontend Vertical Slice is complete.** Tag: `v0.9.0-frontend-vertical-slice`. Sign-off: [`docs/phase-gates/2026-05-19-sprint-6-signoff.md`](./docs/phase-gates/2026-05-19-sprint-6-signoff.md). Ships ShopFlow WMS's **first frontend surface** — new top-level `web/` subdirectory with Vite 5 + React 19 + TypeScript strict + TanStack Router (file-based) + TanStack Query (2-s polling) + Zustand. Inventory screen × Owner role end-to-end through real `Inventory.Api` WRITE controllers; 8 other screens ship as `ComingSoon` placeholders behind the auth guard so the navigation shell is complete on day one. New stub-grade `ShopFlow.Auth.{Domain,Application,Infrastructure,Api}` 4-csproj quartet returns a baked JWT (Sprint-7 → real auth). Owner write paths: `<AdjustStockModal>` (delta + reason + note), `<ThresholdInlineEdit>` (optimistic UI via React 19 set-state-during-render pattern), `<FlashSaleToggle>` (Inventory.Api endpoint per Sprint-6 trade-off #3; not StockSync), `<CreateSkuModal>` (sku regex + 409 → inline duplicate error; collects only `sku + initialAvailable` per trade-off #1). Reusable primitives: `<Drawer>` + `<Modal>` (Modal Esc capture-phase + stopImmediatePropagation so Modal-over-Drawer coexists), `<Toast>` + `useToast` Zustand global queue, `<Toggle>` (role=switch), `<AllocationBar>` + `<LedgerRow>` + `<LedgerDrawer>`. `useInventoryMutations` test-first: ULID-per-call Idempotency-Key (audit-only dedup per trade-off #2; new ULID per retry), invalidates `['inventory', 'skus'|'summary'|'ledger']` on success, error toast with key + trace-id. **CI + a11y harness**: new `frontend` job in `.github/workflows/ci.yml` runs pnpm typecheck → lint → vitest (incl. axe smoke) → build in parallel with .NET jobs. **KTD11 (emergent in U13)**: axe `nested-interactive` violation caught — SkuTable refactored so the row drops button semantics; first-column SKU cell hosts the button. **KTD12 (emergent in U13)**: vitest-axe@0.1.0 type-augmentation shim (`web/src/types/vitest-axe.d.ts`) for Vitest 2.x compatibility. 221 frontend Vitest tests green (was 0 pre-Sprint-6); +2 backend Auth.UnitTests = 361 total. Bundle: vendors 311.16 kB (gz 97.93 kB), inventory chunk 42.15 kB (gz 13.44 kB). Vercel agent-skills (`vercel-react-best-practices`, `vercel-composition-patterns`, `web-design-guidelines`) applied during U11-U13 audit passes.
 
-**Next implementation step**: cut a fresh branch from `v0.8.0-methodology-writeup` and start one of:
-- **Sprint-5.5** — close U9 scale-gate harness gap (multi-tenant Aspire boot + real Shopee mock alongside StockSync.Api). Pattern proven by Sprint-2.5 / Sprint-4.5.
-- **Sprint-6** — Analytics module (W9-W10): read-side projections / dashboards consuming the existing outbox stream including `StockLevelChangedV1`.
-- **Public blog post derivative** — adapted ~3000-4000 word version of `docs/methodology.md` for dev.to / personal blog. Separate brainstorm + plan + work cycle.
-- **Process improvements based on methodology writeup findings** — `.gitattributes` for CRLF normalisation, plan-time port-shape checklist, granular checkpoint commits inside subagent runs (see methodology forward-looking section).
+**Sprint-6 progress** (as of 2026-05-19):
+- ✅ U1 — `web/` Vite + React 19 + TypeScript scaffold + pnpm@10.32.1 pinned via `packageManager`
+- ✅ U2 — `tokens.css` design layer + IBM Plex self-host + STYLING_SPECS §3.3 delta + §6.1 a11y fixes
+- ✅ U3 — App shell: `<TopBar>` + `<Sidebar>` + `<Logo>` + i18n via `useLocale` `t(vi, en)` + ComingSoon
+- ✅ U4 — `ShopFlow.Auth.{Domain,Application,Infrastructure,Api}` quartet (dev-mode fake `POST /auth/login`); JwtBearer in `Inventory.Api`
+- ✅ U5 — `<LoginScreen>` + `useAuth` Zustand + JWT-in-localStorage + `httpClient` (auto-injects Authorization + X-Tenant-Slug + Idempotency-Key)
+- ✅ U6 — TanStack Router file-based routes + 8 ComingSoon stub routes + auth guard
+- ✅ U7 — `Inventory.Api` READ controllers: `SkusController` (list + ledger) + `InventoryController` (summary); MediatR queries; `InMemorySkuMetadataStore` singleton
+- ✅ U8 — `Inventory.Api` WRITE controllers: `AdjustmentsController` (signed delta) + `SkusController` (POST/PUT threshold + flash-sale) + MediatR commands
+- ✅ U9 — Inventory screen: `<KpiStrip>` + `<FilterStrip>` + `<SkuTable>` + 2-s polling via `useInventoryQuery`
+- ✅ U10 — `<Drawer>` primitive + `<AllocationBar>` + `<LedgerRow>` + `<LedgerDrawer>` (no-poll; invalidated on mutation)
+- ✅ U11 — `<Modal>` (capture-phase Esc) + `<Toast>` + `useToast` + `useInventoryMutations` (test-first) + `<AdjustStockModal>` + `<ThresholdInlineEdit>` (optimistic)
+- ✅ U12 — `<Toggle>` primitive + `<FlashSaleToggle>` (optimistic + disabled-while-pending) + `<CreateSkuModal>` (regex + 409 inline error)
+- ✅ U13 — Frontend CI job in `.github/workflows/ci.yml`; vitest-axe matchers + `web/src/a11y.smoke.test.tsx` (6 axe-clean surfaces); SkuTable `nested-interactive` fix
+- ✅ U14 — [Sprint-6 sign-off](./docs/phase-gates/2026-05-19-sprint-6-signoff.md); CHANGELOG entry; README + CLAUDE.md update; tag `v0.9.0-frontend-vertical-slice`
+
+**Sprint-6 deviations from plan file list**:
+- **U10 — `useSkuLedgerQuery` consolidated into `useInventoryQuery.ts`** (plan said new `useLedgerQuery.ts`). U7 had already placed the hook there; splitting would have added churn.
+- **U11 — Modal Esc moved to capture phase + `stopImmediatePropagation()`** so Modal-over-Drawer coexists. Plan didn't specify; KTD9 in sign-off.
+- **U11 — AdjustStockModal mounted at the route level** (sibling of LedgerDrawer) instead of nested, to avoid DOM focus-trap conflicts.
+- **U11 — ThresholdInlineEdit uses set-state-during-render** for prop sync instead of useEffect (per Vercel `rerender-derived-state-no-effect`). KTD10.
+- **U11 — Idempotency-Key regenerated per `mutateAsync` call**, not per submission lifecycle. Plan test scenarios explicitly required "retry → new ULID" (audit-only dedup per trade-off #2).
+- **U12 — Flash-sale toggle hits Inventory.Api `/flash-sale`**, not StockSync.Api `/flag`. The polled SKU list reads display data from Inventory.Api; trade-off #3 rules out cross-module joins. No `web/src/api/stocksync.ts` shipped. KTD7.
+- **U12 — CreateSkuModal collects only `sku + initialAvailable`** (matching `CreateSkuCommand` backend). Other plan-listed fields deferred to Sprint-7 per trade-off #1. KTD8.
+- **U13 — vitest-axe type-augmentation shim added** (KTD12). Package targets the obsolete `Vi.Assertion` namespace; Vitest 2.x lives in the `vitest` module.
+- **U13 — SkuTable refactored to fix `nested-interactive`** caught by the new harness (KTD11). Row drops button semantics; SKU cell hosts the button.
+- **No local Docker daemon on this dev machine** — same Sprint-1..5 posture. Backend integration tests run in CI.
+- **Backend builds run in CI only** — dev machine has .NET 8.0.407 vs repo's 9.0.305 pin.
+
+**Sprint-6 trade-offs locked in** (carry into Sprint-7+; full list in sign-off):
+1. No new schema migration this sprint (cosmetic columns wait for Sprint-7); threshold + flash-sale in `InMemorySkuMetadataStore` singleton.
+2. No `inventory_idempotency_records` table — header logged, natural dedupe via `stock_adjustments` audit table.
+3. No cross-module joins — channel allocations + p24 outbound ship empty.
+4. No URL-search-params persistence for filter state.
+5. Reservation ledger cursor pagination deferred — drawer reads most-recent N (default 100, clamp 500).
+6. Wire shape is PascalCase (.NET default serializer); Sprint-7 normalizes to camelCase.
+7. Backend builds run in CI, not on this dev machine.
+8. Fake auth (Sprint-7 → real).
+9. 2-s polling (Sprint-7 → SignalR push).
+10. Flash-sale single-endpoint (Sprint-7 → also writes StockSync `/flag`).
+
+**Next implementation step**: cut a fresh branch from `v0.9.0-frontend-vertical-slice` and start one of:
+- **Sprint-7** — Real auth + SignalR push + cosmetic SKU schema expansion. The natural follow-on closes Sprint-6 trade-offs 1, 6, 8, 9, 10 in one sprint.
+- **Sprint-7 alt** — Orders screen or Dashboard. Second frontend vertical slice; Orders cuts deepest because it touches Outbound's saga + reservation ledger from Sprint-3-redux.
+- **Sprint-5.5** — Backend-only scale-gate harness closure. Runs parallel to any Sprint-7 frontend work since it doesn't touch `web/`.
+- **Public blog post derivative** — adapted ~3000-4000 word version of `docs/methodology.md` OR a Sprint-6 frontend case study.
+- **Process improvements** flagged in the methodology forward-looking section — `.gitattributes` for CRLF normalisation, plan-time port-shape checklist, granular checkpoint commits inside subagent runs.
+
+---
+
+**Phase-3 Methodology Writeup history** (kept for context; tag `v0.8.0-methodology-writeup`). Sign-off: [`docs/phase-gates/2026-05-18-methodology-writeup-signoff.md`](./docs/phase-gates/2026-05-18-methodology-writeup-signoff.md). Ships [`docs/methodology.md`](./docs/methodology.md) (~8500 words) — comprehensive 7-sprint chronological case study + synthesis pattern catalog + friction section documenting the AI-assisted development methodology used to build ShopFlow WMS. Audience: future-self + developers cloning the repo (not HR/recruiter). 100% in `docs/`; no source code changes. Seven units U1-U7: skeleton + lead-in + reference inventory; Phase-0-redux + Sprint-1-redux sections; Sprint-2-redux + 2.5 + 3-redux sections; Sprint-4 + 4.5 sections; Sprint-5 section (most-detailed); synthesis pattern catalog (5 patterns, 2 Mermaid diagrams); friction section (7 named modes) + forward-looking section + wrap-up. Closing: "one project, one solo dev, one stack — read this as evidence, not prescription".
 
 ---
 

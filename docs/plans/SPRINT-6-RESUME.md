@@ -1,5 +1,7 @@
 # Sprint-6 Resume Note — 2026-05-19 (updated after U10)
 
+> **2026-05-19 — Sprint-6 COMPLETE.** Tag `v0.9.0-frontend-vertical-slice`. Canonical record: [Sprint-6 sign-off](./../phase-gates/2026-05-19-sprint-6-signoff.md). The snapshot below is preserved as a mid-sprint state (after U10); U11-U14 details live in the sign-off + individual commit messages.
+
 Branch: `feat/sprint-6-frontend-vertical-slice` (pushed to `origin`).
 Cut from tag `v0.8.0-methodology-writeup`.
 

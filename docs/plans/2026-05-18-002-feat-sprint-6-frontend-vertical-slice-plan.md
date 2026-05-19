@@ -1,11 +1,13 @@
 ---
 title: "feat: Sprint-6 Frontend Vertical Slice MVP (Inventory × Owner)"
 type: feat
-status: active
+status: completed
 date: 2026-05-18
+completed: 2026-05-19
 origin: docs/brainstorms/2026-05-18-sprint-6-frontend-vertical-slice-requirements.md
 follows: docs/phase-gates/2026-05-18-methodology-writeup-signoff.md
-tag_target: v0.9.0-frontend-vertical-slice
+signoff: docs/phase-gates/2026-05-19-sprint-6-signoff.md
+tag: v0.9.0-frontend-vertical-slice
 ---
 
 # feat: Sprint-6 Frontend Vertical Slice MVP (Inventory × Owner)
