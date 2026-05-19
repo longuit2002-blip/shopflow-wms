@@ -1,11 +1,17 @@
+import { useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
+import { useInventoryQuery } from '../../hooks/useInventoryQuery';
+import { KpiStrip } from '../../components/inventory/KpiStrip';
+import { FilterStrip } from '../../components/inventory/FilterStrip';
+import { SkuTable } from '../../components/inventory/SkuTable';
 import { t, useLocale } from '../../hooks/useLocale';
 
 /**
- * Inventory route — Sprint-6 vertical slice landing.
+ * Inventory route — Sprint-6 vertical-slice landing.
  *
- * Renders a placeholder header until U9 ships the SKU table + filter
- * strip + KPI strip + 2 s polling.
+ * Assembles: KPI strip + filter strip + SKU table. Drawer mounts in U10;
+ * Adjust modal + Create-SKU modal mount in U11/U12. Search is debounced
+ * implicitly by TanStack Query keying on the filter state.
  */
 export const Route = createFileRoute('/_auth/inventory')({
   component: InventoryRouteComponent,
@@ -13,17 +19,53 @@ export const Route = createFileRoute('/_auth/inventory')({
 
 function InventoryRouteComponent() {
   useLocale();
+  const [search, setSearch] = useState('');
+  const [selectedSku, setSelectedSku] = useState<string | null>(null);
+
+  const params = useMemo(() => ({ search: search || undefined, pageSize: 100 }), [search]);
+  const { data, isLoading, isError } = useInventoryQuery(params);
+
   return (
-    <div style={{ padding: 'var(--s-6)', flex: 1 }}>
-      <h1 className="t-xl" style={{ margin: 0, fontWeight: 600 }}>
-        {t('Tồn kho', 'Inventory')}
-      </h1>
-      <p className="t-sm" style={{ color: 'var(--ink-2)', marginTop: 'var(--s-2)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <KpiStrip />
+      <FilterStrip search={search} onSearchChange={setSearch} />
+      {isError ? (
+        <ErrorState />
+      ) : (
+        <SkuTable
+          items={data?.Items ?? []}
+          onSelectSku={setSelectedSku}
+          selectedSku={selectedSku}
+          isLoading={isLoading}
+        />
+      )}
+    </div>
+  );
+}
+
+function ErrorState() {
+  return (
+    <div
+      role="alert"
+      style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 'var(--s-8)',
+        color: 'var(--bad-ink)',
+      }}
+    >
+      <div className="t-lg" style={{ fontWeight: 600 }}>
+        {t('Không tải được dữ liệu tồn kho', 'Could not load inventory data')}
+      </div>
+      <div className="t-sm" style={{ marginTop: 'var(--s-2)', color: 'var(--ink-2)' }}>
         {t(
-          'SKU table, filter strip, KPI strip và reservation ledger drawer sẽ được wire trong U9 + U10.',
-          'SKU table, filter strip, KPI strip, and reservation ledger drawer land in U9 + U10.',
+          'Backend đang sẽ thử lại tự động sau vài giây.',
+          'The backend will retry automatically in a few seconds.',
         )}
-      </p>
+      </div>
     </div>
   );
 }
