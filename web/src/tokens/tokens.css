@@ -485,6 +485,24 @@ table.t-data {
   border-bottom-left-radius: var(--radius-xl);
 }
 
+/* Drawer slide-in / mask fade-in (Sprint-6 U10) — STYLING_SPECS §4 motion
+ * specs: enter 150 ms with --ease-out. No exit animation in Sprint-6;
+ * unmount on close is acceptable for the vertical slice. */
+@keyframes drawerSlideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes drawerMaskFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawer,
+  .drawer-mask {
+    animation: none !important;
+  }
+}
+
 .popover, .dropdown {
   background: #FFFFFF;
   border: 1px solid var(--neutral-200);

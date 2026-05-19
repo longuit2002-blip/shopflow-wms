@@ -27,11 +27,17 @@ export function useInventorySummaryQuery() {
   });
 }
 
+/**
+ * Ledger fetcher for the reservation drawer (U10). Intentionally NOT
+ * polled — the drawer opens on demand, fetches once, and is invalidated
+ * by U11's adjust/threshold mutations (TanStack Query key match). Sprint-7
+ * adds SignalR push so live changes arrive without a poll either.
+ */
 export function useSkuLedgerQuery(sku: string | null, limit = 100) {
   return useQuery({
     queryKey: ['inventory', 'ledger', sku, limit],
     queryFn: () => inventoryApi.ledger(sku!, limit),
     enabled: sku !== null,
-    refetchInterval: POLL_MS,
+    refetchInterval: false,
   });
 }

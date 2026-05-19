@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import { useInventoryQuery } from '../../hooks/useInventoryQuery';
 import { KpiStrip } from '../../components/inventory/KpiStrip';
 import { FilterStrip } from '../../components/inventory/FilterStrip';
 import { SkuTable } from '../../components/inventory/SkuTable';
+import { LedgerDrawer } from '../../components/inventory/LedgerDrawer';
 import { t, useLocale } from '../../hooks/useLocale';
 
 /**
@@ -25,6 +26,12 @@ function InventoryRouteComponent() {
   const params = useMemo(() => ({ search: search || undefined, pageSize: 100 }), [search]);
   const { data, isLoading, isError } = useInventoryQuery(params);
 
+  const selectedItem = useMemo(
+    () => (selectedSku ? (data?.Items ?? []).find((i) => i.Sku === selectedSku) ?? null : null),
+    [data, selectedSku],
+  );
+  const closeDrawer = useCallback(() => setSelectedSku(null), []);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <KpiStrip />
@@ -39,6 +46,7 @@ function InventoryRouteComponent() {
           isLoading={isLoading}
         />
       )}
+      <LedgerDrawer item={selectedItem} onClose={closeDrawer} />
     </div>
   );
 }
