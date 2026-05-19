@@ -148,6 +148,31 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
         _cache.TryRemove(new CacheKey(tenantId, sku), out _);
     }
 
+    public async Task<bool> ApplyEventAsync(
+        Guid tenantId,
+        string sku,
+        bool isFlashSale,
+        DateTime occurredAt,
+        CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sku);
+
+        var applied = await WithTenantScopeAsync(
+            tenantId,
+            ct,
+            (inner, scopeCt) => inner.ApplyEventAsync(tenantId, sku, isFlashSale, occurredAt, scopeCt)
+        ).ConfigureAwait(false);
+
+        // Only evict the cache when the inner write actually landed —
+        // stale events (older OccurredAt than stored) leave the cache
+        // untouched because the stored value is still correct.
+        if (applied)
+        {
+            _cache.TryRemove(new CacheKey(tenantId, sku), out _);
+        }
+        return applied;
+    }
+
     private async Task<T> WithTenantScopeAsync<T>(
         Guid tenantId,
         CancellationToken ct,

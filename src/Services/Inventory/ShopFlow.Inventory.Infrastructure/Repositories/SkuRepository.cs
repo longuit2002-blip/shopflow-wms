@@ -1,7 +1,13 @@
+using System.Diagnostics;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using ShopFlow.Contracts.Inventory;
+using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Domain.Catalog;
+using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Domain;
+using ShopFlow.SharedKernel.Infrastructure;
 using SkuCode = ShopFlow.Inventory.Domain.Sku;
 
 namespace ShopFlow.Inventory.Infrastructure.Repositories;
@@ -25,10 +31,12 @@ namespace ShopFlow.Inventory.Infrastructure.Repositories;
 public sealed class SkuRepository : ISkuRepository
 {
     private readonly InventoryDbContext _db;
+    private readonly IRequestContext _requestContext;
 
-    public SkuRepository(InventoryDbContext db)
+    public SkuRepository(InventoryDbContext db, IRequestContext requestContext)
     {
         _db = db;
+        _requestContext = requestContext;
     }
 
     public async Task<Sku?> GetByIdAsync(SkuCode code, CancellationToken ct)
@@ -179,10 +187,45 @@ public sealed class SkuRepository : ISkuRepository
         var changed = existing.UpdateFlashSale(active);
         if (changed)
         {
+            // Sprint-7.5 U5 — outbox emit on state change (closes Sprint-6
+            // trade-off #10). Skips on no-op writes so MT redelivery of an
+            // already-applied toggle doesn't produce a second event.
+            AppendOutbox(
+                new SkuFlashSaleChangedV1(
+                    TenantId: _requestContext.TenantId,
+                    Sku: existing.Code.Value,
+                    IsFlashSale: active,
+                    OccurredAt: DateTime.UtcNow
+                ),
+                DateTime.UtcNow);
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
         }
 
         return Result<SkuMutationResult>.Success(new SkuMutationResult(existing, changed));
+    }
+
+    /// <summary>
+    /// Sprint-7.5 U5 — outbox append for cross-module integration events.
+    /// Mirrors the Sprint-1-redux <c>ReservationRepository.AppendOutbox&lt;T&gt;</c>
+    /// shape — same EF DbSet, JSON serialization via
+    /// <see cref="OutboxJsonOptions.Default"/>, tenant + trace context
+    /// captured at write time, payload written in the same transaction
+    /// as the row that triggered it.
+    /// </summary>
+    private void AppendOutbox<T>(T integrationEvent, DateTime occurredAt) where T : class
+    {
+        var traceId = Activity.Current?.TraceId.ToString();
+        _db.OutboxMessages.Add(
+            new OutboxMessage
+            {
+                Id = Guid.NewGuid(),
+                TenantId = _requestContext.TenantId,
+                EventType = typeof(T).AssemblyQualifiedName!,
+                Payload = JsonSerializer.Serialize(integrationEvent, typeof(T), OutboxJsonOptions.Default),
+                TraceId = traceId,
+                CreatedAt = occurredAt,
+            }
+        );
     }
 
     public async Task<Result<SkuMutationResult>> UpdateThresholdAsync(
