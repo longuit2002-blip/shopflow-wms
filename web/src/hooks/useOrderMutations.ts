@@ -78,7 +78,7 @@ export function useSeedOrderMutation() {
       pushToast({
         kind: 'success',
         title: t('Đã tạo đơn mẫu', 'Order seeded'),
-        body: order.ChannelExternalOrderId,
+        body: order.channelExternalOrderId,
       });
     },
     onError: (err: unknown) => {

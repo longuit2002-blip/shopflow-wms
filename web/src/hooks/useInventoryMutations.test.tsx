@@ -198,7 +198,7 @@ describe('useInventoryMutations.adjust', () => {
 });
 
 describe('useInventoryMutations.setThreshold', () => {
-  it('PUTs to /api/v1/inventory/skus/:sku/threshold with body { Threshold }', async () => {
+  it('PUTs to /api/v1/inventory/skus/:sku/threshold with body { threshold }', async () => {
     fetchMock().mockResolvedValueOnce(noBodyResponse());
     const { wrapper } = makeWrapper();
     const { result } = renderHook(() => useInventoryMutations(), { wrapper });
@@ -210,7 +210,7 @@ describe('useInventoryMutations.setThreshold', () => {
     const [url, init] = fetchMock().mock.calls[0]!;
     expect(String(url)).toContain('/api/v1/inventory/skus/YN-001/threshold');
     expect((init as RequestInit).method).toBe('PUT');
-    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ Threshold: 50 });
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ threshold: 50 });
     expect(((init as RequestInit).headers as Headers).get('Idempotency-Key')).toMatch(
       /^[0-9A-HJKMNP-TV-Z]{26}$/i,
     );

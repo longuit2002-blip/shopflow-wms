@@ -155,34 +155,34 @@ function makeWrapper() {
 const VALID_JWT = 'header.payload.signature';
 
 function emptyListResponse() {
-  return { Items: [], TotalCount: 0 };
+  return { items: [], totalCount: 0 };
 }
 
 function emptyKpiResponse() {
   return {
-    ActiveOrders: 0,
-    AwaitingPick: 0,
-    AwaitingShip: 0,
-    FailedToday: 0,
+    activeOrders: 0,
+    awaitingPick: 0,
+    awaitingShip: 0,
+    failedToday: 0,
   };
 }
 
 function fakeDetail(id: string) {
   return {
-    Id: id,
-    ChannelExternalOrderId: `SHOPEE_${id}`,
-    Channel: 'Shopee',
-    ShippingProfile: 'standard',
-    Status: 'Pending',
-    CurrentSagaState: null,
-    ExpectedWeightTotal: null,
-    ActualWeightTotal: null,
-    LabelUrl: null,
-    TrackingNumber: null,
-    PickWaveId: null,
-    CreatedAt: '2026-05-19T00:00:00Z',
-    UpdatedAt: null,
-    Lines: [],
+    id: id,
+    channelExternalOrderId: `SHOPEE_${id}`,
+    channel: 'Shopee',
+    shippingProfile: 'standard',
+    status: 'Pending',
+    currentSagaState: null,
+    expectedWeightTotal: null,
+    actualWeightTotal: null,
+    labelUrl: null,
+    trackingNumber: null,
+    pickWaveId: null,
+    createdAt: '2026-05-19T00:00:00Z',
+    updatedAt: null,
+    lines: [],
   };
 }
 
@@ -231,7 +231,7 @@ describe('useOrdersListQuery — SignalR wire-up + polling fallback', () => {
 
     act(() => {
       emit('saga_transitioned', {
-        OrderId: '00000000-0000-0000-0000-000000000001',
+        orderId: '00000000-0000-0000-0000-000000000001',
       });
     });
 
@@ -321,7 +321,7 @@ describe('useOrdersListQuery — SignalR wire-up + polling fallback', () => {
     unmount();
 
     act(() => {
-      emit('saga_transitioned', { OrderId: '00000000-0000-0000-0000-000000000001' });
+      emit('saga_transitioned', { orderId: '00000000-0000-0000-0000-000000000001' });
     });
 
     expect(invalidateSpy).not.toHaveBeenCalled();
@@ -347,7 +347,7 @@ describe('useOrderKpiQuery — SignalR wire-up + polling fallback', () => {
     renderHook(() => useOrderKpiQuery(), { wrapper });
 
     act(() => {
-      emit('saga_transitioned', { OrderId: '00000000-0000-0000-0000-0000000000aa' });
+      emit('saga_transitioned', { orderId: '00000000-0000-0000-0000-0000000000aa' });
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['orders'] });
@@ -402,7 +402,7 @@ describe('useOrderDetailQuery — narrow SignalR invalidation', () => {
     renderHook(() => useOrderDetailQuery(ORDER_A), { wrapper });
 
     act(() => {
-      emit('saga_transitioned', { OrderId: ORDER_A });
+      emit('saga_transitioned', { orderId: ORDER_A });
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['orders', ORDER_A] });
@@ -414,7 +414,7 @@ describe('useOrderDetailQuery — narrow SignalR invalidation', () => {
     renderHook(() => useOrderDetailQuery(ORDER_A), { wrapper });
 
     act(() => {
-      emit('saga_transitioned', { OrderId: ORDER_B });
+      emit('saga_transitioned', { orderId: ORDER_B });
     });
 
     expect(invalidateSpy).not.toHaveBeenCalled();
@@ -430,7 +430,7 @@ describe('useOrderDetailQuery — narrow SignalR invalidation', () => {
     expect(signalrRef.current.subscribeCalls).toHaveLength(2);
 
     act(() => {
-      emit('saga_transitioned', { OrderId: ORDER_A });
+      emit('saga_transitioned', { orderId: ORDER_A });
     });
 
     // ORDER_A's narrow key was invalidated; ORDER_B's was not.
@@ -444,7 +444,7 @@ describe('useOrderDetailQuery — narrow SignalR invalidation', () => {
     renderHook(() => useOrderDetailQuery(ORDER_A), { wrapper });
 
     act(() => {
-      emit('saga_transitioned', { Foo: 'bar' });
+      emit('saga_transitioned', { foo: 'bar' });
     });
 
     expect(invalidateSpy).not.toHaveBeenCalled();
@@ -491,7 +491,7 @@ describe('useOrderTransitionsQuery — narrow SignalR invalidation', () => {
     renderHook(() => useOrderTransitionsQuery(ORDER_A), { wrapper });
 
     act(() => {
-      emit('saga_transitioned', { OrderId: ORDER_A });
+      emit('saga_transitioned', { orderId: ORDER_A });
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['orders', ORDER_A] });
@@ -503,7 +503,7 @@ describe('useOrderTransitionsQuery — narrow SignalR invalidation', () => {
     renderHook(() => useOrderTransitionsQuery(ORDER_A), { wrapper });
 
     act(() => {
-      emit('saga_transitioned', { OrderId: ORDER_B });
+      emit('saga_transitioned', { orderId: ORDER_B });
     });
 
     expect(invalidateSpy).not.toHaveBeenCalled();

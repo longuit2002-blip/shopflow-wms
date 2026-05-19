@@ -5,17 +5,17 @@
  * go through `httpClient` so Authorization + X-Tenant-Slug + (for mutations)
  * Idempotency-Key are attached automatically.
  *
- * Wire-shape notes:
- *   - PascalCase matches the Sprint-6 KTD4 convention — the .NET serializer
- *     emits properties verbatim from the record definition. The matching
+ * Wire-shape notes (Sprint-7.5 U1+U2):
+ *   - Backend now serialises with `JsonNamingPolicy.CamelCase` across MVC +
+ *     SignalR; types below mirror the camelCase shape verbatim. The matching
  *     C# DTOs live at
  *     `src/Services/Outbound/ShopFlow.Outbound.Api/Contracts/OrderDtos.cs`.
- *   - `OrderListItemDto.Age` is a TimeSpan on the server. System.Text.Json
+ *   - `OrderListItemDto.age` is a TimeSpan on the server. System.Text.Json
  *     emits it as `"hh:mm:ss[.fffffff]"` by default — typed as `string`
  *     here and rendered as-is by the list table.
- *   - `OrderListItemDto.LastTransitionAt` and `OrderTransitionDto.OccurredAt`
- *     serialize to ISO 8601 UTC strings.
- *   - `OrderTransitionDto.CorrelationId` is the W3C correlation id stamped
+ *   - `OrderListItemDto.lastTransitionAt` and `OrderTransitionDto.occurredAt`
+ *     serialise to ISO 8601 UTC strings.
+ *   - `OrderTransitionDto.correlationId` is the W3C correlation id stamped
  *     by the saga middleware (doc-review decision #3); routed straight to
  *     the trace explorer hyperlink by R14.
  */
@@ -33,96 +33,96 @@ export interface MutationOptions {
   signal?: AbortSignal;
 }
 
-// ── DTOs (PascalCase — mirror the C# wire exactly) ───────────────────────
+// ── DTOs (camelCase — Sprint-7.5 wire normalisation) ─────────────────────
 
 export interface OrderListItemDto {
-  Id: string;
-  ChannelExternalOrderId: string;
+  id: string;
+  channelExternalOrderId: string;
   /** Parsed prefix label: "Shopee" | "Lazada" | "TikTok Shop" | "Direct". */
-  Channel: string;
-  LineCount: number;
+  channel: string;
+  lineCount: number;
   /** Saga state string; null until the first OrderPlacedV1 consume lands. */
-  CurrentSagaState: string | null;
+  currentSagaState: string | null;
   /** TimeSpan rendered by System.Text.Json (e.g. "03:42:17.1234567"). */
-  Age: string;
+  age: string;
   /** ISO 8601 UTC timestamp; null when no transitions have been recorded. */
-  LastTransitionAt: string | null;
+  lastTransitionAt: string | null;
 }
 
 export interface OrderListResponse {
-  Items: OrderListItemDto[];
-  TotalCount: number;
+  items: OrderListItemDto[];
+  totalCount: number;
 }
 
 export interface OrderLineResponse {
-  Id: string;
-  Sku: string;
-  Qty: number;
-  ExpectedWeight: number | null;
+  id: string;
+  sku: string;
+  qty: number;
+  expectedWeight: number | null;
 }
 
 /**
  * Sprint-3-redux POST/GET response shape — returned by the seed endpoint
  * and the original create/retrieve paths. Lacks the Sprint-7-U4 detail
- * extensions (Channel / CurrentSagaState / CreatedAt / UpdatedAt) so it's
+ * extensions (channel / currentSagaState / createdAt / updatedAt) so it's
  * a distinct type rather than an alias.
  */
 export interface OrderResponse {
-  Id: string;
-  ChannelExternalOrderId: string;
-  ShippingProfile: string;
-  Status: string;
-  ExpectedWeightTotal: number | null;
-  ActualWeightTotal: number | null;
-  LabelUrl: string | null;
-  TrackingNumber: string | null;
-  PickWaveId: string | null;
-  Lines: OrderLineResponse[];
+  id: string;
+  channelExternalOrderId: string;
+  shippingProfile: string;
+  status: string;
+  expectedWeightTotal: number | null;
+  actualWeightTotal: number | null;
+  labelUrl: string | null;
+  trackingNumber: string | null;
+  pickWaveId: string | null;
+  lines: OrderLineResponse[];
 }
 
 export interface OrderDetailDto {
-  Id: string;
-  ChannelExternalOrderId: string;
-  Channel: string;
-  ShippingProfile: string;
-  Status: string;
-  CurrentSagaState: string | null;
-  ExpectedWeightTotal: number | null;
-  ActualWeightTotal: number | null;
-  LabelUrl: string | null;
-  TrackingNumber: string | null;
-  PickWaveId: string | null;
+  id: string;
+  channelExternalOrderId: string;
+  channel: string;
+  shippingProfile: string;
+  status: string;
+  currentSagaState: string | null;
+  expectedWeightTotal: number | null;
+  actualWeightTotal: number | null;
+  labelUrl: string | null;
+  trackingNumber: string | null;
+  pickWaveId: string | null;
   /** ISO 8601 UTC timestamp. */
-  CreatedAt: string;
+  createdAt: string;
   /** ISO 8601 UTC timestamp; null when not yet updated. */
-  UpdatedAt: string | null;
-  Lines: OrderLineResponse[];
+  updatedAt: string | null;
+  lines: OrderLineResponse[];
 }
 
 export interface OrderTransitionDto {
-  Id: string;
-  OrderId: string;
-  FromState: string;
-  ToState: string;
+  id: string;
+  orderId: string;
+  fromState: string;
+  toState: string;
   /** ISO 8601 UTC timestamp. */
-  OccurredAt: string;
-  EventType: string;
+  occurredAt: string;
+  eventType: string;
   /** W3C correlation id stamped by the saga middleware — doc-review #3. */
-  CorrelationId: string;
+  correlationId: string;
 }
 
 export interface OrderKpiResponse {
-  ActiveOrders: number;
-  AwaitingPick: number;
-  AwaitingShip: number;
-  FailedToday: number;
+  activeOrders: number;
+  awaitingPick: number;
+  awaitingShip: number;
+  failedToday: number;
 }
 
 export interface SeedOrderRequest {
   /** Synthesized line count; default 3 server-side, clamped 1-50. */
-  LineCount?: number;
+  lineCount?: number;
   /** Optional channel-id prefix override (e.g. "SHOPEE_"). */
-  ChannelPrefix?: string;
+  channelPrefix?: string;
 }
 
 // ── Filter shape consumed by the list endpoint ───────────────────────────
@@ -192,12 +192,12 @@ export const ordersApi = {
 
   seed(payload: SeedOrderRequest = {}, options: MutationOptions = {}) {
     // The backend returns `OrderResponse` (Sprint-3-redux shape — no
-    // Channel/CurrentSagaState/CreatedAt). The follow-on detail fetch
+    // channel/currentSagaState/createdAt). The follow-on detail fetch
     // (`fetchOrderDetail(id)`) is the way to read the U7 enrichment.
     return httpClient.post<OrderResponse>(
       `${BASE}/seed`,
       // Forward only the fields the caller set so the server's
-      // record-default values (LineCount=3, ChannelPrefix=null) apply.
+      // record-default values (lineCount=3, channelPrefix=null) apply.
       payload,
       options,
     );

@@ -53,14 +53,14 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
         </thead>
         <tbody>
           {items.map((row) => {
-            const isSelected = selectedSku === row.Sku;
-            const isBelow = row.Threshold != null && row.Available < row.Threshold;
-            const isRisk = row.Reserved > row.Available;
+            const isSelected = selectedSku === row.sku;
+            const isBelow = row.threshold != null && row.available < row.threshold;
+            const isRisk = row.reserved > row.available;
             return (
               <tr
-                key={row.Sku}
+                key={row.sku}
                 className={isSelected ? 'sel' : undefined}
-                onClick={() => onSelectSku(row.Sku)}
+                onClick={() => onSelectSku(row.sku)}
                 style={{ cursor: 'pointer' }}
               >
                 {/*
@@ -75,12 +75,12 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectSku(row.Sku);
+                      onSelectSku(row.sku);
                     }}
                     aria-pressed={isSelected}
-                    aria-label={`${t('Mở sổ giữ chỗ cho', 'Open reservation ledger for')} ${row.Sku}`}
+                    aria-label={`${t('Mở sổ giữ chỗ cho', 'Open reservation ledger for')} ${row.sku}`}
                     className="row-link"
-                    data-testid={`sku-row-${row.Sku}`}
+                    data-testid={`sku-row-${row.sku}`}
                     style={{
                       all: 'unset',
                       cursor: 'pointer',
@@ -88,19 +88,19 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
                       color: 'inherit',
                     }}
                   >
-                    {row.Sku}
+                    {row.sku}
                   </button>
-                  {row.IsFlashSale && (
+                  {row.isFlashSale && (
                     <Pill kind="accent" style={{ marginLeft: 6 }}>
                       {t('Flash', 'Flash')}
                     </Pill>
                   )}
                 </td>
                 <td className="num" style={{ textAlign: 'right' }}>
-                  {fmtNum(row.Available, lang)}
+                  {fmtNum(row.available, lang)}
                 </td>
                 <td className="num" style={{ textAlign: 'right' }}>
-                  {fmtNum(row.Reserved, lang)}
+                  {fmtNum(row.reserved, lang)}
                 </td>
                 <td
                   className="num"
@@ -110,7 +110,7 @@ export function SkuTable({ items, onSelectSku, selectedSku, isLoading }: SkuTabl
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <ThresholdInlineEdit sku={row.Sku} value={row.Threshold} />
+                  <ThresholdInlineEdit sku={row.sku} value={row.threshold} />
                 </td>
                 <td>
                   {isRisk ? (

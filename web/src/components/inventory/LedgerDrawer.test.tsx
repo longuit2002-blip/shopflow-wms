@@ -8,15 +8,15 @@ import { __resetAuthForTests } from '../../hooks/useAuth';
 import type { SkuLedger, SkuListItem } from '../../api/inventory';
 
 const FIXTURE_ITEM: SkuListItem = {
-  Sku: 'YS-RED-100',
-  Available: 95,
-  Reserved: 5,
-  Name: 'Yến chưng đường phèn',
-  Category: 'finished-goods',
-  Threshold: 10,
-  IsFlashSale: false,
-  Allocations: [],
-  P24Outbound: 0,
+  sku: 'YS-RED-100',
+  available: 95,
+  reserved: 5,
+  name: 'Yến chưng đường phèn',
+  category: 'finished-goods',
+  threshold: 10,
+  isFlashSale: false,
+  allocations: [],
+  p24Outbound: 0,
 };
 
 function renderWithClient(ui: ReactElement) {
@@ -56,18 +56,18 @@ describe('LedgerDrawer', () => {
 
   it('opens with title containing the SKU and fetches the ledger', async () => {
     const fixture: SkuLedger = {
-      Items: [
+      items: [
         {
-          Id: '01',
-          OrderId: 'order-1',
-          OrderLineId: 'line-1',
-          Status: 'Reserved',
-          Quantity: -3,
-          Timestamp: '2026-05-18T10:00:00Z',
-          RunningBalance: 92,
+          id: '01',
+          orderId: 'order-1',
+          orderLineId: 'line-1',
+          status: 'Reserved',
+          quantity: -3,
+          timestamp: '2026-05-18T10:00:00Z',
+          runningBalance: 92,
         },
       ],
-      NextCursor: null,
+      nextCursor: null,
     };
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse(fixture));
 
@@ -86,7 +86,7 @@ describe('LedgerDrawer', () => {
 
   it('shows the empty-state when the ledger has no entries', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      jsonResponse({ Items: [], NextCursor: null }),
+      jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
     await waitFor(() => {
@@ -106,7 +106,7 @@ describe('LedgerDrawer', () => {
 
   it('renders the AllocationBar placeholder when item ships with no allocations', () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      jsonResponse({ Items: [], NextCursor: null }),
+      jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
     expect(screen.getByTestId('alloc-bar-empty')).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe('LedgerDrawer', () => {
 
   it('does NOT poll the ledger (asserts exactly one fetch over ~250 ms)', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValue(
-      jsonResponse({ Items: [], NextCursor: null }),
+      jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
     await waitFor(() => {
@@ -126,7 +126,7 @@ describe('LedgerDrawer', () => {
 
   it('renders the "Điều chỉnh tồn" CTA when onAdjustClick is provided', () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      jsonResponse({ Items: [], NextCursor: null }),
+      jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(
       <LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} onAdjustClick={() => {}} />,
@@ -136,7 +136,7 @@ describe('LedgerDrawer', () => {
 
   it('omits the Adjust CTA when no onAdjustClick handler is wired (read-only consumers)', () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      jsonResponse({ Items: [], NextCursor: null }),
+      jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
     expect(screen.queryByTestId('ledger-adjust-cta')).not.toBeInTheDocument();
@@ -144,7 +144,7 @@ describe('LedgerDrawer', () => {
 
   it('clicking the Adjust CTA invokes onAdjustClick with the item SKU', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      jsonResponse({ Items: [], NextCursor: null }),
+      jsonResponse({ items: [], nextCursor: null }),
     );
     const onAdjustClick = vi.fn();
     const user = (await import('@testing-library/user-event')).default.setup();
@@ -161,11 +161,11 @@ describe('LedgerDrawer', () => {
 
   it('mounts the FlashSaleToggle in the drawer header reflecting the IsFlashSale flag', () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      jsonResponse({ Items: [], NextCursor: null }),
+      jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(
       <LedgerDrawer
-        item={{ ...FIXTURE_ITEM, IsFlashSale: true }}
+        item={{ ...FIXTURE_ITEM, isFlashSale: true }}
         onClose={() => {}}
       />,
     );

@@ -35,7 +35,7 @@ export interface AllocationBarProps {
 
 export function AllocationBar({ allocations }: AllocationBarProps) {
   const { lang } = useLocale();
-  const total = allocations.reduce((sum, a) => sum + a.Allocated, 0);
+  const total = allocations.reduce((sum, a) => sum + a.allocated, 0);
 
   if (allocations.length === 0 || total <= 0) {
     return (
@@ -72,15 +72,15 @@ export function AllocationBar({ allocations }: AllocationBarProps) {
         }}
       >
         {allocations.map((a) => {
-          const pct = (a.Allocated / total) * 100;
+          const pct = (a.allocated / total) * 100;
           return (
             <div
-              key={a.Channel}
-              data-channel={a.Channel}
-              title={`${a.Channel} — ${fmtNum(a.Allocated, lang)}`}
+              key={a.channel}
+              data-channel={a.channel}
+              title={`${a.channel} — ${fmtNum(a.allocated, lang)}`}
               style={{
                 width: `${pct}%`,
-                background: channelColor(a.Channel),
+                background: channelColor(a.channel),
               }}
             />
           );
@@ -99,10 +99,10 @@ export function AllocationBar({ allocations }: AllocationBarProps) {
         }}
       >
         {allocations.map((a) => {
-          const pct = Math.round((a.Allocated / total) * 100);
+          const pct = Math.round((a.allocated / total) * 100);
           return (
             <li
-              key={a.Channel}
+              key={a.channel}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -111,9 +111,9 @@ export function AllocationBar({ allocations }: AllocationBarProps) {
             >
               <span
                 className="ch-dot"
-                style={{ background: channelColor(a.Channel) }}
+                style={{ background: channelColor(a.channel) }}
               />
-              <span>{a.Channel}</span>
+              <span>{a.channel}</span>
               <span className="tnum" style={{ color: 'var(--ink-1)', fontWeight: 600 }}>
                 {pct}%
               </span>

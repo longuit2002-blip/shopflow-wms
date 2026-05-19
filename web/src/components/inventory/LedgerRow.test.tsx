@@ -9,13 +9,13 @@ afterEach(() => {
 });
 
 const FIXTURE: SkuLedgerEntry = {
-  Id: '01HMABCDEF',
-  OrderId: 'order-abcdef-1234',
-  OrderLineId: 'line-99',
-  Status: 'Reserved',
-  Quantity: -5,
-  Timestamp: '2026-05-18T10:30:00Z',
-  RunningBalance: 95,
+  id: '01HMABCDEF',
+  orderId: 'order-abcdef-1234',
+  orderLineId: 'line-99',
+  status: 'Reserved',
+  quantity: -5,
+  timestamp: '2026-05-18T10:30:00Z',
+  runningBalance: 95,
 };
 
 function renderRow(entry: SkuLedgerEntry) {
@@ -45,22 +45,22 @@ describe('LedgerRow', () => {
   });
 
   it('prefixes positive quantities with a plus sign', () => {
-    renderRow({ ...FIXTURE, Quantity: 12, Status: 'Adjusted' });
+    renderRow({ ...FIXTURE, quantity: 12, status: 'Adjusted' });
     expect(screen.getByText('+12')).toBeInTheDocument();
   });
 
   it('renders Confirmed status with its Vietnamese label', () => {
-    renderRow({ ...FIXTURE, Status: 'Confirmed' });
+    renderRow({ ...FIXTURE, status: 'Confirmed' });
     expect(screen.getByText('Đã xác nhận')).toBeInTheDocument();
   });
 
   it('renders Released status with its Vietnamese label', () => {
-    renderRow({ ...FIXTURE, Status: 'Released' });
+    renderRow({ ...FIXTURE, status: 'Released' });
     expect(screen.getByText('Đã hoàn trả')).toBeInTheDocument();
   });
 
   it('falls back to the raw status when unknown', () => {
-    renderRow({ ...FIXTURE, Status: 'WeirdNewStatus' });
+    renderRow({ ...FIXTURE, status: 'WeirdNewStatus' });
     expect(screen.getByText('WeirdNewStatus')).toBeInTheDocument();
   });
 

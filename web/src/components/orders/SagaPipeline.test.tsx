@@ -28,13 +28,13 @@ function makeTransition(
   eventType: string = `${toState}V1`,
 ): OrderTransitionDto {
   return {
-    Id: `${fromState}-${toState}`,
-    OrderId: '01HORDERID',
-    FromState: fromState,
-    ToState: toState,
-    OccurredAt: occurredAt,
-    EventType: eventType,
-    CorrelationId: 'trace-abc',
+    id: `${fromState}-${toState}`,
+    orderId: '01HORDERID',
+    fromState: fromState,
+    toState: toState,
+    occurredAt: occurredAt,
+    eventType: eventType,
+    correlationId: 'trace-abc',
   };
 }
 

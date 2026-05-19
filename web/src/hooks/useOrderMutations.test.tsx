@@ -69,16 +69,16 @@ afterEach(() => {
 // redux shape) — distinct from OrderDetailDto (Sprint-7 U4).
 function fakeSeededOrder(suffix: string) {
   return {
-    Id: '00000000-0000-0000-0000-00000000aaaa',
-    ChannelExternalOrderId: `SEED_${suffix}`,
-    ShippingProfile: 'standard',
-    Status: 'Pending',
-    ExpectedWeightTotal: null,
-    ActualWeightTotal: null,
-    LabelUrl: null,
-    TrackingNumber: null,
-    PickWaveId: null,
-    Lines: [],
+    id: '00000000-0000-0000-0000-00000000aaaa',
+    channelExternalOrderId: `SEED_${suffix}`,
+    shippingProfile: 'standard',
+    status: 'Pending',
+    expectedWeightTotal: null,
+    actualWeightTotal: null,
+    labelUrl: null,
+    trackingNumber: null,
+    pickWaveId: null,
+    lines: [],
   };
 }
 
@@ -89,7 +89,7 @@ describe('useSeedOrderMutation — POST contract', () => {
     const { result } = renderHook(() => useSeedOrderMutation(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync({ LineCount: 3 });
+      await result.current.mutateAsync({ lineCount: 3 });
     });
 
     expect(fetchMock()).toHaveBeenCalledTimes(1);
@@ -100,7 +100,7 @@ describe('useSeedOrderMutation — POST contract', () => {
     const idemKey = headers.get('Idempotency-Key');
     expect(idemKey).toMatch(ULID_RE);
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({
-      LineCount: 3,
+      lineCount: 3,
     });
   });
 
@@ -125,10 +125,10 @@ describe('useSeedOrderMutation — POST contract', () => {
     const { result } = renderHook(() => useSeedOrderMutation(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync({ LineCount: 1 });
+      await result.current.mutateAsync({ lineCount: 1 });
     });
     await act(async () => {
-      await result.current.mutateAsync({ LineCount: 1 });
+      await result.current.mutateAsync({ lineCount: 1 });
     });
 
     const k1 = (
@@ -151,7 +151,7 @@ describe('useSeedOrderMutation — onSuccess', () => {
     const { result } = renderHook(() => useSeedOrderMutation(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync({ LineCount: 2 });
+      await result.current.mutateAsync({ lineCount: 2 });
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['orders'] });
@@ -163,7 +163,7 @@ describe('useSeedOrderMutation — onSuccess', () => {
     const { result } = renderHook(() => useSeedOrderMutation(), { wrapper });
 
     await act(async () => {
-      await result.current.mutateAsync({ LineCount: 1 });
+      await result.current.mutateAsync({ lineCount: 1 });
     });
 
     const toasts = useToast.getState().toasts;
@@ -183,7 +183,7 @@ describe('useSeedOrderMutation — onError', () => {
 
     await act(async () => {
       try {
-        await result.current.mutateAsync({ LineCount: 3 });
+        await result.current.mutateAsync({ lineCount: 3 });
       } catch {
         /* expected */
       }
@@ -232,7 +232,7 @@ describe('useSeedOrderMutation — onError', () => {
 
     await act(async () => {
       try {
-        await result.current.mutateAsync({ LineCount: 1 });
+        await result.current.mutateAsync({ lineCount: 1 });
       } catch {
         /* expected */
       }

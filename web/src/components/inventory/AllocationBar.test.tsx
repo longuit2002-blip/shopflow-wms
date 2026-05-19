@@ -18,8 +18,8 @@ describe('AllocationBar', () => {
     render(
       <AllocationBar
         allocations={[
-          { Channel: 'Shopee', Allocated: 0 },
-          { Channel: 'Lazada', Allocated: 0 },
+          { channel: 'Shopee', allocated: 0 },
+          { channel: 'Lazada', allocated: 0 },
         ]}
       />,
     );
@@ -30,10 +30,10 @@ describe('AllocationBar', () => {
     render(
       <AllocationBar
         allocations={[
-          { Channel: 'Shopee', Allocated: 40 },
-          { Channel: 'Lazada', Allocated: 30 },
-          { Channel: 'TikTok', Allocated: 20 },
-          { Channel: 'Shopify', Allocated: 10 },
+          { channel: 'Shopee', allocated: 40 },
+          { channel: 'Lazada', allocated: 30 },
+          { channel: 'TikTok', allocated: 20 },
+          { channel: 'Shopify', allocated: 10 },
         ]}
       />,
     );
@@ -52,8 +52,8 @@ describe('AllocationBar', () => {
     render(
       <AllocationBar
         allocations={[
-          { Channel: 'Shopee', Allocated: 50 },
-          { Channel: 'Lazada', Allocated: 50 },
+          { channel: 'Shopee', allocated: 50 },
+          { channel: 'Lazada', allocated: 50 },
         ]}
       />,
     );
@@ -65,7 +65,7 @@ describe('AllocationBar', () => {
   it('renders Vietnamese channel names verbatim', () => {
     render(
       <AllocationBar
-        allocations={[{ Channel: 'Shopee', Allocated: 100 }]}
+        allocations={[{ channel: 'Shopee', allocated: 100 }]}
       />,
     );
     expect(screen.getByText('Shopee')).toBeInTheDocument();
@@ -80,7 +80,7 @@ describe('AllocationBar', () => {
   it('falls back to neutral grey for unknown channel names', () => {
     render(
       <AllocationBar
-        allocations={[{ Channel: 'AmazonSEA', Allocated: 100 }]}
+        allocations={[{ channel: 'AmazonSEA', allocated: 100 }]}
       />,
     );
     const seg = document.querySelector('[data-channel="AmazonSEA"]') as HTMLElement;

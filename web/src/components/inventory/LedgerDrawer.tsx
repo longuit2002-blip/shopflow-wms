@@ -34,13 +34,13 @@ export interface LedgerDrawerProps {
 
 export function LedgerDrawer({ item, onClose, onAdjustClick }: LedgerDrawerProps) {
   useLocale();
-  const sku = item?.Sku ?? null;
+  const sku = item?.sku ?? null;
   const { data, isLoading, isError } = useSkuLedgerQuery(sku);
 
   const isOpen = item !== null;
-  const title = item ? `${t('Sổ giữ chỗ', 'Reservation ledger')} · ${item.Sku}` : '';
+  const title = item ? `${t('Sổ giữ chỗ', 'Reservation ledger')} · ${item.sku}` : '';
   const headerExtra = item ? (
-    <FlashSaleToggle sku={item.Sku} value={item.IsFlashSale} />
+    <FlashSaleToggle sku={item.sku} value={item.isFlashSale} />
   ) : undefined;
 
   return (
@@ -51,7 +51,7 @@ export function LedgerDrawer({ item, onClose, onAdjustClick }: LedgerDrawerProps
             <div className="lbl" style={{ marginBottom: 'var(--s-2)' }}>
               {t('Phân bổ kênh', 'Channel allocation')}
             </div>
-            <AllocationBar allocations={item.Allocations} />
+            <AllocationBar allocations={item.allocations} />
           </section>
           {onAdjustClick ? (
             <section
@@ -64,7 +64,7 @@ export function LedgerDrawer({ item, onClose, onAdjustClick }: LedgerDrawerProps
               <button
                 type="button"
                 className="btn primary"
-                onClick={() => onAdjustClick(item.Sku)}
+                onClick={() => onAdjustClick(item.sku)}
                 data-testid="ledger-adjust-cta"
               >
                 {t('Điều chỉnh tồn', 'Adjust stock')}
@@ -76,7 +76,7 @@ export function LedgerDrawer({ item, onClose, onAdjustClick }: LedgerDrawerProps
               {t('Lịch sử giao dịch', 'Ledger entries')}
             </div>
             <LedgerBody
-              data={data?.Items ?? []}
+              data={data?.items ?? []}
               isLoading={isLoading}
               isError={isError}
             />
@@ -143,7 +143,7 @@ function LedgerBody({ data, isLoading, isError }: LedgerBodyProps) {
         </thead>
         <tbody>
           {data.map((entry) => (
-            <LedgerRow key={entry.Id} entry={entry} />
+            <LedgerRow key={entry.id} entry={entry} />
           ))}
         </tbody>
       </table>

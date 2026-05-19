@@ -31,7 +31,7 @@ function InventoryRouteComponent() {
   const { data, isLoading, isError } = useInventoryQuery(params);
 
   const selectedItem = useMemo(
-    () => (selectedSku ? (data?.Items ?? []).find((i) => i.Sku === selectedSku) ?? null : null),
+    () => (selectedSku ? (data?.items ?? []).find((i) => i.sku === selectedSku) ?? null : null),
     [data, selectedSku],
   );
   const closeDrawer = useCallback(() => setSelectedSku(null), []);
@@ -52,7 +52,7 @@ function InventoryRouteComponent() {
         <ErrorState />
       ) : (
         <SkuTable
-          items={data?.Items ?? []}
+          items={data?.items ?? []}
           onSelectSku={setSelectedSku}
           selectedSku={selectedSku}
           isLoading={isLoading}

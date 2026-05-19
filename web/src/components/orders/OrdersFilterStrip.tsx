@@ -11,7 +11,7 @@
  *   - channel select (All / Shopee / Lazada / TikTok Shop / Direct)
  *   - since + until  (HTML date inputs — ISO yyyy-mm-dd, normalised to
  *     ISO 8601 UTC at the route layer)
- *   - search         (free-text, ChannelExternalOrderId substring)
+ *   - search         (free-text, channelExternalOrderId substring)
  *
  * No URL-search-param persistence (Sprint-6 trade-off #4 carries forward).
  *

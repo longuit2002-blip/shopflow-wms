@@ -31,14 +31,14 @@ afterEach(() => {
 const ORDER_ID = '01HORDER0000000000000000';
 
 function makeTransition(
-  partial: Partial<OrderTransitionDto> & { Id: string; OccurredAt: string },
+  partial: Partial<OrderTransitionDto> & { id: string; occurredAt: string },
 ): OrderTransitionDto {
   return {
-    OrderId: ORDER_ID,
-    FromState: 'Placed',
-    ToState: 'Reserved',
-    EventType: 'OrderPlacedV1',
-    CorrelationId: 'corr-0001',
+    orderId: ORDER_ID,
+    fromState: 'Placed',
+    toState: 'Reserved',
+    eventType: 'OrderPlacedV1',
+    correlationId: 'corr-0001',
     ...partial,
   };
 }
@@ -46,39 +46,39 @@ function makeTransition(
 // Five transitions seeded in chronological order — newest is index 4.
 const FIVE_IN_ORDER: OrderTransitionDto[] = [
   makeTransition({
-    Id: '01HA000000000000000000T1',
-    FromState: 'Placed',
-    ToState: 'AwaitingReservation',
-    OccurredAt: '2026-05-19T10:00:00Z',
-    EventType: 'OrderPlacedV1',
+    id: '01HA000000000000000000T1',
+    fromState: 'Placed',
+    toState: 'AwaitingReservation',
+    occurredAt: '2026-05-19T10:00:00Z',
+    eventType: 'OrderPlacedV1',
   }),
   makeTransition({
-    Id: '01HA000000000000000000T2',
-    FromState: 'AwaitingReservation',
-    ToState: 'Reserved',
-    OccurredAt: '2026-05-19T10:00:47Z', // +47s
-    EventType: 'StockReservedV1',
+    id: '01HA000000000000000000T2',
+    fromState: 'AwaitingReservation',
+    toState: 'Reserved',
+    occurredAt: '2026-05-19T10:00:47Z', // +47s
+    eventType: 'StockReservedV1',
   }),
   makeTransition({
-    Id: '01HA000000000000000000T3',
-    FromState: 'Reserved',
-    ToState: 'AwaitingPick',
-    OccurredAt: '2026-05-19T10:01:30Z', // +43s
-    EventType: 'PickRequestQueuedV1',
+    id: '01HA000000000000000000T3',
+    fromState: 'Reserved',
+    toState: 'AwaitingPick',
+    occurredAt: '2026-05-19T10:01:30Z', // +43s
+    eventType: 'PickRequestQueuedV1',
   }),
   makeTransition({
-    Id: '01HA000000000000000000T4',
-    FromState: 'AwaitingPick',
-    ToState: 'Picked',
-    OccurredAt: '2026-05-19T10:46:30Z', // +45m
-    EventType: 'PickConfirmedV1',
+    id: '01HA000000000000000000T4',
+    fromState: 'AwaitingPick',
+    toState: 'Picked',
+    occurredAt: '2026-05-19T10:46:30Z', // +45m
+    eventType: 'PickConfirmedV1',
   }),
   makeTransition({
-    Id: '01HA000000000000000000T5',
-    FromState: 'Picked',
-    ToState: 'AwaitingPack',
-    OccurredAt: '2026-05-19T10:48:30Z', // +2m
-    EventType: 'PackRequestedV1',
+    id: '01HA000000000000000000T5',
+    fromState: 'Picked',
+    toState: 'AwaitingPack',
+    occurredAt: '2026-05-19T10:48:30Z', // +2m
+    eventType: 'PackRequestedV1',
   }),
 ];
 
@@ -123,25 +123,25 @@ describe('TransitionsLog', () => {
   it('paints the most-recent row with bad-soft when ToState is Cancelled', () => {
     const cancelledFlow: OrderTransitionDto[] = [
       makeTransition({
-        Id: '01HC000000000000000000T1',
-        FromState: 'Placed',
-        ToState: 'AwaitingReservation',
-        OccurredAt: '2026-05-19T11:00:00Z',
-        EventType: 'OrderPlacedV1',
+        id: '01HC000000000000000000T1',
+        fromState: 'Placed',
+        toState: 'AwaitingReservation',
+        occurredAt: '2026-05-19T11:00:00Z',
+        eventType: 'OrderPlacedV1',
       }),
       makeTransition({
-        Id: '01HC000000000000000000T2',
-        FromState: 'AwaitingReservation',
-        ToState: 'CompensatingReservation',
-        OccurredAt: '2026-05-19T11:00:05Z',
-        EventType: 'StockReservationFailedV1',
+        id: '01HC000000000000000000T2',
+        fromState: 'AwaitingReservation',
+        toState: 'CompensatingReservation',
+        occurredAt: '2026-05-19T11:00:05Z',
+        eventType: 'StockReservationFailedV1',
       }),
       makeTransition({
-        Id: '01HC000000000000000000T3',
-        FromState: 'CompensatingReservation',
-        ToState: 'Cancelled',
-        OccurredAt: '2026-05-19T11:00:10Z',
-        EventType: 'OrderCancelledV1',
+        id: '01HC000000000000000000T3',
+        fromState: 'CompensatingReservation',
+        toState: 'Cancelled',
+        occurredAt: '2026-05-19T11:00:10Z',
+        eventType: 'OrderCancelledV1',
       }),
     ];
 

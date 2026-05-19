@@ -14,8 +14,8 @@
  * were interactive — even though Sprint-7 doesn't have a row-inline-edit
  * yet, we preserve the contract so Sprint-8 expansions don't regress).
  *
- * Wire shape: PascalCase fields (Sprint-6 KTD4 / Sprint-7 KTD-carryover).
- * `OrderListItemDto.Age` is the server-side .NET TimeSpan stringified by
+ * Wire shape: camelCase fields (Sprint-7.5 U1/U2 wire normalisation).
+ * `OrderListItemDto.age` is the server-side .NET TimeSpan stringified by
  * System.Text.Json (e.g. "00:15:42" or "01:23:45.6789012"); we parse it
  * locally so the table can render "15 min ago" / "1h 23m ago".
  *
@@ -71,7 +71,7 @@ export function OrdersTable({ filter }: OrdersTableProps) {
 
   // Memo the rows so consumer re-renders that don't change `data` skip the
   // copy loop. The list cap from the API is `take=50` server-side anyway.
-  const rows = useMemo(() => data?.Items ?? [], [data]);
+  const rows = useMemo(() => data?.items ?? [], [data]);
 
   if (isError) {
     return <ErrorState />;
@@ -100,7 +100,7 @@ export function OrdersTable({ filter }: OrdersTableProps) {
           {isLoading && rows.length === 0
             ? Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
             : rows.map((row) => (
-                <OrderRow key={row.Id} row={row} lang={lang} />
+                <OrderRow key={row.id} row={row} lang={lang} />
               ))}
         </tbody>
       </table>
@@ -115,16 +115,16 @@ interface OrderRowProps {
 
 function OrderRow({ row, lang }: OrderRowProps) {
   const navigate = useNavigate();
-  const age = useMemo(() => formatAge(row.Age, lang), [row.Age, lang]);
+  const age = useMemo(() => formatAge(row.age, lang), [row.age, lang]);
   const lastTransition = useMemo(
-    () => formatRelativeIso(row.LastTransitionAt, lang),
-    [row.LastTransitionAt, lang],
+    () => formatRelativeIso(row.lastTransitionAt, lang),
+    [row.lastTransitionAt, lang],
   );
 
   function openDetail() {
     void navigate({
       to: '/orders/$orderId',
-      params: { orderId: row.Id },
+      params: { orderId: row.id },
     });
   }
 
@@ -133,7 +133,7 @@ function OrderRow({ row, lang }: OrderRowProps) {
       className="orders-row"
       onClick={openDetail}
       style={{ cursor: 'pointer' }}
-      data-testid={`orders-row-${row.Id}`}
+      data-testid={`orders-row-${row.id}`}
     >
       {/*
         Mouse-anywhere-in-row → detail navigation is a convenience; the
@@ -147,9 +147,9 @@ function OrderRow({ row, lang }: OrderRowProps) {
             e.stopPropagation();
             openDetail();
           }}
-          aria-label={`${t('Mở chi tiết đơn', 'Open order detail for')} ${row.ChannelExternalOrderId}`}
+          aria-label={`${t('Mở chi tiết đơn', 'Open order detail for')} ${row.channelExternalOrderId}`}
           className="row-link"
-          data-testid={`order-row-${row.Id}`}
+          data-testid={`order-row-${row.id}`}
           style={{
             all: 'unset',
             cursor: 'pointer',
@@ -157,16 +157,16 @@ function OrderRow({ row, lang }: OrderRowProps) {
             color: 'inherit',
           }}
         >
-          {row.ChannelExternalOrderId}
+          {row.channelExternalOrderId}
         </button>
       </td>
-      <td>{row.Channel}</td>
+      <td>{row.channel}</td>
       <td className="num" style={{ textAlign: 'right' }}>
-        {fmtNum(row.LineCount, lang)}
+        {fmtNum(row.lineCount, lang)}
       </td>
       <td>
-        <Pill kind={statusKind(row.CurrentSagaState)}>
-          {row.CurrentSagaState ?? t('Chưa khởi tạo', 'Pending')}
+        <Pill kind={statusKind(row.currentSagaState)}>
+          {row.currentSagaState ?? t('Chưa khởi tạo', 'Pending')}
         </Pill>
       </td>
       <td className="tnum" style={{ whiteSpace: 'nowrap' }}>

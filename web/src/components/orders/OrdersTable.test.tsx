@@ -24,7 +24,7 @@ import type { OrderListItemDto, OrdersFilter } from '../../api/orders';
 // ── Mocks ────────────────────────────────────────────────────────────────
 
 interface QueryReturn {
-  data?: { Items: OrderListItemDto[]; TotalCount: number };
+  data?: { items: OrderListItemDto[]; totalCount: number };
   isLoading: boolean;
   isError: boolean;
 }
@@ -86,32 +86,32 @@ function wrap(children: ReactNode) {
 
 function row(overrides: Partial<OrderListItemDto> = {}): OrderListItemDto {
   return {
-    Id: '01HABC0001',
-    ChannelExternalOrderId: 'SHOPEE_ORDER_001',
-    Channel: 'Shopee',
-    LineCount: 3,
-    CurrentSagaState: 'Reserved',
-    Age: '00:15:00',
-    LastTransitionAt: '2026-05-19T10:00:00Z',
+    id: '01HABC0001',
+    channelExternalOrderId: 'SHOPEE_ORDER_001',
+    channel: 'Shopee',
+    lineCount: 3,
+    currentSagaState: 'Reserved',
+    age: '00:15:00',
+    lastTransitionAt: '2026-05-19T10:00:00Z',
     ...overrides,
   };
 }
 
 const FIXTURE_3: OrderListItemDto[] = [
-  row({ Id: '01HABC0001', ChannelExternalOrderId: 'SHOPEE_ORDER_001' }),
+  row({ id: '01HABC0001', channelExternalOrderId: 'SHOPEE_ORDER_001' }),
   row({
-    Id: '01HABC0002',
-    ChannelExternalOrderId: 'LAZADA_ORDER_002',
-    Channel: 'Lazada',
-    CurrentSagaState: 'Shipped',
-    LineCount: 1,
+    id: '01HABC0002',
+    channelExternalOrderId: 'LAZADA_ORDER_002',
+    channel: 'Lazada',
+    currentSagaState: 'Shipped',
+    lineCount: 1,
   }),
   row({
-    Id: '01HABC0003',
-    ChannelExternalOrderId: 'DIRECT_ORDER_003',
-    Channel: 'Direct',
-    CurrentSagaState: 'Cancelled',
-    LineCount: 5,
+    id: '01HABC0003',
+    channelExternalOrderId: 'DIRECT_ORDER_003',
+    channel: 'Direct',
+    currentSagaState: 'Cancelled',
+    lineCount: 5,
   }),
 ];
 
@@ -134,7 +134,7 @@ afterEach(() => {
 
 describe('OrdersTable', () => {
   it('renders 3 rows with correct external-order-id cell content', () => {
-    ordersRef.current.data = { Items: FIXTURE_3, TotalCount: 3 };
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 3 };
     wrap(<OrdersTable filter={{}} />);
 
     expect(screen.getByText('SHOPEE_ORDER_001')).toBeInTheDocument();
@@ -149,7 +149,7 @@ describe('OrdersTable', () => {
 
   it("clicking a row's button navigates to /orders/$orderId with the row id", async () => {
     const user = userEvent.setup();
-    ordersRef.current.data = { Items: FIXTURE_3, TotalCount: 3 };
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 3 };
     wrap(<OrdersTable filter={{}} />);
 
     await user.click(screen.getByTestId('order-row-01HABC0002'));
@@ -162,7 +162,7 @@ describe('OrdersTable', () => {
   });
 
   it('status pill colour matches saga state (Shipped → ok, Cancelled → bad, Reserved → info)', () => {
-    ordersRef.current.data = { Items: FIXTURE_3, TotalCount: 3 };
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 3 };
     const { container } = wrap(<OrdersTable filter={{}} />);
 
     const shippedPill = screen.getByText('Shipped');
@@ -177,7 +177,7 @@ describe('OrdersTable', () => {
   });
 
   it('filter prop change → underlying hook receives the new filter object', () => {
-    ordersRef.current.data = { Items: FIXTURE_3, TotalCount: 3 };
+    ordersRef.current.data = { items: FIXTURE_3, totalCount: 3 };
 
     const { rerender } = wrap(<OrdersTable filter={{}} />);
     expect(ordersRef.current.lastFilter).toEqual({});
@@ -190,7 +190,7 @@ describe('OrdersTable', () => {
   });
 
   it('renders the bilingual empty state when Items.length === 0', () => {
-    ordersRef.current.data = { Items: [], TotalCount: 0 };
+    ordersRef.current.data = { items: [], totalCount: 0 };
     ordersRef.current.isLoading = false;
     wrap(<OrdersTable filter={{}} />);
 
@@ -198,20 +198,20 @@ describe('OrdersTable', () => {
     expect(screen.getByText('Chưa có đơn hàng nào')).toBeInTheDocument();
   });
 
-  it('handles a null CurrentSagaState by rendering the "Pending" placeholder', () => {
+  it('handles a null currentSagaState by rendering the "Pending" placeholder', () => {
     ordersRef.current.data = {
-      Items: [row({ Id: '01HABC0009', CurrentSagaState: null })],
-      TotalCount: 1,
+      items: [row({ id: '01HABC0009', currentSagaState: null })],
+      totalCount: 1,
     };
     wrap(<OrdersTable filter={{}} />);
 
     expect(screen.getByText('Chưa khởi tạo')).toBeInTheDocument();
   });
 
-  it('renders the Age cell with parsed TimeSpan output (Vietnamese)', () => {
+  it('renders the age cell with parsed TimeSpan output (Vietnamese)', () => {
     ordersRef.current.data = {
-      Items: [row({ Id: '01HABC0010', Age: '01:23:45' })],
-      TotalCount: 1,
+      items: [row({ id: '01HABC0010', age: '01:23:45' })],
+      totalCount: 1,
     };
     wrap(<OrdersTable filter={{}} />);
 
@@ -219,10 +219,10 @@ describe('OrdersTable', () => {
     expect(screen.getByText('1 giờ 23 phút')).toBeInTheDocument();
   });
 
-  it('renders "—" when LastTransitionAt is null', () => {
+  it('renders "—" when lastTransitionAt is null', () => {
     ordersRef.current.data = {
-      Items: [row({ Id: '01HABC0011', LastTransitionAt: null })],
-      TotalCount: 1,
+      items: [row({ id: '01HABC0011', lastTransitionAt: null })],
+      totalCount: 1,
     };
     wrap(<OrdersTable filter={{}} />);
 

@@ -50,33 +50,33 @@ export interface LedgerRowProps {
 
 export function LedgerRow({ entry }: LedgerRowProps) {
   const { lang } = useLocale();
-  const formatted = fmtNum(Math.abs(entry.Quantity), lang);
-  const signed = entry.Quantity > 0 ? `+${formatted}` : entry.Quantity < 0 ? `-${formatted}` : '0';
+  const formatted = fmtNum(Math.abs(entry.quantity), lang);
+  const signed = entry.quantity > 0 ? `+${formatted}` : entry.quantity < 0 ? `-${formatted}` : '0';
   const orderRef =
-    entry.OrderId && entry.OrderLineId
-      ? `${fmtKeyTruncated(entry.OrderId, 12)} · ${fmtKeyTruncated(entry.OrderLineId, 8)}`
+    entry.orderId && entry.orderLineId
+      ? `${fmtKeyTruncated(entry.orderId, 12)} · ${fmtKeyTruncated(entry.orderLineId, 8)}`
       : '—';
 
   return (
     <tr data-testid="ledger-row">
-      <td className="tnum">{fmtDateTime(entry.Timestamp)}</td>
-      <td className="mono" title={`${entry.OrderId} · ${entry.OrderLineId}`}>
+      <td className="tnum">{fmtDateTime(entry.timestamp)}</td>
+      <td className="mono" title={`${entry.orderId} · ${entry.orderLineId}`}>
         {orderRef}
       </td>
       <td
         className="num"
         style={{
           textAlign: 'right',
-          color: entry.Quantity > 0 ? 'var(--success-500)' : 'var(--ink-1)',
+          color: entry.quantity > 0 ? 'var(--success-500)' : 'var(--ink-1)',
         }}
       >
         {signed}
       </td>
       <td>
-        <Pill kind={statusKind(entry.Status)}>{statusLabel(entry.Status, lang)}</Pill>
+        <Pill kind={statusKind(entry.status)}>{statusLabel(entry.status, lang)}</Pill>
       </td>
       <td className="num" style={{ textAlign: 'right' }}>
-        {fmtNum(entry.RunningBalance, lang)}
+        {fmtNum(entry.runningBalance, lang)}
       </td>
     </tr>
   );

@@ -59,7 +59,7 @@ describe('FlashSaleToggle', () => {
     );
   });
 
-  it('clicking the toggle PUTs /api/v1/inventory/skus/{sku}/flash-sale with body.Active', async () => {
+  it('clicking the toggle PUTs /api/v1/inventory/skus/{sku}/flash-sale with body.active', async () => {
     const user = userEvent.setup();
     fetchMock().mockResolvedValueOnce(noBodyResponse());
     renderWithClient(<FlashSaleToggle sku="YN-001" value={false} />);
@@ -72,7 +72,7 @@ describe('FlashSaleToggle', () => {
     const [url, init] = fetchMock().mock.calls[0]!;
     expect(String(url)).toContain('/api/v1/inventory/skus/YN-001/flash-sale');
     expect((init as RequestInit).method).toBe('PUT');
-    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ Active: true });
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ active: true });
   });
 
   it('optimistic UI: the toggle visual flips immediately, BEFORE the network response', async () => {

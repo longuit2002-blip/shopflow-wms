@@ -325,7 +325,7 @@ describe('useSignalR — subscribe / unsubscribe', () => {
       await flushMicrotasks();
     });
 
-    const payload = { Sku: 'YN-001', AvailableToSell: 42 };
+    const payload = { sku: 'YN-001', availableToSell: 42 };
     act(() => {
       mockRef.current.emit('stock_changed', payload);
     });
@@ -394,11 +394,11 @@ describe('useSignalR — subscribe / unsubscribe', () => {
     });
 
     act(() => {
-      mockRef.current.emit('saga_transitioned', { OrderId: 'ord-1' });
+      mockRef.current.emit('saga_transitioned', { orderId: 'ord-1' });
     });
 
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(handler).toHaveBeenCalledWith({ OrderId: 'ord-1' });
+    expect(handler).toHaveBeenCalledWith({ orderId: 'ord-1' });
   });
 
   it('renderHook surfaces the same singleton state across components', async () => {

@@ -21,22 +21,22 @@ export function KpiStrip() {
   const cards = [
     {
       label: t('Tồn thực', 'On hand'),
-      value: data?.TotalAvailable ?? null,
+      value: data?.totalAvailable ?? null,
       kind: 'neutral' as const,
     },
     {
       label: t('Đã giữ chỗ', 'Reserved'),
-      value: data?.TotalReserved ?? null,
+      value: data?.totalReserved ?? null,
       kind: 'info' as const,
     },
     {
       label: t('Dưới mức an toàn', 'Below threshold'),
-      value: data?.BelowThresholdCount ?? null,
+      value: data?.belowThresholdCount ?? null,
       kind: 'warn' as const,
     },
     {
       label: t('Nguy cơ bán vượt', 'Oversell risk'),
-      value: data?.OversellRiskCount ?? null,
+      value: data?.oversellRiskCount ?? null,
       kind: 'bad' as const,
     },
   ];

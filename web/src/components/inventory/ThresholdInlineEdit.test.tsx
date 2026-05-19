@@ -79,7 +79,7 @@ describe('ThresholdInlineEdit', () => {
     const [url, init] = fetchMock().mock.calls[0]!;
     expect(String(url)).toContain('/api/v1/inventory/skus/YN-001/threshold');
     expect((init as RequestInit).method).toBe('PUT');
-    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ Threshold: 75 });
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ threshold: 75 });
   });
 
   it('blur commits the new value via PUT', async () => {

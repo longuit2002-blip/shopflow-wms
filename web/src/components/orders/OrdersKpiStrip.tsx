@@ -8,7 +8,7 @@
  * Values come from U8's `useOrderKpiQuery()` and SignalR keeps the cache
  * fresh; the 2-s polling fallback only fires when the hub is down (R13).
  *
- * Wire shape: PascalCase fields (Sprint-6 KTD4 / Sprint-7 KTD-carryover).
+ * Wire shape: camelCase fields (Sprint-7.5 U1/U2 wire normalisation).
  */
 
 import { useOrderKpiQuery } from '../../hooks/useOrdersQuery';
@@ -22,22 +22,22 @@ export function OrdersKpiStrip() {
   const cards = [
     {
       label: t('Đơn đang xử lý', 'Active orders'),
-      value: data?.ActiveOrders ?? null,
+      value: data?.activeOrders ?? null,
       kind: 'neutral' as const,
     },
     {
       label: t('Chờ soạn', 'Awaiting pick'),
-      value: data?.AwaitingPick ?? null,
+      value: data?.awaitingPick ?? null,
       kind: 'info' as const,
     },
     {
       label: t('Chờ giao', 'Awaiting ship'),
-      value: data?.AwaitingShip ?? null,
+      value: data?.awaitingShip ?? null,
       kind: 'warn' as const,
     },
     {
       label: t('Lỗi hôm nay', 'Failed today'),
-      value: data?.FailedToday ?? null,
+      value: data?.failedToday ?? null,
       kind: 'bad' as const,
     },
   ];

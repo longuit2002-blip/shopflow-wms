@@ -15,11 +15,11 @@
  * Sort + derived data are computed in-render via `useMemo` (React 19
  * pattern — no `useEffect` for derived state, per Sprint-6 KTD10).
  *
- * Wire shape: PascalCase fields (Sprint-6 KTD4 / Sprint-7 R16) — matches
- * the backend `OrderTransition` entity verbatim.
+ * Wire shape: camelCase fields (Sprint-7.5 U1/U2 wire normalisation) —
+ * matches the backend `OrderTransition` entity verbatim.
  *
- * Sprint-7 trade-off: `EventType` is displayed verbatim as the CLR class
- * name (e.g. `StockReservedV1`). Sprint-7.5 polishes to human labels.
+ * Sprint-7 trade-off: `eventType` is displayed verbatim as the CLR class
+ * name (e.g. `StockReservedV1`). Sprint-7.5+ polishes to human labels.
  *
  * Independence from `<SagaPipeline>` (U11): U11 ships its own elapsed-time
  * helper. To avoid coupling at the component-pair level, this file ships
@@ -34,14 +34,14 @@ import { t, useLocale, type LocaleCode } from '../../hooks/useLocale';
 import { fmtAge, fmtDateTime } from '../../lib/format';
 
 export interface OrderTransitionDto {
-  Id: string;
-  OrderId: string;
-  FromState: string;
-  ToState: string;
+  id: string;
+  orderId: string;
+  fromState: string;
+  toState: string;
   /** ISO 8601 timestamp. */
-  OccurredAt: string;
-  EventType: string;
-  CorrelationId: string;
+  occurredAt: string;
+  eventType: string;
+  correlationId: string;
 }
 
 export interface TransitionsLogProps {
@@ -69,14 +69,14 @@ export function TransitionsLog({ transitions }: TransitionsLogProps) {
   const { lang } = useLocale();
 
   // Sort newest-first in render via useMemo so we never store derived
-  // state. The comparator is stable; tie-breaking by Id keeps order
-  // deterministic for transitions that share an OccurredAt.
+  // state. The comparator is stable; tie-breaking by id keeps order
+  // deterministic for transitions that share an occurredAt.
   const sorted = useMemo(() => {
     return [...transitions].sort((a, b) => {
-      const at = Date.parse(a.OccurredAt);
-      const bt = Date.parse(b.OccurredAt);
+      const at = Date.parse(a.occurredAt);
+      const bt = Date.parse(b.occurredAt);
       if (bt !== at) return bt - at;
-      return a.Id.localeCompare(b.Id);
+      return a.id.localeCompare(b.id);
     });
   }, [transitions]);
 
@@ -99,7 +99,7 @@ export function TransitionsLog({ transitions }: TransitionsLogProps) {
           const isMostRecent = index === 0;
           return (
             <TransitionRow
-              key={row.Id}
+              key={row.id}
               row={row}
               previous={previous}
               lang={lang}
@@ -122,12 +122,12 @@ interface TransitionRowProps {
 function TransitionRow({ row, previous, lang, isMostRecent }: TransitionRowProps) {
   const elapsedLabel = useMemo(() => {
     if (!previous) return null;
-    const delta = Date.parse(row.OccurredAt) - Date.parse(previous.OccurredAt);
+    const delta = Date.parse(row.occurredAt) - Date.parse(previous.occurredAt);
     if (!Number.isFinite(delta) || delta < 0) return null;
     return formatElapsed(delta);
-  }, [previous, row.OccurredAt]);
+  }, [previous, row.occurredAt]);
 
-  const isCancelledTerminal = isMostRecent && row.ToState === 'Cancelled';
+  const isCancelledTerminal = isMostRecent && row.toState === 'Cancelled';
 
   return (
     <article
@@ -146,10 +146,10 @@ function TransitionRow({ row, previous, lang, isMostRecent }: TransitionRowProps
     >
       <div
         className="t-xs tnum"
-        title={fmtDateTime(row.OccurredAt)}
+        title={fmtDateTime(row.occurredAt)}
         style={{ color: 'var(--neutral-500)', whiteSpace: 'nowrap' }}
       >
-        {fmtAge(row.OccurredAt, lang)}
+        {fmtAge(row.occurredAt, lang)}
       </div>
 
       <div
@@ -161,7 +161,7 @@ function TransitionRow({ row, previous, lang, isMostRecent }: TransitionRowProps
         }}
       >
         <span className="t-sm" style={{ color: 'var(--ink-2)' }}>
-          {row.FromState}
+          {row.fromState}
         </span>
         <ArrowRight
           size={14}
@@ -175,14 +175,14 @@ function TransitionRow({ row, previous, lang, isMostRecent }: TransitionRowProps
             color: isCancelledTerminal ? 'var(--bad-ink)' : 'var(--ink)',
           }}
         >
-          {row.ToState}
+          {row.toState}
         </span>
         <span
           className="t-xs mono"
           data-testid="transition-event-type"
           style={{ color: 'var(--neutral-500)', marginLeft: 'var(--s-2)' }}
         >
-          {row.EventType}
+          {row.eventType}
         </span>
       </div>
 

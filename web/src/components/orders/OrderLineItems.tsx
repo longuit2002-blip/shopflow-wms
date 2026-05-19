@@ -13,8 +13,8 @@
  * the axe `nested-interactive` violation that would arise from wrapping
  * a row click around interactive descendants.
  *
- * Wire shape: PascalCase fields (`OrderLineResponse` from `api/orders.ts`)
- * — Sprint-6 KTD4 convention; Sprint-7 may normalise later.
+ * Wire shape: camelCase fields (`OrderLineResponse` from `api/orders.ts`)
+ * — Sprint-7.5 U1/U2 wire normalisation.
  *
  * Pure presentation: no data fetching, no router coupling. The parent
  * route holds the open-ledger state and renders the LedgerDrawer.
@@ -72,20 +72,20 @@ export function OrderLineItems({ lines, onLineClick, isLoading }: OrderLineItems
         </thead>
         <tbody>
           {lines.map((line) => (
-            <tr key={line.Id} data-testid={`order-line-${line.Sku}`}>
+            <tr key={line.id} data-testid={`order-line-${line.sku}`}>
               <td
                 style={{
                   fontFamily: 'var(--font-mono)',
                 }}
               >
-                {line.Sku}
+                {line.sku}
               </td>
               <td className="num" style={{ textAlign: 'right' }}>
-                {fmtNum(line.Qty, lang)}
+                {fmtNum(line.qty, lang)}
               </td>
               <td className="num" style={{ textAlign: 'right' }}>
-                {line.ExpectedWeight !== null
-                  ? `${fmtNum(line.ExpectedWeight, lang)} g`
+                {line.expectedWeight !== null
+                  ? `${fmtNum(line.expectedWeight, lang)} g`
                   : '—'}
               </td>
               <td style={{ textAlign: 'right' }}>
@@ -93,8 +93,8 @@ export function OrderLineItems({ lines, onLineClick, isLoading }: OrderLineItems
                   type="button"
                   className="btn"
                   onClick={() => onLineClick(line)}
-                  data-testid={`order-line-view-ledger-${line.Sku}`}
-                  aria-label={`${t('Xem sổ giữ chỗ cho', 'View reservation ledger for')} ${line.Sku}`}
+                  data-testid={`order-line-view-ledger-${line.sku}`}
+                  aria-label={`${t('Xem sổ giữ chỗ cho', 'View reservation ledger for')} ${line.sku}`}
                 >
                   {t('Xem ledger', 'View ledger')}
                 </button>

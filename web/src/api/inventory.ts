@@ -5,61 +5,62 @@
  * Authorization + X-Tenant-Slug + (for mutations) Idempotency-Key are
  * attached automatically.
  *
- * Contract drift caveats:
- *   - Sprint-6 backend serializes records with PascalCase property
- *     names by default (no `JsonNamingPolicy.CamelCase` configured at
- *     the kestrel layer; sets ProblemDetails only). Frontend types
- *     mirror the exact wire shape (PascalCase) to avoid silent null
- *     bindings. Sprint-7 normalizes the JSON policy to camelCase.
+ * Wire shape (Sprint-7.5 U1+U2):
+ *   - Backend now serialises with `JsonNamingPolicy.CamelCase` on both the
+ *     MVC pipeline (`AddShopFlowControllers`) and the SignalR hub
+ *     (`AddJsonProtocol`). Closes Sprint-6 trade-off #6. Frontend types
+ *     mirror the new camelCase shape verbatim; PropertyNameCaseInsensitive
+ *     is still on for round-trip safety, so request bodies are also sent
+ *     camelCase.
  */
 
 import { httpClient } from './httpClient';
 
 export interface ChannelAllocation {
-  Channel: string;
-  Allocated: number;
+  channel: string;
+  allocated: number;
 }
 
 export interface SkuListItem {
-  Sku: string;
-  Available: number;
-  Reserved: number;
-  Name: string | null;
-  Category: string | null;
-  Threshold: number | null;
-  IsFlashSale: boolean;
-  Allocations: ChannelAllocation[];
-  P24Outbound: number;
+  sku: string;
+  available: number;
+  reserved: number;
+  name: string | null;
+  category: string | null;
+  threshold: number | null;
+  isFlashSale: boolean;
+  allocations: ChannelAllocation[];
+  p24Outbound: number;
 }
 
 export interface PaginatedSkuList {
-  Items: SkuListItem[];
-  Page: number;
-  PageSize: number;
-  Total: number;
+  items: SkuListItem[];
+  page: number;
+  pageSize: number;
+  total: number;
 }
 
 export interface SkuLedgerEntry {
-  Id: string;
-  OrderId: string;
-  OrderLineId: string;
-  Status: string;
-  Quantity: number;
-  Timestamp: string;
-  RunningBalance: number;
+  id: string;
+  orderId: string;
+  orderLineId: string;
+  status: string;
+  quantity: number;
+  timestamp: string;
+  runningBalance: number;
 }
 
 export interface SkuLedger {
-  Items: SkuLedgerEntry[];
-  NextCursor: string | null;
+  items: SkuLedgerEntry[];
+  nextCursor: string | null;
 }
 
 export interface InventorySummary {
-  TotalSkus: number;
-  TotalAvailable: number;
-  TotalReserved: number;
-  BelowThresholdCount: number;
-  OversellRiskCount: number;
+  totalSkus: number;
+  totalAvailable: number;
+  totalReserved: number;
+  belowThresholdCount: number;
+  oversellRiskCount: number;
 }
 
 export interface ListSkusParams {
@@ -104,7 +105,7 @@ export const inventoryApi = {
   setThreshold(sku: string, threshold: number, options: MutationOptions = {}) {
     return httpClient.put<void>(
       `/api/v1/inventory/skus/${encodeURIComponent(sku)}/threshold`,
-      { Threshold: threshold },
+      { threshold },
       options,
     );
   },
@@ -112,7 +113,7 @@ export const inventoryApi = {
   setFlashSale(sku: string, active: boolean, options: MutationOptions = {}) {
     return httpClient.put<void>(
       `/api/v1/inventory/skus/${encodeURIComponent(sku)}/flash-sale`,
-      { Active: active },
+      { active },
       options,
     );
   },
@@ -120,7 +121,7 @@ export const inventoryApi = {
   create(body: { sku: string; initialAvailable: number }, options: MutationOptions = {}) {
     return httpClient.post<void>(
       '/api/v1/inventory/skus',
-      { Sku: body.sku, InitialAvailable: body.initialAvailable },
+      { sku: body.sku, initialAvailable: body.initialAvailable },
       options,
     );
   },

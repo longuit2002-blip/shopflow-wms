@@ -15,8 +15,8 @@
  *     caches do not churn on every transition.
  *
  * SignalR event payload contract (Outbound.Api hub):
- *   `saga_transitioned` payload: `{ OrderId: string, ... }` — at minimum
- *   the order id is present. Additional fields (FromState, ToState, etc.)
+ *   `saga_transitioned` payload: `{ orderId: string, ... }` — at minimum
+ *   the order id is present. Additional fields (fromState, toState, etc.)
  *   are ignored here; the consuming components refetch via the invalidated
  *   query.
  */
@@ -74,11 +74,11 @@ function useSagaTransitionSubscription(): void {
 
 /**
  * Narrow variant for the detail + transitions hooks. The handler reads
- * the payload's `OrderId` field and only invalidates when it matches the
+ * the payload's `orderId` field and only invalidates when it matches the
  * hook's orderId — so two open detail caches for different orders don't
  * churn against each other on every transition emit.
  *
- * The hub payload shape is treated defensively: if `OrderId` is absent or
+ * The hub payload shape is treated defensively: if `orderId` is absent or
  * malformed, the handler skips invalidation (the broad-subscription hook
  * still fires for the list, so list refetches are unaffected).
  */
@@ -94,9 +94,9 @@ function useSagaTransitionSubscriptionForOrder(orderId: string): void {
       .getState()
       .subscribe('saga_transitioned', (payload: unknown) => {
         if (!payload || typeof payload !== 'object') return;
-        const p = payload as { OrderId?: unknown };
-        if (typeof p.OrderId !== 'string') return;
-        if (p.OrderId !== orderId) return;
+        const p = payload as { orderId?: unknown };
+        if (typeof p.orderId !== 'string') return;
+        if (p.orderId !== orderId) return;
         queryClient.invalidateQueries({ queryKey: ['orders', orderId] });
       });
 

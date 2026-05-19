@@ -28,22 +28,22 @@ afterEach(() => {
 
 const THREE_LINES: OrderLineResponse[] = [
   {
-    Id: '01HOLINE0000000000000001',
-    Sku: 'SKU-RED-001',
-    Qty: 2,
-    ExpectedWeight: 350,
+    id: '01HOLINE0000000000000001',
+    sku: 'SKU-RED-001',
+    qty: 2,
+    expectedWeight: 350,
   },
   {
-    Id: '01HOLINE0000000000000002',
-    Sku: 'SKU-BLU-002',
-    Qty: 5,
-    ExpectedWeight: 120,
+    id: '01HOLINE0000000000000002',
+    sku: 'SKU-BLU-002',
+    qty: 5,
+    expectedWeight: 120,
   },
   {
-    Id: '01HOLINE0000000000000003',
-    Sku: 'SKU-GRN-003',
-    Qty: 1,
-    ExpectedWeight: null,
+    id: '01HOLINE0000000000000003',
+    sku: 'SKU-GRN-003',
+    qty: 1,
+    expectedWeight: null,
   },
 ];
 

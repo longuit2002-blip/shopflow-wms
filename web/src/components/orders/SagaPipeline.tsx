@@ -37,20 +37,18 @@ import { useLocale } from '../../hooks/useLocale';
 
 /**
  * Wire-shape DTO mirroring `ShopFlow.Outbound.Domain.OrderTransition`
- * (PascalCase per Sprint-6 trade-off #6; Sprint-7+ may normalise to
- * camelCase but the saga audit DTO is read-mostly so keeping the wire
- * shape is cheap).
+ * (camelCase per Sprint-7.5 U1/U2 wire normalisation).
  */
 export type OrderTransitionDto = {
-  Id: string;
-  OrderId: string;
-  FromState: string;
-  ToState: string;
+  id: string;
+  orderId: string;
+  fromState: string;
+  toState: string;
   /** ISO 8601 UTC timestamp. */
-  OccurredAt: string;
+  occurredAt: string;
   /** CLR name of the triggering integration event (e.g. `StockReservedV1`). */
-  EventType: string;
-  CorrelationId: string;
+  eventType: string;
+  correlationId: string;
 };
 
 export type SagaPipelineProps = {
@@ -225,9 +223,9 @@ function computeElapsedByNode(
   // Earliest enter-time per pipeline node.
   const enteredAt: Partial<Record<PipelineNode, number>> = {};
   for (const t of transitions) {
-    const node = nodeForState(t.ToState);
+    const node = nodeForState(t.toState);
     if (node === null) continue;
-    const ts = Date.parse(t.OccurredAt);
+    const ts = Date.parse(t.occurredAt);
     if (!Number.isFinite(ts)) continue;
     if (enteredAt[node] === undefined || ts < (enteredAt[node] as number)) {
       enteredAt[node] = ts;
@@ -266,18 +264,18 @@ function computeElapsedByNode(
  * `CompensatingReservation` transition.
  */
 function failureNode(transitions: OrderTransitionDto[]): PipelineNode | null {
-  const idx = transitions.findIndex((t) => t.ToState === 'CompensatingReservation');
+  const idx = transitions.findIndex((t) => t.toState === 'CompensatingReservation');
   if (idx === -1) {
     // No compensation row yet — the failure point is the last pipeline
     // node entered (could be the initial AwaitingReservation).
     for (let i = transitions.length - 1; i >= 0; i--) {
-      const node = nodeForState(transitions[i].ToState);
+      const node = nodeForState(transitions[i].toState);
       if (node !== null) return node;
     }
     return 'AwaitingReservation';
   }
   for (let i = idx - 1; i >= 0; i--) {
-    const node = nodeForState(transitions[i].ToState);
+    const node = nodeForState(transitions[i].toState);
     if (node !== null) return node;
   }
   // Compensation fired before any forward transition (atomic-fail
@@ -304,7 +302,7 @@ export function SagaPipeline({
   // status can be derived without re-walking transitions per node.
   const enteredNodes = new Set<PipelineNode>();
   for (const t of transitions) {
-    const node = nodeForState(t.ToState);
+    const node = nodeForState(t.toState);
     if (node !== null) enteredNodes.add(node);
   }
 

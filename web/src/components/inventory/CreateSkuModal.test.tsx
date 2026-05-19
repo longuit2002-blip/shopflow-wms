@@ -101,7 +101,7 @@ describe('CreateSkuModal', () => {
     expect(fetchMock()).not.toHaveBeenCalled();
   });
 
-  it('happy path: POSTs to /api/v1/inventory/skus with { Sku, InitialAvailable } and closes', async () => {
+  it('happy path: POSTs to /api/v1/inventory/skus with { sku, initialAvailable } and closes', async () => {
     const user = userEvent.setup();
     fetchMock().mockResolvedValueOnce(noBodyResponse(201));
     const onClose = vi.fn();
@@ -118,8 +118,8 @@ describe('CreateSkuModal', () => {
     expect(String(url)).toContain('/api/v1/inventory/skus');
     expect((init as RequestInit).method).toBe('POST');
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({
-      Sku: 'YN-001',
-      InitialAvailable: 250,
+      sku: 'YN-001',
+      initialAvailable: 250,
     });
     expect(((init as RequestInit).headers as Headers).get('Idempotency-Key')).toMatch(
       /^[0-9A-HJKMNP-TV-Z]{26}$/i,

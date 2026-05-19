@@ -22,6 +22,8 @@ import { Route as AuthInboundRouteImport } from './routes/_auth/inbound'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
 import { Route as AuthChannelsRouteImport } from './routes/_auth/channels'
 import { Route as AuthAuditRouteImport } from './routes/_auth/audit'
+import { Route as AuthOrdersIndexRouteImport } from './routes/_auth/orders/index'
+import { Route as AuthOrdersOrderIdRouteImport } from './routes/_auth/orders/$orderId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -87,6 +89,16 @@ const AuthAuditRoute = AuthAuditRouteImport.update({
   path: '/audit',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthOrdersIndexRoute = AuthOrdersIndexRouteImport.update({
+  id: '/orders/',
+  path: '/orders/',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthOrdersOrderIdRoute = AuthOrdersOrderIdRouteImport.update({
+  id: '/orders/$orderId',
+  path: '/orders/$orderId',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,6 +113,8 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthSettingsRoute
   '/sync': typeof AuthSyncRoute
   '/tenants': typeof AuthTenantsRoute
+  '/orders/$orderId': typeof AuthOrdersOrderIdRoute
+  '/orders/': typeof AuthOrdersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,6 +129,8 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthSettingsRoute
   '/sync': typeof AuthSyncRoute
   '/tenants': typeof AuthTenantsRoute
+  '/orders/$orderId': typeof AuthOrdersOrderIdRoute
+  '/orders': typeof AuthOrdersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -131,6 +147,8 @@ export interface FileRoutesById {
   '/_auth/settings': typeof AuthSettingsRoute
   '/_auth/sync': typeof AuthSyncRoute
   '/_auth/tenants': typeof AuthTenantsRoute
+  '/_auth/orders/$orderId': typeof AuthOrdersOrderIdRoute
+  '/_auth/orders/': typeof AuthOrdersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -147,6 +165,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tenants'
+    | '/orders/$orderId'
+    | '/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,6 +181,8 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tenants'
+    | '/orders/$orderId'
+    | '/orders'
   id:
     | '__root__'
     | '/'
@@ -176,6 +198,8 @@ export interface FileRouteTypes {
     | '/_auth/settings'
     | '/_auth/sync'
     | '/_auth/tenants'
+    | '/_auth/orders/$orderId'
+    | '/_auth/orders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -277,6 +301,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthAuditRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/orders/': {
+      id: '/_auth/orders/'
+      path: '/orders'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof AuthOrdersIndexRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/orders/$orderId': {
+      id: '/_auth/orders/$orderId'
+      path: '/orders/$orderId'
+      fullPath: '/orders/$orderId'
+      preLoaderRoute: typeof AuthOrdersOrderIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
   }
 }
 
@@ -291,6 +329,8 @@ interface AuthRouteChildren {
   AuthSettingsRoute: typeof AuthSettingsRoute
   AuthSyncRoute: typeof AuthSyncRoute
   AuthTenantsRoute: typeof AuthTenantsRoute
+  AuthOrdersOrderIdRoute: typeof AuthOrdersOrderIdRoute
+  AuthOrdersIndexRoute: typeof AuthOrdersIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
@@ -304,6 +344,8 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthSettingsRoute: AuthSettingsRoute,
   AuthSyncRoute: AuthSyncRoute,
   AuthTenantsRoute: AuthTenantsRoute,
+  AuthOrdersOrderIdRoute: AuthOrdersOrderIdRoute,
+  AuthOrdersIndexRoute: AuthOrdersIndexRoute,
 }
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)

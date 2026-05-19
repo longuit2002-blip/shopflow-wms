@@ -20,11 +20,11 @@
  *     states for the ledger body. A minimal SkuListItem stub is built
  *     from the line's SKU because the drawer expects the inventory shape
  *     for its header (allocation bar renders the trade-off #3 empty
- *     placeholder when Allocations=[]).
+ *     placeholder when allocations=[]).
  *
  * Failure cause:
  *   - inferFailureCause(transitions) walks the audit log backwards and
- *     returns the EventType of the last `→ CompensatingReservation`
+ *     returns the eventType of the last `→ CompensatingReservation`
  *     transition. Null when the saga did not compensate.
  */
 
@@ -46,14 +46,14 @@ export const Route = createFileRoute('/_auth/orders/$orderId')({
 });
 
 /**
- * Walks the transitions backwards and returns the `EventType` of the
+ * Walks the transitions backwards and returns the `eventType` of the
  * last `→ CompensatingReservation` row. Null when no compensation path
  * has been entered.
  */
 export function inferFailureCause(transitions: OrderTransitionDto[]): string | null {
   for (let i = transitions.length - 1; i >= 0; i--) {
-    if (transitions[i].ToState === 'CompensatingReservation') {
-      return transitions[i].EventType;
+    if (transitions[i].toState === 'CompensatingReservation') {
+      return transitions[i].eventType;
     }
   }
   return null;
@@ -90,21 +90,21 @@ function OrderDetailRouteComponent() {
   const drawerItem = useMemo<SkuListItem | null>(() => {
     if (openLedgerSku === null) return null;
     return {
-      Sku: openLedgerSku,
-      Available: 0,
-      Reserved: 0,
-      Name: null,
-      Category: null,
-      Threshold: null,
-      IsFlashSale: false,
-      Allocations: [],
-      P24Outbound: 0,
+      sku: openLedgerSku,
+      available: 0,
+      reserved: 0,
+      name: null,
+      category: null,
+      threshold: null,
+      isFlashSale: false,
+      allocations: [],
+      p24Outbound: 0,
     };
   }, [openLedgerSku]);
 
   const closeDrawer = useCallback(() => setOpenLedgerSku(null), []);
   const handleLineClick = useCallback((line: OrderLineResponse) => {
-    setOpenLedgerSku(line.Sku);
+    setOpenLedgerSku(line.sku);
   }, []);
 
   if (detailLoading) {
@@ -186,14 +186,14 @@ function OrderDetailRouteComponent() {
           data-testid="order-detail-order-id"
           style={{ fontWeight: 600 }}
         >
-          {detail.ChannelExternalOrderId}
+          {detail.channelExternalOrderId}
         </div>
-        {detail.CurrentSagaState && (
+        {detail.currentSagaState && (
           <Pill
-            kind={sagaStatePillKind(detail.CurrentSagaState)}
+            kind={sagaStatePillKind(detail.currentSagaState)}
             data-testid="order-detail-saga-pill"
           >
-            {detail.CurrentSagaState}
+            {detail.currentSagaState}
           </Pill>
         )}
         <div
@@ -201,13 +201,13 @@ function OrderDetailRouteComponent() {
           data-testid="order-detail-channel"
           style={{ color: 'var(--ink-2)' }}
         >
-          {t('Kênh', 'Channel')}: {detail.Channel}
+          {t('Kênh', 'Channel')}: {detail.channel}
         </div>
       </header>
 
       <section data-testid="order-detail-saga-pipeline">
         <SagaPipeline
-          currentState={detail.CurrentSagaState ?? 'AwaitingReservation'}
+          currentState={detail.currentSagaState ?? 'AwaitingReservation'}
           transitions={transitions}
           failureCause={failureCause ?? undefined}
         />
@@ -217,7 +217,7 @@ function OrderDetailRouteComponent() {
         <div className="lbl" style={{ marginBottom: 'var(--s-2)' }}>
           {t('Dòng đơn', 'Line items')}
         </div>
-        <OrderLineItems lines={detail.Lines} onLineClick={handleLineClick} />
+        <OrderLineItems lines={detail.lines} onLineClick={handleLineClick} />
       </section>
 
       <section data-testid="order-detail-transitions">

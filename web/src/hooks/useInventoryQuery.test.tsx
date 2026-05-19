@@ -118,12 +118,12 @@ vi.mock('./useAuth', () => {
 vi.mock('../api/inventory', () => {
   return {
     inventoryApi: {
-      listSkus: vi.fn(async () => ({ Items: [], Page: 1, PageSize: 100, Total: 0 })),
+      listSkus: vi.fn(async () => ({ items: [], page: 1, pageSize: 100, total: 0 })),
       summary: vi.fn(async () => ({
-        TotalSkus: 0,
-        LowStockCount: 0,
-        FlashSaleCount: 0,
-        UpdatedAt: '2026-05-19T00:00:00Z',
+        totalSkus: 0,
+        lowStockCount: 0,
+        flashSaleCount: 0,
+        updatedAt: '2026-05-19T00:00:00Z',
       })),
       ledger: vi.fn(async () => []),
     },
@@ -189,7 +189,7 @@ describe('useInventoryQuery — SignalR wire-up (Sprint-7 U9)', () => {
     expect(signalrRef.current.subscribeCalls).toHaveLength(1);
 
     act(() => {
-      emit('stock_changed', { Sku: 'YN-001', AvailableToSell: 42 });
+      emit('stock_changed', { sku: 'YN-001', availableToSell: 42 });
     });
 
     // Broad prefix-match — sweeps skus / summary / ledger together.
@@ -283,7 +283,7 @@ describe('useInventoryQuery — SignalR wire-up (Sprint-7 U9)', () => {
     unmount();
 
     act(() => {
-      emit('stock_changed', { Sku: 'YN-001', AvailableToSell: 1 });
+      emit('stock_changed', { sku: 'YN-001', availableToSell: 1 });
     });
 
     expect(invalidateSpy).not.toHaveBeenCalled();
@@ -305,7 +305,7 @@ describe('useInventorySummaryQuery — SignalR wire-up', () => {
     renderHook(() => useInventorySummaryQuery(), { wrapper });
 
     act(() => {
-      emit('stock_changed', { Sku: 'YN-001' });
+      emit('stock_changed', { sku: 'YN-001' });
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inventory'] });
@@ -327,7 +327,7 @@ describe('useSkuLedgerQuery — SignalR wire-up', () => {
     renderHook(() => useSkuLedgerQuery('YN-001'), { wrapper });
 
     act(() => {
-      emit('stock_changed', { Sku: 'YN-001' });
+      emit('stock_changed', { sku: 'YN-001' });
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['inventory'] });
