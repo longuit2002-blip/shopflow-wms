@@ -34,6 +34,12 @@ export interface SkuTableProps {
   sortDirection?: SortDirection;
   /** Called when a sortable column header is activated (Sprint-7.5 U7). */
   onSortChange?: (column: SortColumn) => void;
+  /**
+   * Sprint-7.5 U4 — called when the row's Edit button is clicked.
+   * When omitted the Edit cell is suppressed (preserves existing tests +
+   * read-only consumers).
+   */
+  onEditClick?: (sku: string) => void;
 }
 
 export function SkuTable({
@@ -44,6 +50,7 @@ export function SkuTable({
   sortColumn,
   sortDirection,
   onSortChange,
+  onEditClick,
 }: SkuTableProps) {
   const { lang } = useLocale();
 
@@ -84,6 +91,9 @@ export function SkuTable({
               {t('Mức an toàn', 'Threshold')}
             </th>
             <th scope="col">{t('Trạng thái', 'Status')}</th>
+            {onEditClick ? (
+              <th scope="col" aria-label={t('Thao tác', 'Actions')}></th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -156,6 +166,22 @@ export function SkuTable({
                     <Pill kind="ok">{t('Ổn định', 'OK')}</Pill>
                   )}
                 </td>
+                {onEditClick ? (
+                  <td
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => onEditClick(row.sku)}
+                      data-testid={`sku-edit-${row.sku}`}
+                      aria-label={`${t('Chỉnh sửa SKU', 'Edit SKU')} ${row.sku}`}
+                    >
+                      {t('Sửa', 'Edit')}
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             );
           })}

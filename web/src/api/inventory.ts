@@ -63,6 +63,26 @@ export interface InventorySummary {
   oversellRiskCount: number;
 }
 
+export interface UpdateSkuDimensionsPayload {
+  length: number;
+  width: number;
+  height: number;
+  unit: string;
+}
+
+export interface UpdateSkuPayload {
+  name: string;
+  category: string | null;
+  threshold: number | null;
+  weightGrams: number | null;
+  dimensions: UpdateSkuDimensionsPayload | null;
+  description: string | null;
+  imageUrl: string | null;
+  barcode: string | null;
+  brand: string | null;
+  isFlashSale: boolean;
+}
+
 export interface ListSkusParams {
   search?: string;
   page?: number;
@@ -88,6 +108,14 @@ export const inventoryApi = {
   ledger(sku: string, limit = 50, cursor?: string | null) {
     return httpClient.get<SkuLedger>(
       `/api/v1/inventory/skus/${encodeURIComponent(sku)}/ledger${buildQuery({ limit, cursor: cursor ?? undefined })}`,
+    );
+  },
+
+  update(sku: string, body: UpdateSkuPayload, options: MutationOptions = {}) {
+    return httpClient.put<void>(
+      `/api/v1/inventory/skus/${encodeURIComponent(sku)}`,
+      body,
+      options,
     );
   },
 

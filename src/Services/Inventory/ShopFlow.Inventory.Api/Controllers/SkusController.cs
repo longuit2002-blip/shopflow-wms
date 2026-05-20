@@ -73,6 +73,52 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// PUT /api/v1/inventory/skus/{sku} — Sprint-7.5 U4 Owner-edit endpoint
+    /// for the 10-field rich product model. Full-record-replacement
+    /// semantics (matches the existing /threshold + /flash-sale PUT
+    /// convention). Idempotent via the table's PK on sku.
+    /// </summary>
+    [HttpPut("{sku}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult> Update(
+        string sku,
+        [FromBody] UpdateSkuRequest body,
+        CancellationToken cancellationToken = default)
+    {
+        if (body is null) return this.ValidationProblem("request body is required.");
+        var idem = this.Request.Headers[IdempotencyHeader].ToString();
+        ShopFlow.Inventory.Domain.Catalog.SkuDimensions? dims = null;
+        if (body.Dimensions is { } d)
+        {
+            try
+            {
+                dims = ShopFlow.Inventory.Domain.Catalog.SkuDimensions.Create(d.Length, d.Width, d.Height, d.Unit);
+            }
+            catch (ArgumentException ex)
+            {
+                return this.ValidationProblem(ex.Message);
+            }
+        }
+        var result = await this.mediator.Send(
+            new UpdateSkuCommand(
+                Sku: sku,
+                Name: body.Name,
+                Category: body.Category,
+                Threshold: body.Threshold,
+                WeightGrams: body.WeightGrams,
+                Dimensions: dims,
+                Description: body.Description,
+                ImageUrl: body.ImageUrl,
+                Barcode: body.Barcode,
+                Brand: body.Brand,
+                IsFlashSale: body.IsFlashSale,
+                IdempotencyKey: idem),
+            cancellationToken);
+        return result.IsSuccess ? this.NoContent() : this.ValidationProblem(result.Error);
+    }
+
+    /// <summary>
     /// POST /api/v1/inventory/skus — create a new SKU (R11 / Sprint-6 U8 / U12).
     /// </summary>
     [HttpPost]
@@ -151,3 +197,17 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
 public sealed record CreateSkuRequest(string Sku, int InitialAvailable);
 public sealed record SetThresholdRequest(int Threshold);
 public sealed record SetFlashSaleRequest(bool Active);
+
+public sealed record UpdateSkuRequest(
+    string Name,
+    string? Category,
+    int? Threshold,
+    int? WeightGrams,
+    SkuDimensionsRequest? Dimensions,
+    string? Description,
+    string? ImageUrl,
+    string? Barcode,
+    string? Brand,
+    bool IsFlashSale);
+
+public sealed record SkuDimensionsRequest(decimal Length, decimal Width, decimal Height, string Unit);

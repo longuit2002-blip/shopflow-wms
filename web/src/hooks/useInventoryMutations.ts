@@ -29,7 +29,7 @@
 
 import { useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { inventoryApi } from '../api/inventory';
+import { inventoryApi, type UpdateSkuPayload } from '../api/inventory';
 import { ApiError } from '../api/httpClient';
 import { useToast } from './useToast';
 import { t } from './useLocale';
@@ -55,6 +55,11 @@ export interface SetFlashSaleInput {
 export interface CreateSkuInput {
   sku: string;
   initialAvailable: number;
+}
+
+export interface EditSkuInput {
+  sku: string;
+  payload: UpdateSkuPayload;
 }
 
 function extractTraceId(err: unknown): string | undefined {
@@ -191,5 +196,30 @@ export function useInventoryMutations() {
     },
   });
 
-  return { adjust, setThreshold, setFlashSale, createSku };
+  const lastEditKey = useRef<string | undefined>(undefined);
+  const editSku = useMutation({
+    mutationFn: (input: EditSkuInput) => {
+      const key = ulid();
+      lastEditKey.current = key;
+      return inventoryApi.update(input.sku, input.payload, { idempotencyKey: key });
+    },
+    onSuccess: (_data, vars) => {
+      invalidateInventoryQueries();
+      pushToast({
+        kind: 'success',
+        title: t('Đã cập nhật SKU', 'SKU updated'),
+        body: vars.sku,
+      });
+    },
+    onError: (err: unknown) => {
+      pushToast({
+        kind: 'error',
+        title: t('Lỗi cập nhật SKU', 'SKU update failed'),
+        idempotencyKey: lastEditKey.current,
+        traceId: extractTraceId(err),
+      });
+    },
+  });
+
+  return { adjust, setThreshold, setFlashSale, createSku, editSku };
 }
