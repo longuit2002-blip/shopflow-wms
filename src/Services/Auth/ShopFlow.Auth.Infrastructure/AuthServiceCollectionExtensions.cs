@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Infrastructure.Hashing;
 using ShopFlow.Auth.Infrastructure.Repositories;
+using ShopFlow.Auth.Infrastructure.Storage;
 using ShopFlow.SharedKernel.Application;
+using StackExchange.Redis;
 
 namespace ShopFlow.Auth.Infrastructure;
 
@@ -69,7 +72,32 @@ public static class AuthServiceCollectionExtensions
             .Bind(configuration.GetSection(Argon2Options.SectionName));
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
 
-        // IRefreshTokenStore impl lands in U5 (RedisRefreshTokenStore).
+        // Sprint-8 U5 — Redis-backed refresh-token store with the
+        // grace-window tombstone rotation pattern (KTD3). The
+        // ConnectionMultiplexer is registered as a singleton per
+        // StackExchange.Redis best practice; the store layer above is
+        // also singleton because Redis is its only state.
+        services.AddOptions<RefreshTokenOptions>()
+            .Bind(configuration.GetSection(RefreshTokenOptions.SectionName))
+            .PostConfigure(opts =>
+            {
+                // Prefer the standard ConnectionStrings:Redis binding
+                // when present (matches every other service's Redis
+                // wiring); fall back to RefreshTokenOptions.ConnectionString
+                // for tests that build the options directly.
+                var fromConnectionStrings = configuration.GetConnectionString("Redis");
+                if (!string.IsNullOrWhiteSpace(fromConnectionStrings))
+                {
+                    opts.ConnectionString = fromConnectionStrings;
+                }
+            });
+        services.AddSingleton<IConnectionMultiplexer>(sp =>
+        {
+            var opts = sp.GetRequiredService<IOptions<RefreshTokenOptions>>().Value;
+            return ConnectionMultiplexer.Connect(opts.ConnectionString);
+        });
+        services.AddSingleton<IRefreshTokenStore, RedisRefreshTokenStore>();
+
         // ITokenIssuer impl lands in U6 (JwtTokenIssuer).
 
         return services;

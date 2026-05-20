@@ -131,7 +131,7 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.0.0" />
   </ItemGroup>
 
-  <ItemGroup Label="Auth — Sprint-8 password hashing + JWT issuer">
+  <ItemGroup Label="Auth — Sprint-8 password hashing + Redis refresh store + JWT issuer">
     <!--
       Konscious.Security.Cryptography.Argon2 — pure-managed Argon2 impl
       used by Sprint-8 U4 Argon2idPasswordHasher. Parameters baked into
@@ -139,6 +139,19 @@
       existing rows. 1.3.1 is the current stable line.
     -->
     <PackageVersion Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
+    <!--
+      StackExchange.Redis 2.x — singleton ConnectionMultiplexer best
+      practice. Used by Sprint-8 U5 RedisRefreshTokenStore for the
+      atomic Lua-scripted rotation + grace-window tombstone pattern
+      (OWASP refined refresh-token-rotation).
+    -->
+    <PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
+    <!--
+      Testcontainers.Redis 4.x — companion to Testcontainers.PostgreSql
+      for U5's RedisRefreshTokenStoreTests integration suite. Same
+      Testcontainers major version (4.0.0) as the Postgres pin.
+    -->
+    <PackageVersion Include="Testcontainers.Redis" Version="4.0.0" />
   </ItemGroup>
 
   <ItemGroup Label="Aspire AppHost — dev orchestrator (per ADR-0001)">
