@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using ShopFlow.Inventory.Application.Commands;
 using ShopFlow.Inventory.Application.Dtos;
 using ShopFlow.Inventory.Application.Queries;
+using ShopFlow.Inventory.Domain.Catalog.ValueObjects;
 
 namespace ShopFlow.Inventory.Api.Controllers;
 
@@ -88,12 +89,12 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     {
         if (body is null) return this.ValidationProblem("request body is required.");
         var idem = this.Request.Headers[IdempotencyHeader].ToString();
-        ShopFlow.Inventory.Domain.Catalog.SkuDimensions? dims = null;
+        SkuDimensions? dims = null;
         if (body.Dimensions is { } d)
         {
             try
             {
-                dims = ShopFlow.Inventory.Domain.Catalog.SkuDimensions.Create(d.Length, d.Width, d.Height, d.Unit);
+                dims = SkuDimensions.Create(d.Length, d.Width, d.Height, d.Unit);
             }
             catch (ArgumentException ex)
             {
