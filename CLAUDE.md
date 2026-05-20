@@ -49,7 +49,52 @@ Top-7 bootstrap ideas captured in the ideation doc above. Recommended W0 / W1 / 
 
 **Multi-tenancy redesign accepted (2026-05-11)**. Phase-0 (RLS-shared) and Phase-1 Sprint-1 work-in-progress are archived at `archive/phase-1-sprint-1-rls-shared` branch and `archive/v0.1.0-phase-0-rls-shared` tag. The system pivots to **database-per-tenant on shared Postgres cluster** under [ADR-0003](./docs/adr/0003-database-per-tenant-for-compliance.md).
 
-**Active branch**: `feat/sprint-8-real-auth` (cut from `v0.10.1-sprint-7.5`).
+**Active branch**: `feat/sprint-8.5-test-sweep-buildfix` (cut from `v0.11.0-sprint-8`).
+
+**Sprint-8.5 Test Sweep + Build-Error Cleanup is complete.** Tag: `v0.11.1-sprint-8.5`. Sign-off: [`docs/phase-gates/2026-05-20-sprint-8.5-signoff.md`](./docs/phase-gates/2026-05-20-sprint-8.5-signoff.md). Plan: [`docs/plans/2026-05-20-002-feat-sprint-8.5-test-sweep-buildfix-plan.md`](./docs/plans/2026-05-20-002-feat-sprint-8.5-test-sweep-buildfix-plan.md). Brainstorm: [`docs/brainstorms/2026-05-20-sprint-8.5-test-sweep-and-buildfix-requirements.md`](./docs/brainstorms/2026-05-20-sprint-8.5-test-sweep-and-buildfix-requirements.md). Closes Sprint-8 sign-off recommended next step. Restored the 2 frontend Vitest files Sprint-8 U11 deleted (httpClient + LoginScreen under 401 → refresh interceptor + token-pair + subdomain-detect contracts), fixed every pre-existing .NET 9 compile error in `dotnet build ShopFlow.sln` (10 errors across 5 csprojs — Sprint-7.5 + Sprint-7 carry-overs surfacing now that Sprint-8 U10 forced the full-solution dependency chain together), added 1 OwnerSeed real-Postgres integration test (new `tests/ShopFlow.Migrate.IntegrationTests/` project mirroring Sprint-8 U3 AuthTenantFixture), captured 4 `docs/solutions/` entries (Polly v8 PredicateBuilder, Microsoft.Extensions.TimeProvider.Testing CPM, SkuDimensions using-discipline, cross-module contract evolution sweep). **12 implementation units** (U0-U11). **Verification gates met**: `dotnet build ShopFlow.sln` → 0 errors + 0 warnings (R13); frontend Vitest → 394 passing / 3 pre-existing Sprint-7 a11y failures (out of scope; +24 vs Sprint-8 baseline of 370) (R14).
+
+**Sprint-8.5 units**:
+- U0 — Branch cut + brainstorm + plan + 9 KTDs in opening commit (`21d581f`)
+- U1 — CPM additions: `Microsoft.Extensions.TimeProvider.Testing 9.0.0` + `Microsoft.Extensions.Logging 9.0.0` — bumped to 10.0.7 in U4 (`6407165`)
+- U2 — Restore `web/src/api/httpClient.test.ts` (12 tests: happy GET/POST/204/non-2xx + inflight-refresh-guard concurrent burst + idempotency-key persists across retry + clearSession on final 401 + no-refresh-token-in-store short-circuit) (`ca3df06`)
+- U3 — Restore `web/src/components/auth/LoginScreen.test.tsx` (12 tests: element shape + submit-gating + 4 hostname scenarios + rememberMe + setSession with full StoredSession + 2 failure paths) (`a84d163`)
+- U4 — StockSyncOptions `QueueCapacity` rename to `QueueCapacitySettings` (R3) + CPM Logging bump to 10.0.7 (NU1109 vs Hosting 10.0.7) + 2 bundled latent fixes (Channel.CreateBounded namespace ambiguity + Npgsql.EntityFrameworkCore.PostgreSQL.Metadata using missing) (`0004239`)
+- U5 — Channel.UnitTests Polly v8 PredicateBuilder hand-rolled lambda + solutions note (R4) (`67af490`)
+- U6 — Inventory.UnitTests OpaqueCursor ProjectReference (R6) (`a38d2f2`)
+- U7 — Outbound.UnitTests FakeTimeProvider PackageReference + solutions note (R5) (`f7a36d0`)
+- U8 — SkusController stale SkuDimensions FQN fix + solutions note (R9) (`19189dc`)
+- U9 — Inventory.IntegrationTests SkuRepository ctor (BuildRequestContext fixture pattern) + LineReservation using (R7+R8) (`85c484f`)
+- U10 — Outbound.IntegrationTests ILoggingBuilder.AddProvider + StockReservationFailedV1/LineOutcomeV1 contract drift + solutions note (R10+R11) (`148e57f`)
+- U11 — OwnerSeed real-Postgres integration test + new `tests/ShopFlow.Migrate.IntegrationTests/` project (R12). MigrateTenantFixture mirrors Sprint-8 U3 AuthTenantFixture; 3 scenarios (happy + Argon2 round-trip + idempotent + explicit-password) (`4862bdb`)
+
+**Sprint-8.5 KTDs**:
+1. StockSyncOptions nested `QueueCapacity` → `QueueCapacitySettings` (sibling `*Settings` convention).
+2. Polly v8 PredicateBuilder hand-rolled lambda fallback when consumer ctor takes non-generic ResiliencePipeline.
+3. Microsoft.Extensions.TimeProvider.Testing 9.0.0 — canonical .NET 9 FakeTimeProvider source.
+4. Microsoft.Extensions.Logging 10.0.7 — bumped to clear NU1109 vs Hosting 10.0.7 transitive floor.
+5. Inventory.IntegrationTests BuildRepo uses `tenant.BuildRequestContext()` — real-DB path preserved.
+6. SkuDimensions fix is using-directive change (one canonical type at .ValueObjects; stale FQN was the bug).
+7. Outbound contract drift fixes update consumer test, not contract (current canonical shapes preserved).
+8. One commit per file group, not per error — co-located errors land together.
+9. `docs/solutions/` notes land alongside fix commits.
+10. `tests/ShopFlow.Migrate.IntegrationTests/` is a new project, not a sub-suite of Auth.IntegrationTests.
+
+**Sprint-8.5 trade-offs carried forward**:
+1. 3 pre-existing Sprint-7 a11y failures (OrderLineItems empty-table-header + useOrderMutations shared-Response) — out of scope; Sprint-9+ a11y sweep.
+2. Net-new Vitest coverage for Sprint-8 U11 surfaces (UserRow / AuthAdminController / detectTenantFromHost direct unit-test) — Sprint-8.5 restored only what was DELETED.
+3. Sprint-7.5 carry-forwards unchanged (CREATE INDEX CONCURRENTLY, million-row latency benchmark, big-data seed loader).
+4. OwnerSeed `--owner-password-from-env` integration test — env-var path has unit coverage from Sprint-8 U10.
+5. Sprint-9+ hardening list unchanged from Sprint-8 sign-off.
+
+**Next implementation step**: cut a fresh branch from `v0.11.1-sprint-8.5` and start one of:
+- **Sprint-9** — RBAC + MFA hardening: TOTP placeholder activation, password-reset email, chain-aware reuse-detection, account lockout, per-permission policy gates.
+- **Phase-3 polish** — Observability dashboards (auth-failures-per-tenant, refresh-rotations-per-second, grace-replay-rate); rate limiting on /api/auth/login + /api/auth/refresh; `auth_audit_log` table; CREATE INDEX CONCURRENTLY before first prod deploy.
+- **Net-new frontend coverage** — Sprint-8 U11 UserRow + AuthAdminController + AuthControllerEndpointTests against Aspire-managed services.
+- **Big-data seed loader** — the workstream Sprint-7.5 production-readiness was sized for.
+
+---
+
+**Sprint-8 Real Auth Module history** (kept for context; tag `v0.11.0-sprint-8`). Sign-off: [`docs/phase-gates/2026-05-20-sprint-8-signoff.md`](./docs/phase-gates/2026-05-20-sprint-8-signoff.md).
 
 **Sprint-8 Real Auth Module is complete.** Tag: `v0.11.0-sprint-8`. Sign-off: [`docs/phase-gates/2026-05-20-sprint-8-signoff.md`](./docs/phase-gates/2026-05-20-sprint-8-signoff.md). Plan: [`docs/plans/2026-05-20-001-feat-sprint-8-real-auth-plan.md`](./docs/plans/2026-05-20-001-feat-sprint-8-real-auth-plan.md). Brainstorm: [`docs/brainstorms/2026-05-20-sprint-8-real-auth-requirements.md`](./docs/brainstorms/2026-05-20-sprint-8-real-auth-requirements.md). Retires the Sprint-6 dev-mode baked JWT in favor of: Argon2id (Konscious) password hashing with OWASP 2026 PHC parameters baked in; HS256 JWT access tokens (15-min TTL) issued by the Auth module + validated by the kernel JwtBearer (shared `Auth:DevSecret` — KTD5); opaque 32-byte refresh tokens in Redis with 60-sec grace-window tombstone rotation (OWASP refined pattern, ADV-002 mitigation); per-tenant `users` table with `ux_users_email_lower` UNIQUE expression-index + `chk_users_role` CHECK constraint + partial `ix_users_role_active`; R6 enumeration prevention (all credential failures collapse to `auth.invalid_credentials` + 401); Owner-only admin surface with consolidated discriminated `UpdateUserCommand` (KTD8); subdomain-first tenant resolution with host-suffix allowlist (SEC-004) + `ReservedSlugs` denylist (ADV-001); frontend token-pair store + transparent 401 → refresh interceptor + rememberMe + subdomain-detect + Sidebar Logout; shopflow-migrate `provision` owner-seed extension + new `seed-owner` subcommand for legacy-tenant retrofit (ADV-003). **Doc-review applied 18 fixes before execution** (1 P0 + 9 P1 + 8 P2). **12 implementation units** (U0-U11) across 12 commits.
 
