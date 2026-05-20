@@ -1,5 +1,7 @@
 using MediatR;
+using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Domain.Catalog;
+using ShopFlow.Inventory.Domain.Catalog.ValueObjects;
 using ShopFlow.SharedKernel.Domain;
 using SkuCode = ShopFlow.Inventory.Domain.Sku;
 

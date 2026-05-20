@@ -38,6 +38,10 @@
     <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <!-- Sprint-8 U10 — pulls in AuthDbContext (for the AddUsers migration)
+         + Argon2idPasswordHasher + PasswordGenerator so the owner-seed
+         path doesn't duplicate the hashing implementation (SG-001 / ADV-010). -->
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

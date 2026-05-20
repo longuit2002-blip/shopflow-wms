@@ -42,6 +42,7 @@ public static class ArgParser
                 or ParsedArgs.SubcommandArchive
                 or ParsedArgs.SubcommandRestore
                 or ParsedArgs.SubcommandStatus
+                or ParsedArgs.SubcommandSeedOwner
             )
         )
         {
@@ -97,6 +98,7 @@ public sealed record ParsedArgs(string Subcommand, IReadOnlyDictionary<string, s
     public const string SubcommandArchive = "archive";
     public const string SubcommandRestore = "restore";
     public const string SubcommandStatus = "status";
+    public const string SubcommandSeedOwner = "seed-owner";
 
     public bool HasFlag(string name) => Flags.ContainsKey(name);
 

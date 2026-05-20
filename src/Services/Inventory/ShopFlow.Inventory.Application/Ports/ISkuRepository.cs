@@ -150,4 +150,3 @@ public sealed record SkuListMetadataDto(
 /// <c>Result&lt;(Sku, bool)&gt;</c> on a value-type tuple.
 /// </remarks>
 public sealed record SkuMutationResult(Sku Sku, bool Changed);
-}

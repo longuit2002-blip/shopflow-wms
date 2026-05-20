@@ -3,12 +3,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Services;
+using ShopFlow.Auth.Infrastructure;
 using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
 using ShopFlow.Migrate;
 using ShopFlow.Migrate.Commands;
 using ShopFlow.Migrate.Modules;
 using ShopFlow.Migrate.Provisioning;
+using ShopFlow.SharedKernel.Application.Ports;
 
 // ─────────────────────────────────────────────────────────────────────────
 // shopflow-migrate — per-tenant migration runner (plan U6).
@@ -82,13 +85,20 @@ static IHost BuildHost(string[] args)
 
     builder.Services.AddSingleton(options);
     builder.Services.AddSingleton<IModuleMigrationRegistry>(_ =>
-        new ModuleMigrationRegistry().Register(
-            new ModuleMigrationDescriptor(
+        new ModuleMigrationRegistry()
+            .Register(new ModuleMigrationDescriptor(
                 moduleName: "Inventory",
                 dbContextType: typeof(InventoryDbContext),
                 migrationsAssemblyName: typeof(InventoryDbContext).Assembly.GetName().Name!
-            )
-        )
+            ))
+            // Sprint-8 U10 — Auth migrations apply to every tenant DB
+            // alongside Inventory. The AddUsers migration creates the
+            // users table + lower(email) UNIQUE + chk_users_role.
+            .Register(new ModuleMigrationDescriptor(
+                moduleName: "Auth",
+                dbContextType: typeof(AuthDbContext),
+                migrationsAssemblyName: typeof(AuthDbContext).Assembly.GetName().Name!
+            ))
     );
 
     builder.Services.AddDbContext<ControlPlaneDbContext>(o =>
@@ -105,11 +115,27 @@ static IHost BuildHost(string[] args)
 
     builder.Services.AddScoped<ITenantProvisioner, TenantProvisioner>();
 
+    // Sprint-8 U10 — owner-seed wiring. PasswordGenerator is in
+    // Auth.Application (pure RNG); OwnerSeed delegates to it +
+    // Argon2idPasswordHasher (Auth.Infrastructure). ITenantCatalog
+    // resolves the connection string for the seed-owner subcommand
+    // (retrofit path against existing tenants).
+    builder.Services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
+    builder.Services.AddSingleton<OwnerSeed>();
+    builder.Services.AddMemoryCache(o => o.SizeLimit = 1000);
+    var tenantTemplate = options.ControlPlane.TenantTemplate;
+    builder.Services.AddScoped<ITenantCatalog>(sp =>
+        new ShopFlow.ControlPlane.Infrastructure.Repositories.TenantCatalog(
+            sp.GetRequiredService<ControlPlaneDbContext>(),
+            sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+            tenant => tenantTemplate.Replace("{db}", tenant.DbName, StringComparison.Ordinal)));
+
     builder.Services.AddScoped<ICommand, ProvisionCommand>();
     builder.Services.AddScoped<ICommand, ApplyCommand>();
     builder.Services.AddScoped<ICommand, ArchiveCommand>();
     builder.Services.AddScoped<ICommand, RestoreCommand>();
     builder.Services.AddScoped<ICommand, StatusCommand>();
+    builder.Services.AddScoped<ICommand, SeedOwnerCommand>();
 
     return builder.Build();
 }
@@ -123,6 +149,11 @@ static void WriteHelp()
         Usage:
           shopflow-migrate provision --catalog
           shopflow-migrate provision --tenant=<slug>
+                                    [--owner-email=<email>]
+                                    [--owner-password=<plain> | --owner-password-from-env=<VAR>]
+          shopflow-migrate seed-owner --tenant=<slug>
+                                    [--owner-email=<email>]
+                                    [--owner-password=<plain> | --owner-password-from-env=<VAR>]
           shopflow-migrate apply [--target=<version>] [--concurrency=<N>]
           shopflow-migrate archive --tenant=<slug>
           shopflow-migrate restore --tenant=<slug>
