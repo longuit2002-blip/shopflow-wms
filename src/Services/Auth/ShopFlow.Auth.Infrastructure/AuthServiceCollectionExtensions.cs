@@ -66,6 +66,15 @@ public static class AuthServiceCollectionExtensions
 
         services.AddScoped<IUserRepository, UserRepository>();
 
+        // Sprint-9 U3 — per-tenant repository registrations. All scoped
+        // so they bind to the per-request AuthDbContext (DB-per-tenant
+        // routing via IRequestContext).
+        services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
+        services.AddScoped<ITotpSecretRepository, TotpSecretRepository>();
+        services.AddScoped<IRecoveryCodeRepository, RecoveryCodeRepository>();
+        services.AddScoped<IRolePermissionRepository, RolePermissionRepository>();
+        services.AddScoped<IAuthAuditLogRepository, AuthAuditLogRepository>();
+
         // Sprint-8 U4 — Argon2id password hashing. Parameters bound
         // from the Auth:Argon2 config section; OWASP 2026 baseline
         // defaults if unset. Singleton because the hasher is

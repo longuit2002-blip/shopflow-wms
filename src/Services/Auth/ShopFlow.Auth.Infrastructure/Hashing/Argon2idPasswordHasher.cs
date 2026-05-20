@@ -48,21 +48,30 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(plaintext);
 
-        // U2 stub — profile is accepted on the signature but ignored.
-        // U3 wires the per-profile params (Argon2Options.RecoveryCode
-        // section) so RecoveryCode hashes use m=8 MiB / t=2 / p=1 while
-        // password hashes keep the OWASP 2026 m=64 MiB / t=4 / p=4
-        // shape. The PHC string parameter-embedding lets Verify read
-        // the right params regardless of profile (Sprint-8 KTD4).
-        _ = profile;
+        // Sprint-9 U3 — pick the parameter set for the requested profile.
+        // The PHC string parameter-embedding lets Verify recover the
+        // right params from the stored hash without knowing the profile
+        // (Sprint-8 KTD4 preserved).
+        var (memoryKib, iterations, parallelism, hashLen) = profile switch
+        {
+            Argon2Profile.RecoveryCode => (
+                _options.RecoveryCode.MemorySizeKib,
+                _options.RecoveryCode.Iterations,
+                _options.RecoveryCode.DegreeOfParallelism,
+                _options.RecoveryCode.HashLengthBytes),
+            _ => (
+                _options.MemorySizeKib,
+                _options.Iterations,
+                _options.DegreeOfParallelism,
+                _options.HashLengthBytes),
+        };
 
         var salt = RandomNumberGenerator.GetBytes(SaltLengthBytes);
-        var hash = ComputeHash(plaintext, salt, _options.MemorySizeKib, _options.Iterations,
-            _options.DegreeOfParallelism, _options.HashLengthBytes);
+        var hash = ComputeHash(plaintext, salt, memoryKib, iterations, parallelism, hashLen);
 
         return string.Create(
             System.Globalization.CultureInfo.InvariantCulture,
-            $"${Algorithm}$v={Version}$m={_options.MemorySizeKib},t={_options.Iterations},p={_options.DegreeOfParallelism}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}");
+            $"${Algorithm}$v={Version}$m={memoryKib},t={iterations},p={parallelism}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}");
     }
 
     public bool Verify(string plaintext, string phcHash)

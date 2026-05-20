@@ -1,53 +1,66 @@
 namespace ShopFlow.Auth.Infrastructure.Hashing;
 
 /// <summary>
-/// Configuration knobs for the Sprint-8 U4
-/// <see cref="Argon2idPasswordHasher"/>. Bound from the
-/// <c>Auth:Argon2</c> config section in U9's <c>Program.cs</c>.
+/// Configuration knobs for <see cref="Argon2idPasswordHasher"/>. Bound
+/// from the <c>Auth:Argon2</c> config section in U9's <c>Program.cs</c>.
+/// The Sprint-8 flat fields stay at the root for back-compat (the
+/// Password profile); Sprint-9 adds a nested <see cref="RecoveryCode"/>
+/// block for the lighter profile per KTD9.
 /// </summary>
 /// <remarks>
-/// <para>Defaults reflect the OWASP 2026 baseline for Argon2id:
-/// 64 MB memory, 4 iterations, 4 lanes of parallelism. These are the
-/// "high-quality option" from the OWASP Password Storage Cheat Sheet
-/// (m=64 MiB, t=4, p=4). Production tenants with stronger latency
-/// budgets can dial memory up via config; the PHC string baked at
-/// hash time preserves whatever parameters were used so a future
-/// parameter bump never invalidates existing rows.</para>
+/// <para>Defaults reflect OWASP 2026: Password = 64 MiB memory, 4
+/// iterations, 4 lanes; RecoveryCode = 8 MiB, 2 iterations, 1 lane (10
+/// codes × full Password profile would balloon enrollment cost to ~5
+/// seconds, so the lighter profile is required).</para>
 ///
-/// <para>Salt size is fixed at 16 bytes per the OWASP recommendation
-/// (and the spec's minimum). It is not configurable — a smaller salt
-/// is a footgun, a larger salt provides no meaningful additional
-/// security for a per-row credential.</para>
+/// <para>The PHC string parameter-embedding lets a single
+/// <c>Verify(plaintext, phc)</c> call work across profiles without
+/// knowing which profile produced the hash.</para>
 /// </remarks>
 public sealed class Argon2Options
 {
     public const string SectionName = "Auth:Argon2";
 
-    /// <summary>
-    /// Memory size in KiB used by Argon2id. OWASP 2026 baseline = 65536
-    /// (64 MiB). Higher is stronger but slower; do not drop below
-    /// 19 MiB (the spec's "minimum for any application").
-    /// </summary>
+    // -------- Sprint-8 / Password profile (flat at section root for back-compat) --------
+
+    /// <summary>Password-profile memory size in KiB. OWASP 2026 = 65536 (64 MiB).</summary>
     public int MemorySizeKib { get; set; } = 65_536;
 
-    /// <summary>
-    /// Iteration count (time cost). OWASP 2026 baseline = 4. Increases
-    /// CPU work linearly. The PHC string captures this value so future
-    /// changes only affect newly-issued hashes.
-    /// </summary>
+    /// <summary>Password-profile iteration count. OWASP 2026 = 4.</summary>
     public int Iterations { get; set; } = 4;
 
-    /// <summary>
-    /// Degree of parallelism (number of lanes). OWASP 2026 baseline =
-    /// 4. Should not exceed the number of CPU cores available to the
-    /// hashing host.
-    /// </summary>
+    /// <summary>Password-profile degree of parallelism. OWASP 2026 = 4.</summary>
     public int DegreeOfParallelism { get; set; } = 4;
 
-    /// <summary>
-    /// Output hash length in bytes. OWASP 2026 baseline = 32 (256
-    /// bits). The PHC encoding base64s this so the stored string is
-    /// longer than 32 chars.
-    /// </summary>
+    /// <summary>Password-profile output hash length in bytes. OWASP 2026 = 32.</summary>
     public int HashLengthBytes { get; set; } = 32;
+
+    // -------- Sprint-9 RecoveryCode profile (nested block) --------
+
+    /// <summary>
+    /// Recovery-code profile (Sprint-9 KTD9). Lighter parameters
+    /// because the codes themselves carry ~52-bit entropy.
+    /// </summary>
+    public Argon2ProfileSettings RecoveryCode { get; set; } = new()
+    {
+        MemorySizeKib = 8_192,
+        Iterations = 2,
+        DegreeOfParallelism = 1,
+        HashLengthBytes = 32,
+    };
+}
+
+/// <summary>
+/// Per-profile parameter block. Mirrors the Sprint-8 top-level flat
+/// fields so binding from a config sub-section "just works".
+/// </summary>
+public sealed class Argon2ProfileSettings
+{
+    public int MemorySizeKib { get; set; }
+
+    public int Iterations { get; set; }
+
+    public int DegreeOfParallelism { get; set; }
+
+    public int HashLengthBytes { get; set; }
 }

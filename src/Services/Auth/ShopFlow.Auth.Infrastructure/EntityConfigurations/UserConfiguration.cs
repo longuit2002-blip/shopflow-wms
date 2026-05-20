@@ -96,6 +96,34 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .Property(u => u.UpdatedAt)
             .HasColumnName("updated_at");
 
+        // -------- Sprint-9 U3 lockout + MFA columns --------
+
+        builder
+            .Property(u => u.FailedLoginCount)
+            .HasColumnName("failed_login_count")
+            .HasDefaultValue(0)
+            .IsRequired();
+
+        builder
+            .Property(u => u.LockedUntil)
+            .HasColumnName("locked_until");
+
+        builder
+            .Property(u => u.LastFailedLoginAt)
+            .HasColumnName("last_failed_login_at");
+
+        builder
+            .Property(u => u.MfaRequired)
+            .HasColumnName("mfa_required")
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder
+            .Property(u => u.MfaEnrolled)
+            .HasColumnName("mfa_enrolled")
+            .HasDefaultValue(false)
+            .IsRequired();
+
         // ux_users_email_lower (UNIQUE on lower(email)) + chk_users_role
         // CHECK constraint are emitted by the AddUsers migration via raw
         // SQL — EF's fluent API can't express expression-based UNIQUE
