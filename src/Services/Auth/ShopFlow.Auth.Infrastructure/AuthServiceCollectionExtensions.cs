@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ShopFlow.Auth.Application.Ports;
+using ShopFlow.Auth.Application.Services;
 using ShopFlow.Auth.Infrastructure.Hashing;
 using ShopFlow.Auth.Infrastructure.Repositories;
 using ShopFlow.Auth.Infrastructure.Storage;
@@ -72,6 +73,11 @@ public static class AuthServiceCollectionExtensions
         services.AddOptions<Argon2Options>()
             .Bind(configuration.GetSection(Argon2Options.SectionName));
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
+
+        // Sprint-8 U8 — temporary-password generator for admin
+        // CreateUser + ResetPassword flows. Stateless cryptographic
+        // RNG; singleton.
+        services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
 
         // Sprint-8 U5 — Redis-backed refresh-token store with the
         // grace-window tombstone rotation pattern (KTD3). The
