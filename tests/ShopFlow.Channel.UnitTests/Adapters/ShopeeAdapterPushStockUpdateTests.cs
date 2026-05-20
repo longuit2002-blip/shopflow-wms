@@ -49,11 +49,20 @@ public sealed class ShopeeAdapterPushStockUpdateTests
                     MaxRetryAttempts = maxRetries,
                     Delay = TimeSpan.Zero,
                     BackoffType = DelayBackoffType.Constant,
-                    ShouldHandle = new PredicateBuilder()
-                        .Handle<HttpRequestException>()
-                        .HandleResult<HttpResponseMessage>(r =>
-                            (int)r.StatusCode >= 500 || r.StatusCode == HttpStatusCode.TooManyRequests
-                        ),
+                    // Polly v8 non-generic pipeline + generic PredicateBuilder<T>
+                    // don't compose directly (RetryStrategyOptions.ShouldHandle is
+                    // Func<RetryPredicateArguments<object>, ValueTask<bool>>). Hand-
+                    // roll the predicate so the test stays on the non-generic
+                    // pipeline contract the ShopeeAdapter ctor accepts. See
+                    // docs/solutions/2026-05-20-polly-v8-predicatebuilder-non-generic.md.
+                    ShouldHandle = args => args.Outcome switch
+                    {
+                        { Exception: HttpRequestException } => ValueTask.FromResult(true),
+                        { Result: HttpResponseMessage r } when (int)r.StatusCode >= 500
+                            || r.StatusCode == HttpStatusCode.TooManyRequests
+                            => ValueTask.FromResult(true),
+                        _ => ValueTask.FromResult(false),
+                    },
                 }
             )
             .Build();
