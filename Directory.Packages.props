@@ -131,6 +131,26 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Test infrastructure — Sprint-8.5 sweep">
+    <!--
+      Microsoft.Extensions.TimeProvider.Testing — canonical .NET 9
+      FakeTimeProvider source. Used by Sprint-7's SagaTransitionObserver
+      tests for deterministic timestamp control. 9.0.0 to match the
+      EF Core 9 / AspNetCore 9 pin already used elsewhere.
+      See docs/solutions/2026-05-20-microsoft-extensions-timeprovider-testing-cpm.md.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="9.0.0" />
+    <!--
+      Microsoft.Extensions.Logging — already pulled transitively by
+      Hosting / DI / etc., but the ILoggingBuilder.AddProvider extension
+      lives in this package's public surface and isn't always exposed
+      via the transitive graph. Explicit pin preserves test-author
+      intent (NullLoggerProvider.Instance silencing) without re-deriving
+      the dependency. 9.0.0 matches the rest of the Extensions stack.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Auth — Sprint-8 password hashing + Redis refresh store + JWT issuer">
     <!--
       Konscious.Security.Cryptography.Argon2 — pure-managed Argon2 impl
