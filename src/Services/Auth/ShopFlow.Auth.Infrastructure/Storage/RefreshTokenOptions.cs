@@ -38,6 +38,16 @@ public sealed class RefreshTokenOptions
     public int RotationGraceWindowSeconds { get; set; } = 60;
 
     /// <summary>
+    /// Sprint-9 KTD3 — tombstone TTL in seconds. Sprint-8 was 60s
+    /// (matched the grace window); Sprint-9 extends to 7 days to
+    /// match refresh-token TTL so post-grace replays can still be
+    /// detected and trigger chain revocation. The grace-window
+    /// check is a code-level comparison against the tombstone's
+    /// <c>RotatedAt</c> field, not Redis TTL expiry.
+    /// </summary>
+    public int TombstoneTtlSeconds { get; set; } = 7 * 86_400;
+
+    /// <summary>
     /// Redis connection string. Override via the
     /// <c>ConnectionStrings:Redis</c> binding in <c>Program.cs</c> per
     /// the host-side IConfiguration convention; this default is a

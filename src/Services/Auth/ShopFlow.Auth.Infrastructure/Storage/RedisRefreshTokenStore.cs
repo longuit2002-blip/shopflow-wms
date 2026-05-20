@@ -88,7 +88,11 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         var hashHex = HashHex(plaintext);
         var now = DateTime.UtcNow;
         var ttl = TtlFor(rememberMe);
-        var record = new RefreshTokenRecord(userId, now, now.Add(ttl), rememberMe);
+        // Sprint-9 KTD2 — fresh chain_id for each login. Subsequent
+        // rotations propagate this through the chain; reuse detection
+        // wipes the chain on post-grace replay.
+        var chainId = Guid.NewGuid();
+        var record = new RefreshTokenRecord(userId, now, now.Add(ttl), rememberMe, chainId);
 
         var db = _redis.GetDatabase();
         await db.StringSetAsync(
@@ -113,26 +117,15 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         var oldKey = LiveKey(tenantSlug, userId, oldHashHex);
 
         // Pre-flight read of the old record so we can carry the
-        // rememberMe TTL bucket through rotation. The Lua handles the
-        // atomicity; this read is best-effort (a parallel rotation
-        // that won the race will see the Lua return nil here).
+        // rememberMe TTL bucket + chain_id through rotation. The Lua
+        // handles atomicity; this read is best-effort (a parallel
+        // rotation that won the race will see the Lua return nil here).
         var existingJson = await db.StringGetAsync(oldKey).ConfigureAwait(false);
         if (!existingJson.HasValue)
         {
-            // Look up the tombstone — concurrent-retry grace replay.
-            var tombKey = TombstoneKey(tenantSlug, userId, oldHashHex);
-            var tombJson = await db.StringGetAsync(tombKey).ConfigureAwait(false);
-            if (tombJson.HasValue)
-            {
-                var tomb = JsonSerializer.Deserialize<RefreshTokenTombstone>(tombJson!);
-                if (tomb is not null)
-                {
-                    return new RefreshRotateResult(
-                        RefreshRotateOutcome.GraceReplay, tomb.NextTokenPlaintext);
-                }
-            }
-
-            return new RefreshRotateResult(RefreshRotateOutcome.NotFound, null);
+            // Look up the tombstone — Sprint-9 grace vs post-grace branch.
+            return await HandleTombstonePathAsync(tenantSlug, userId, oldHashHex, ct)
+                .ConfigureAwait(false);
         }
 
         var existing = JsonSerializer.Deserialize<RefreshTokenRecord>(existingJson!);
@@ -145,8 +138,10 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         var newHashHex = HashHex(newPlain);
         var now = DateTime.UtcNow;
         var ttl = TtlFor(existing.RememberMe);
-        var newRecord = new RefreshTokenRecord(userId, now, now.Add(ttl), existing.RememberMe);
-        var tombstone = new RefreshTokenTombstone(newHashHex, newPlain);
+        // Sprint-9 — chain_id propagates from predecessor to successor.
+        var chainId = existing.ChainId == Guid.Empty ? Guid.NewGuid() : existing.ChainId;
+        var newRecord = new RefreshTokenRecord(userId, now, now.Add(ttl), existing.RememberMe, chainId);
+        var tombstone = new RefreshTokenTombstone(newHashHex, newPlain, chainId, now);
 
         var newKey = LiveKey(tenantSlug, userId, newHashHex);
         var tombstoneKey = TombstoneKey(tenantSlug, userId, oldHashHex);
@@ -159,29 +154,89 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
                 JsonSerializer.Serialize(newRecord),
                 (long)ttl.TotalMilliseconds,
                 JsonSerializer.Serialize(tombstone),
-                _options.RotationGraceWindowSeconds * 1_000,
+                // Sprint-9 — tombstone TTL is now 7d (configurable),
+                // not the 60-sec grace. The grace check moves to
+                // code-level comparison against tombstone.RotatedAt.
+                _options.TombstoneTtlSeconds * 1_000L,
             }).ConfigureAwait(false);
 
         if (rotated is null)
         {
-            // Lost the race — a parallel rotation just deleted the old
-            // key. Fall back to the tombstone path so the loser gets
-            // the same successor token the winner produced.
-            var tombKey = TombstoneKey(tenantSlug, userId, oldHashHex);
-            var tombJson = await db.StringGetAsync(tombKey).ConfigureAwait(false);
-            if (tombJson.HasValue)
-            {
-                var tomb = JsonSerializer.Deserialize<RefreshTokenTombstone>(tombJson!);
-                if (tomb is not null)
-                {
-                    return new RefreshRotateResult(
-                        RefreshRotateOutcome.GraceReplay, tomb.NextTokenPlaintext);
-                }
-            }
+            // Lost the race — a parallel rotation just deleted the
+            // old key. Fall back to the tombstone path so the loser
+            // sees the same successor the winner produced.
+            return await HandleTombstonePathAsync(tenantSlug, userId, oldHashHex, ct)
+                .ConfigureAwait(false);
+        }
+
+        return new RefreshRotateResult(RefreshRotateOutcome.Issued, newPlain, chainId);
+    }
+
+    /// <summary>
+    /// Sprint-9 — tombstone read path. Grace window (now - RotatedAt
+    /// &lt; RotationGraceWindowSeconds) returns the cached successor
+    /// (GraceReplay); post-grace triggers chain revocation
+    /// (ChainRevoked). Legacy Sprint-8 tombstones with ChainId =
+    /// Guid.Empty collapse to RevokeAllForUserAsync (back-compat).
+    /// </summary>
+    private async Task<RefreshRotateResult> HandleTombstonePathAsync(
+        string tenantSlug,
+        Guid userId,
+        string oldHashHex,
+        CancellationToken ct)
+    {
+        var db = _redis.GetDatabase();
+        var tombKey = TombstoneKey(tenantSlug, userId, oldHashHex);
+        var tombJson = await db.StringGetAsync(tombKey).ConfigureAwait(false);
+        if (!tombJson.HasValue)
+        {
             return new RefreshRotateResult(RefreshRotateOutcome.NotFound, null);
         }
 
-        return new RefreshRotateResult(RefreshRotateOutcome.Issued, newPlain);
+        var tomb = JsonSerializer.Deserialize<RefreshTokenTombstone>(tombJson!);
+        if (tomb is null)
+        {
+            return new RefreshRotateResult(RefreshRotateOutcome.NotFound, null);
+        }
+
+        var now = DateTime.UtcNow;
+        var graceWindow = TimeSpan.FromSeconds(_options.RotationGraceWindowSeconds);
+
+        if (tomb.ChainId == Guid.Empty)
+        {
+            // Sprint-8 legacy tombstone — no chain_id field. Preserve
+            // the Sprint-8 safety net: any replay against a legacy
+            // tombstone, regardless of grace, surfaces as ReuseDetected
+            // so the handler can revoke all sessions. Cleaner than
+            // silent grace-replay because the legacy 60-sec TTL has
+            // already passed by definition (the row survived the
+            // Sprint-9 deploy → it's at least the deploy duration old).
+            if (now - tomb.RotatedAt < graceWindow)
+            {
+                return new RefreshRotateResult(
+                    RefreshRotateOutcome.GraceReplay,
+                    tomb.NextTokenPlaintext);
+            }
+            return new RefreshRotateResult(RefreshRotateOutcome.ReuseDetected, null);
+        }
+
+        // Sprint-9 path.
+        if (now - tomb.RotatedAt < graceWindow)
+        {
+            return new RefreshRotateResult(
+                RefreshRotateOutcome.GraceReplay,
+                tomb.NextTokenPlaintext,
+                tomb.ChainId);
+        }
+
+        // Post-grace replay — chain compromise. Revoke just this chain,
+        // not all user sessions (KTD2). Other chains for the same user
+        // (parallel logins from different devices) keep working.
+        await RevokeChainAsync(tenantSlug, userId, tomb.ChainId, ct).ConfigureAwait(false);
+        return new RefreshRotateResult(
+            RefreshRotateOutcome.ChainRevoked,
+            null,
+            tomb.ChainId);
     }
 
     public async Task RevokeAsync(
@@ -270,14 +325,72 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
-    // Sprint-9 U2 stub — port shape only. U5 ships the real impl that
-    // SCANs the user's live refresh keys and DELs entries whose record
-    // JSON carries the matching chain_id. The current Sprint-8 store
-    // has no chain_id field on its record payload, so chain revocation
-    // collapses to a no-op until U5 lands. Handlers in U8 that depend
-    // on chain-only revocation behaviour will only ship after U5.
-    public Task RevokeChainAsync(string tenantSlug, Guid userId, Guid chainId, CancellationToken ct)
+    public async Task RevokeChainAsync(
+        string tenantSlug,
+        Guid userId,
+        Guid chainId,
+        CancellationToken ct)
     {
-        return Task.CompletedTask;
+        ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
+        if (chainId == Guid.Empty)
+        {
+            return;
+        }
+
+        var db = _redis.GetDatabase();
+        var endpoints = _redis.GetEndPoints();
+        var livePattern = $"{LiveKeyPrefix}:{tenantSlug}:{userId}:*";
+        var tombPattern = $"{TombstonePrefix}:{tenantSlug}:{userId}:*";
+
+        foreach (var endpoint in endpoints)
+        {
+            var server = _redis.GetServer(endpoint);
+            if (server.IsReplica)
+            {
+                continue;
+            }
+
+            // SCAN + per-key filter on chain_id. Typical user has < 10
+            // active refresh tokens; the cost is bounded by the user's
+            // login footprint, not the global key space. Sprint-10+
+            // can add a secondary set-index keyed by chain_id if the
+            // scan cost matters in practice.
+            await foreach (var key in server
+                .KeysAsync(pattern: livePattern)
+                .WithCancellation(ct)
+                .ConfigureAwait(false))
+            {
+                var json = await db.StringGetAsync(key).ConfigureAwait(false);
+                if (!json.HasValue)
+                {
+                    continue;
+                }
+                var record = JsonSerializer.Deserialize<RefreshTokenRecord>(json!);
+                if (record is not null && record.ChainId == chainId)
+                {
+                    await db.KeyDeleteAsync(key).ConfigureAwait(false);
+                }
+            }
+
+            // Also revoke matching tombstones — a hostile replay against
+            // the predecessor token must not grace-replay into a fresh
+            // successor after chain revocation.
+            await foreach (var key in server
+                .KeysAsync(pattern: tombPattern)
+                .WithCancellation(ct)
+                .ConfigureAwait(false))
+            {
+                var json = await db.StringGetAsync(key).ConfigureAwait(false);
+                if (!json.HasValue)
+                {
+                    continue;
+                }
+                var tomb = JsonSerializer.Deserialize<RefreshTokenTombstone>(json!);
+                if (tomb is not null && tomb.ChainId == chainId)
+                {
+                    await db.KeyDeleteAsync(key).ConfigureAwait(false);
+                }
+            }
+        }
     }
 }

@@ -10,22 +10,37 @@ namespace ShopFlow.Auth.Infrastructure.Storage;
 /// key name (KTD3).
 /// </summary>
 /// <remarks>
-/// <para>Carries <see cref="RememberMe"/> so rotation can preserve the
-/// original TTL bucket (rotating a 30-day token re-issues another
-/// 30-day token, not a fresh 7-day token).</para>
+/// <para>Sprint-9 grafts <see cref="ChainId"/> for chain-aware reuse
+/// detection (KTD2). Every login mints a fresh chain_id; rotation
+/// propagates it from predecessor to successor; reuse-detection
+/// post-grace replay calls
+/// <see cref="ShopFlow.Auth.Application.Ports.IRefreshTokenStore.RevokeChainAsync"/>
+/// with the bound chain_id to wipe just that chain's live tokens.</para>
+///
+/// <para>Sprint-8 records (deployed before Sprint-9) carry no
+/// <c>ChainId</c> field — the JSON deserialisation defaults to
+/// <c>Guid.Empty</c> in that case. The store treats <c>Guid.Empty</c>
+/// as a legacy record and falls back to all-user-session revocation
+/// to preserve the Sprint-8 safety net during rolling deploy.</para>
 /// </remarks>
 internal sealed record RefreshTokenRecord(
     [property: JsonPropertyName("uid")] Guid UserId,
     [property: JsonPropertyName("iat")] DateTime IssuedAt,
     [property: JsonPropertyName("exp")] DateTime ExpiresAt,
-    [property: JsonPropertyName("rm")] bool RememberMe);
+    [property: JsonPropertyName("rm")] bool RememberMe,
+    [property: JsonPropertyName("cid")] Guid ChainId);
 
 /// <summary>
 /// Tombstone value stored at <c>refresh:rotated:{tenant}:{user}:{oldHashHex}</c>
-/// for <see cref="RefreshTokenOptions.RotationGraceWindowSeconds"/>.
-/// Points at the successor token's hash so concurrent retries return
-/// the same successor (KTD3 grace-window pattern).
+/// for <see cref="RefreshTokenOptions.TombstoneTtlSeconds"/> (Sprint-9
+/// = 7 days; Sprint-8 was 60 seconds). The longer Sprint-9 TTL is the
+/// durable window in which a post-grace replay can still be detected
+/// and trigger chain revocation; the grace check itself remains a
+/// code-level <c>now - RotatedAt &lt; RotationGraceWindowSeconds</c>
+/// comparison (KTD3).
 /// </summary>
 internal sealed record RefreshTokenTombstone(
     [property: JsonPropertyName("nh")] string NextTokenHash,
-    [property: JsonPropertyName("nt")] string NextTokenPlaintext);
+    [property: JsonPropertyName("nt")] string NextTokenPlaintext,
+    [property: JsonPropertyName("cid")] Guid ChainId,
+    [property: JsonPropertyName("rot")] DateTime RotatedAt);
