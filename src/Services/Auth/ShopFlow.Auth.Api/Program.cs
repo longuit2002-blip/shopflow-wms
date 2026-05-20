@@ -47,6 +47,10 @@ builder.Services.AddShopFlowControllers();
 var app = builder.Build();
 
 app.UseProblemDetails();
+// Sprint-9 U7 — ForwardedHeaders + RateLimiter BEFORE Authentication so
+// the rate-limit partition key reads the real client IP from
+// X-Forwarded-For (per KTD7).
+app.UseShopFlowSecurityPipeline();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseTenantRouting();

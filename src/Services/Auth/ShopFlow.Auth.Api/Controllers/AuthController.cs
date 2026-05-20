@@ -2,6 +2,7 @@ using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using ShopFlow.Auth.Application.Commands;
 using ShopFlow.Auth.Application.Dtos;
@@ -59,6 +60,7 @@ public sealed class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("login")]
+    [EnableRateLimiting("auth-credentials")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
@@ -91,6 +93,7 @@ public sealed class AuthController : ControllerBase
 
     [AllowAnonymous]
     [HttpPost("refresh")]
+    [EnableRateLimiting("auth-credentials")]
     [ProducesResponseType(typeof(RefreshResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh(
@@ -186,6 +189,245 @@ public sealed class AuthController : ControllerBase
             Status = status,
             Type = result.ErrorCode,
         });
+    }
+
+    // ───────────── Sprint-9 forgot-password + reset ─────────────
+
+    [AllowAnonymous]
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting("auth-forgot-password")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest? body, CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.Email))
+        {
+            // R6 — always return 200; even malformed requests get the
+            // generic confirmation shape.
+            return Ok(new { status = "sent" });
+        }
+
+        var slugResult = await ResolveTenantAsync(body.TenantSlug, ct).ConfigureAwait(false);
+        if (!slugResult.Success)
+        {
+            // Even tenant-resolve failures collapse to 200 to keep
+            // wall-time uniform.
+            return Ok(new { status = "sent" });
+        }
+
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
+        await _mediator.Send(
+            new ForgotPasswordCommand(
+                body.Email, slugResult.Slug!, clientIp, userAgent, Guid.NewGuid()),
+            ct).ConfigureAwait(false);
+
+        return Ok(new { status = "sent" });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("reset-password/confirm")]
+    [EnableRateLimiting("auth-credentials")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> ResetPasswordConfirm(
+        [FromBody] ResetPasswordConfirmRequest? body,
+        CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.Token))
+        {
+            return ValidationProblem("token + new_password are required.");
+        }
+
+        // The reset token internally identifies the tenant; we still
+        // bind a tenant context for the request so the AuthDbContext
+        // points at the right per-tenant DB. Without a tenant slug
+        // sent on the wire we'd need a separate code path — for
+        // Sprint-9 the frontend sends the slug from the deep-link URL.
+        var slugResult = await ResolveTenantAsync(bodyTenantSlug: null, ct).ConfigureAwait(false);
+        if (!slugResult.Success)
+        {
+            return slugResult.ErrorResult!;
+        }
+
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var ua = Request.Headers.UserAgent.ToString();
+        var result = await _mediator.Send(
+            new ResetPasswordConfirmCommand(
+                body.Token, body.NewPassword, slugResult.Slug!, clientIp, ua, Guid.NewGuid()),
+            ct).ConfigureAwait(false);
+
+        return result.IsSuccess
+            ? NoContent()
+            : Unauthorized(new ProblemDetails
+            {
+                Title = result.Error,
+                Status = StatusCodes.Status401Unauthorized,
+                Type = result.ErrorCode,
+            });
+    }
+
+    // ───────────── Sprint-9 MFA ─────────────
+
+    [Authorize]
+    [HttpPost("mfa/enroll/begin")]
+    [ProducesResponseType(typeof(BeginEnrollMfaResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> BeginEnrollMfa(CancellationToken ct)
+    {
+        if (!TryReadAuthenticatedTenant(out var slug, out var userId))
+        {
+            return Unauthorized();
+        }
+        var result = await _mediator.Send(new BeginEnrollMfaCommand(userId, slug), ct).ConfigureAwait(false);
+        if (result.IsSuccess)
+        {
+            return Ok(result.Value);
+        }
+        var status = result.ErrorCode == "auth.mfa_already_enrolled"
+            ? StatusCodes.Status409Conflict
+            : StatusCodes.Status401Unauthorized;
+        return StatusCode(status, new ProblemDetails
+        {
+            Title = result.Error,
+            Status = status,
+            Type = result.ErrorCode,
+        });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("mfa/enroll/verify")]
+    [EnableRateLimiting("auth-credentials")]
+    [ProducesResponseType(typeof(VerifyEnrollMfaResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> VerifyEnrollMfa(
+        [FromBody] VerifyEnrollMfaRequest? body,
+        CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.Otp))
+        {
+            return ValidationProblem("enrollment_token + enrollment_id + otp required.");
+        }
+
+        var slugResult = await ResolveTenantAsync(bodyTenantSlug: null, ct).ConfigureAwait(false);
+        if (!slugResult.Success)
+        {
+            return slugResult.ErrorResult!;
+        }
+
+        // The enrollment token internally encodes the user_id; we
+        // pass Guid.Empty as a placeholder and let the handler decode.
+        var result = await _mediator.Send(
+            new VerifyEnrollMfaCommand(
+                UserId: Guid.Empty, // handler reads from challenge payload
+                TenantSlug: slugResult.Slug!,
+                EnrollmentToken: body.EnrollmentToken,
+                EnrollmentId: body.EnrollmentId,
+                Otp: body.Otp,
+                RememberMe: false,
+                CorrelationId: Guid.NewGuid()),
+            ct).ConfigureAwait(false);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Unauthorized(new ProblemDetails
+            {
+                Title = result.Error,
+                Status = StatusCodes.Status401Unauthorized,
+                Type = result.ErrorCode,
+            });
+    }
+
+    [AllowAnonymous]
+    [HttpPost("mfa/verify")]
+    [EnableRateLimiting("auth-credentials")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
+    public async Task<IActionResult> VerifyMfa([FromBody] VerifyMfaRequest? body, CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.ChallengeToken))
+        {
+            return ValidationProblem("challenge_token + (otp | recovery_code) required.");
+        }
+
+        var slugResult = await ResolveTenantAsync(bodyTenantSlug: null, ct).ConfigureAwait(false);
+        if (!slugResult.Success)
+        {
+            return slugResult.ErrorResult!;
+        }
+
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var ua = Request.Headers.UserAgent.ToString();
+        var result = await _mediator.Send(
+            new VerifyMfaCommand(
+                body.ChallengeToken, body.Otp, body.RecoveryCode, slugResult.Slug!, clientIp, ua, Guid.NewGuid()),
+            ct).ConfigureAwait(false);
+
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : Unauthorized(new ProblemDetails
+            {
+                Title = result.Error,
+                Status = StatusCodes.Status401Unauthorized,
+                Type = result.ErrorCode,
+            });
+    }
+
+    [Authorize]
+    [HttpPost("mfa/disable")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> DisableMfa([FromBody] DisableMfaRequest? body, CancellationToken ct)
+    {
+        if (body is null || string.IsNullOrWhiteSpace(body.CurrentPassword))
+        {
+            return ValidationProblem("current_password required.");
+        }
+        if (!TryReadAuthenticatedTenant(out var slug, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _mediator.Send(
+            new DisableMfaCommand(userId, slug, body.CurrentPassword, Guid.NewGuid()),
+            ct).ConfigureAwait(false);
+
+        if (result.IsSuccess)
+        {
+            return NoContent();
+        }
+        var status = result.ErrorCode == "auth.mfa_required_cannot_disable"
+            ? StatusCodes.Status422UnprocessableEntity
+            : StatusCodes.Status401Unauthorized;
+        return StatusCode(status, new ProblemDetails
+        {
+            Title = result.Error,
+            Status = status,
+            Type = result.ErrorCode,
+        });
+    }
+
+    [Authorize]
+    [HttpPost("mfa/recovery-codes")]
+    [ProducesResponseType(typeof(RecoveryCodeView), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> GenerateRecoveryCodes(CancellationToken ct)
+    {
+        if (!TryReadAuthenticatedTenant(out var slug, out var userId))
+        {
+            return Unauthorized();
+        }
+        var result = await _mediator.Send(
+            new GenerateRecoveryCodesCommand(userId, slug, Guid.NewGuid()),
+            ct).ConfigureAwait(false);
+        return result.IsSuccess
+            ? Ok(result.Value)
+            : StatusCode(StatusCodes.Status422UnprocessableEntity, new ProblemDetails
+            {
+                Title = result.Error,
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Type = result.ErrorCode,
+            });
     }
 
     // ───────────── Tenant resolution ─────────────

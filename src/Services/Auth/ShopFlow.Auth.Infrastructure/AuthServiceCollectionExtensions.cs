@@ -13,6 +13,7 @@ using ShopFlow.Auth.Infrastructure.Repositories;
 using ShopFlow.Auth.Infrastructure.Storage;
 using ShopFlow.Auth.Infrastructure.Tokens;
 using ShopFlow.SharedKernel.Application;
+using ShopFlow.SharedKernel.Infrastructure;
 using StackExchange.Redis;
 
 namespace ShopFlow.Auth.Infrastructure;
@@ -137,6 +138,18 @@ public static class AuthServiceCollectionExtensions
         // Sprint-9 U9 — Auth-module outbox (cross-module event surface).
         // Scoped because it writes inside the per-request AuthDbContext.
         services.AddScoped<IAuthOutbox, AuthOutbox>();
+
+        // Sprint-9 U9 — outbox dispatcher polls auth_outbox_messages +
+        // publishes to RabbitMQ. Mirrors Outbound/Inbound module shape.
+        services.AddHostedService<MultiplexedOutboxDispatcher<AuthDbContext>>();
+
+        // Sprint-9 U9 — route the 4 Sprint-9 cross-module events as
+        // Publish (broadcast). Notification module's MassTransit
+        // consumers subscribe via standard pub/sub bindings.
+        services.AddOutboxRoute<ShopFlow.Contracts.Auth.PasswordResetRequestedV1>(SendKind.Publish);
+        services.AddOutboxRoute<ShopFlow.Contracts.Auth.RefreshReuseDetectedV1>(SendKind.Publish);
+        services.AddOutboxRoute<ShopFlow.Contracts.Auth.AccountLockedV1>(SendKind.Publish);
+        services.AddOutboxRoute<ShopFlow.Contracts.Auth.MfaEnrolledV1>(SendKind.Publish);
 
         // Sprint-9 U8 — handler-side option blocks (lockout sliding-window
         // params + password-reset cooldown + synthetic-hash sentinel).
