@@ -24,6 +24,7 @@ public sealed class ProvisionCommand : ICommand
     private readonly IPostgresAdmin _admin;
     private readonly ControlPlaneDbContext _catalogDb;
     private readonly OwnerSeed _ownerSeed;
+    private readonly RolePermissionsSeed _rolePermissionsSeed;
     private readonly MigrateOptions _options;
     private readonly ILogger<ProvisionCommand> _logger;
 
@@ -32,6 +33,7 @@ public sealed class ProvisionCommand : ICommand
         IPostgresAdmin admin,
         ControlPlaneDbContext catalogDb,
         OwnerSeed ownerSeed,
+        RolePermissionsSeed rolePermissionsSeed,
         MigrateOptions options,
         ILogger<ProvisionCommand> logger
     )
@@ -40,6 +42,7 @@ public sealed class ProvisionCommand : ICommand
         _admin = admin;
         _catalogDb = catalogDb;
         _ownerSeed = ownerSeed;
+        _rolePermissionsSeed = rolePermissionsSeed;
         _options = options;
         _logger = logger;
     }
@@ -106,6 +109,13 @@ public sealed class ProvisionCommand : ICommand
             .ConfigureAwait(false);
 
         EchoOwnerSeed(seedResult, explicitPwd is not null);
+
+        // Sprint-9 U12 — RolePermissionsSeed runs after OwnerSeed.
+        // Idempotent: re-runs against a populated table are safe.
+        await _rolePermissionsSeed
+            .SeedAsync(tenantConnString, ct)
+            .ConfigureAwait(false);
+
         return 0;
     }
 

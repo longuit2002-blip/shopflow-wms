@@ -27,15 +27,18 @@ public sealed class SeedOwnerCommand : ICommand
 
     private readonly ITenantCatalog _tenantCatalog;
     private readonly OwnerSeed _ownerSeed;
+    private readonly RolePermissionsSeed _rolePermissionsSeed;
     private readonly ILogger<SeedOwnerCommand> _logger;
 
     public SeedOwnerCommand(
         ITenantCatalog tenantCatalog,
         OwnerSeed ownerSeed,
+        RolePermissionsSeed rolePermissionsSeed,
         ILogger<SeedOwnerCommand> logger)
     {
         _tenantCatalog = tenantCatalog;
         _ownerSeed = ownerSeed;
+        _rolePermissionsSeed = rolePermissionsSeed;
         _logger = logger;
     }
 
@@ -69,6 +72,14 @@ public sealed class SeedOwnerCommand : ICommand
             .ConfigureAwait(false);
 
         ProvisionCommand.EchoOwnerSeed(seedResult, explicitPwd is not null);
+
+        // Sprint-9 U12 / ADV-003 — legacy-tenant retrofit also seeds
+        // role_permissions. Idempotent — safe against tenants that
+        // already had it seeded by a prior provision run.
+        await _rolePermissionsSeed
+            .SeedAsync(tenant.DbConnectionString, ct)
+            .ConfigureAwait(false);
+
         return 0;
     }
 }

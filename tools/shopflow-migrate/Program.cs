@@ -122,6 +122,9 @@ static IHost BuildHost(string[] args)
     // (retrofit path against existing tenants).
     builder.Services.AddSingleton<IPasswordGenerator, PasswordGenerator>();
     builder.Services.AddSingleton<OwnerSeed>();
+    // Sprint-9 U12 — Owner row gets the full PermissionKeys.All grant
+    // at provision time + at legacy-tenant retrofit. Idempotent.
+    builder.Services.AddSingleton<RolePermissionsSeed>();
     builder.Services.AddMemoryCache(o => o.SizeLimit = 1000);
     var tenantTemplate = options.ControlPlane.TenantTemplate;
     builder.Services.AddScoped<ITenantCatalog>(sp =>

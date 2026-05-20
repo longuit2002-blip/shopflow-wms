@@ -74,9 +74,15 @@ public sealed class OwnerSeed
 
         await using (var insert = conn.CreateCommand())
         {
+            // Sprint-9 U12 — Owner rows ship with mfa_required = true so
+            // the first login triggers the forced enrollment flow per
+            // R17. The Domain factory User.Create defaults this same
+            // way for application-level creates; the raw-SQL seed path
+            // mirrors that invariant.
             insert.CommandText =
-                "INSERT INTO users (id, email, password_hash, role, is_active, created_at) "
-                + "VALUES (@id, @email, @hash, 'Owner', true, NOW());";
+                "INSERT INTO users (id, email, password_hash, role, is_active, created_at, "
+                + "failed_login_count, mfa_required, mfa_enrolled) "
+                + "VALUES (@id, @email, @hash, 'Owner', true, NOW(), 0, true, false);";
             insert.Parameters.AddWithValue("id", Guid.NewGuid());
             insert.Parameters.AddWithValue("email", normalizedEmail);
             insert.Parameters.AddWithValue("hash", hash);
