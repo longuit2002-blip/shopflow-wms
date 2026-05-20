@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration test harness for the Auth module against real Postgres
+    via Testcontainers (Sprint-8 U3). Two suites:
+      • UserRepositoryTests           — case-insensitive email match,
+        UNIQUE-23505 → EmailInUse, paged list ordering.
+      • AddUsersMigrationSmokeTests   — pg_indexes shows
+        ux_users_email_lower; pg_constraint shows chk_users_role with
+        the expected expression body; ix_users_role_active present.
+    Both tagged Category=Integration per AGENTS.md §8.61. The Redis-
+    backed integration tests for IRefreshTokenStore land in U5.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Auth.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

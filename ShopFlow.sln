@@ -153,6 +153,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Auth.Api", "src\Se
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Auth.UnitTests", "tests\ShopFlow.Auth.UnitTests\ShopFlow.Auth.UnitTests.csproj", "{A41B2C3D-0005-4005-A005-000000000005}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Auth.IntegrationTests", "tests\ShopFlow.Auth.IntegrationTests\ShopFlow.Auth.IntegrationTests.csproj", "{D5A09973-C4BA-46A1-8271-894232B52087}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -847,6 +849,18 @@ Global
 		{A41B2C3D-0005-4005-A005-000000000005}.Release|x64.Build.0 = Release|Any CPU
 		{A41B2C3D-0005-4005-A005-000000000005}.Release|x86.ActiveCfg = Release|Any CPU
 		{A41B2C3D-0005-4005-A005-000000000005}.Release|x86.Build.0 = Release|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Debug|x64.Build.0 = Debug|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Debug|x86.Build.0 = Debug|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|x64.ActiveCfg = Release|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|x64.Build.0 = Release|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|x86.ActiveCfg = Release|Any CPU
+		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -913,5 +927,6 @@ Global
 		{6A1B2C3D-0004-4004-A004-000000000004} = {98189402-7CF5-C254-2C2A-FB126C203A6B}
 		{6A1B2C3D-0005-4005-A005-000000000005} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{6A1B2C3D-0006-4006-A006-000000000006} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{D5A09973-C4BA-46A1-8271-894232B52087} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
