@@ -1,5 +1,7 @@
+using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 using FluentValidation;
 using Hellang.Middleware.ProblemDetails;
 using MassTransit;
@@ -7,17 +9,21 @@ using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Application.Behaviors;
+using ShopFlow.SharedKernel.Authorization;
 using ShopFlow.SharedKernel.Infrastructure.SignalR;
 using HttpStatus = Microsoft.AspNetCore.Http.StatusCodes;
 
@@ -289,7 +295,114 @@ public static class ShopFlowDefaultsExtensions
                     },
                 };
             });
-        services.AddAuthorization();
+        // Sprint-9 U7 — register one ASP.NET policy per
+        // PermissionKeys.All entry (KTD1 + KTD4). Each policy carries
+        // RequireAuthenticatedUser + RequireClaim("perm", <key>) which
+        // matches the JSON-array perm claim emitted by JwtTokenIssuer.
+        services.AddShopFlowPermissionPolicies();
+
+        // ---- Sprint-9 U7 — ForwardedHeaders + RateLimiter -----------------
+        // KTD7 — YARP gateway sets X-Forwarded-For; without honoring it
+        // the rate-limit partition key collapses to the gateway IP and
+        // every legitimate user shares one bucket. Dev defaults trust
+        // loopback only; prod must explicitly allowlist gateway IPs or
+        // CIDRs via Auth:ForwardedHeaders:KnownProxies /
+        // Auth:ForwardedHeaders:KnownNetworks.
+        services.Configure<ForwardedHeadersOptions>(o =>
+        {
+            o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            o.KnownProxies.Clear();
+            o.KnownNetworks.Clear();
+            o.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
+            o.KnownProxies.Add(IPAddress.IPv6Loopback);
+
+            // Operators add gateway-side IPs via env-var binding.
+            var configuredProxies = configuration.GetSection("Auth:ForwardedHeaders:KnownProxies").Get<string[]>();
+            if (configuredProxies is not null)
+            {
+                foreach (var p in configuredProxies)
+                {
+                    if (IPAddress.TryParse(p, out var ip))
+                    {
+                        o.KnownProxies.Add(ip);
+                    }
+                }
+            }
+            var configuredNetworks = configuration.GetSection("Auth:ForwardedHeaders:KnownNetworks").Get<string[]>();
+            if (configuredNetworks is not null)
+            {
+                foreach (var n in configuredNetworks)
+                {
+                    var parts = n.Split('/');
+                    if (parts.Length == 2 &&
+                        IPAddress.TryParse(parts[0], out var net) &&
+                        int.TryParse(parts[1], out var prefix))
+                    {
+                        o.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(net, prefix));
+                    }
+                }
+            }
+        });
+
+        // Startup gate per KTD7 — non-Development environment with no
+        // configured proxies AND no networks beyond loopback throws at
+        // boot rather than running with a silently-broken partition key.
+        var envName = configuration["ASPNETCORE_ENVIRONMENT"]
+            ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+            ?? Environments.Production;
+        if (!string.Equals(envName, Environments.Development, StringComparison.OrdinalIgnoreCase))
+        {
+            var hasProxy = configuration.GetSection("Auth:ForwardedHeaders:KnownProxies").Get<string[]>()?.Length > 0;
+            var hasNetwork = configuration.GetSection("Auth:ForwardedHeaders:KnownNetworks").Get<string[]>()?.Length > 0;
+            if (!hasProxy && !hasNetwork)
+            {
+                throw new InvalidOperationException(
+                    "Auth:ForwardedHeaders:KnownProxies or :KnownNetworks must be set in non-Development. "
+                    + "Empty allowlist silently disables forwarded-header processing AND allows direct callers "
+                    + "to forge X-Forwarded-For to spoof rate-limit partition keys (Sprint-9 KTD7).");
+            }
+        }
+
+        // Two named rate-limit policies (KTD5):
+        //   auth-credentials      → login + refresh + mfa-verify (10/min/IP)
+        //   auth-forgot-password  → forgot-password (5/min/IP)
+        // Both are supplementary defense per OWASP — per-account
+        // lockout (users.locked_until) is the primary defense.
+        services.AddRateLimiter(opts =>
+        {
+            opts.RejectionStatusCode = HttpStatus.Status429TooManyRequests;
+            opts.OnRejected = static (ctx, ct) =>
+            {
+                if (ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    ctx.HttpContext.Response.Headers.RetryAfter =
+                        ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
+                return ValueTask.CompletedTask;
+            };
+            opts.AddPolicy("auth-credentials", httpCtx =>
+                RateLimitPartition.GetTokenBucketLimiter(
+                    partitionKey: ClientIpKey(httpCtx),
+                    factory: _ => new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = 10,
+                        TokensPerPeriod = 10,
+                        ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true,
+                    }));
+            opts.AddPolicy("auth-forgot-password", httpCtx =>
+                RateLimitPartition.GetTokenBucketLimiter(
+                    partitionKey: ClientIpKey(httpCtx),
+                    factory: _ => new TokenBucketRateLimiterOptions
+                    {
+                        TokenLimit = 5,
+                        TokensPerPeriod = 5,
+                        ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0,
+                        AutoReplenishment = true,
+                    }));
+        });
 
         // ---- SignalR (Sprint-7 U5 + Sprint-7.5 U1) ------------------------
         // Single tenant-aware hub (TenantHub) mapped at /hub by Outbound.Api
@@ -342,6 +455,31 @@ public static class ShopFlowDefaultsExtensions
     /// </summary>
     public static IApplicationBuilder UseTenantRouting(this IApplicationBuilder app) =>
         app.UseMiddleware<TenantRoutingMiddleware>();
+
+    /// <summary>
+    /// Sprint-9 U7 — wires <see cref="ForwardedHeadersMiddleware"/> +
+    /// <see cref="RateLimitingMiddleware"/> in the correct order
+    /// (ForwardedHeaders BEFORE RateLimiter per KTD7 so the rate-limit
+    /// partition key reads the real client IP, not the gateway's). Call
+    /// this BEFORE <c>UseAuthentication</c>.
+    /// </summary>
+    public static IApplicationBuilder UseShopFlowSecurityPipeline(this IApplicationBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        app.UseForwardedHeaders();
+        app.UseRateLimiter();
+        return app;
+    }
+
+    /// <summary>
+    /// Rate-limit partition key extractor: prefer the
+    /// <see cref="HttpContext.Connection"/> RemoteIpAddress after
+    /// ForwardedHeaders has rewritten it; fall back to a constant
+    /// sentinel so missing-IP requests don't share a bucket with
+    /// well-formed ones.
+    /// </summary>
+    private static string ClientIpKey(HttpContext ctx) =>
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }
 
 /// <summary>
