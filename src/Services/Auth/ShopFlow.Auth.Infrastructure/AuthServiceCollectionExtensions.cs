@@ -6,6 +6,7 @@ using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Infrastructure.Hashing;
 using ShopFlow.Auth.Infrastructure.Repositories;
 using ShopFlow.Auth.Infrastructure.Storage;
+using ShopFlow.Auth.Infrastructure.Tokens;
 using ShopFlow.SharedKernel.Application;
 using StackExchange.Redis;
 
@@ -98,7 +99,14 @@ public static class AuthServiceCollectionExtensions
         });
         services.AddSingleton<IRefreshTokenStore, RedisRefreshTokenStore>();
 
-        // ITokenIssuer impl lands in U6 (JwtTokenIssuer).
+        // Sprint-8 U6 — JWT access-token issuer. Reads iss/aud/secret
+        // from the same Auth config section the kernel validator
+        // (AddShopFlowDefaults) reads — single source of truth keeps
+        // issuance + validation coordinated (KTD5). Singleton because
+        // the handler + signing key are immutable per-process.
+        services.AddOptions<JwtIssuerOptions>()
+            .Bind(configuration.GetSection(JwtIssuerOptions.SectionName));
+        services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
 
         return services;
     }
