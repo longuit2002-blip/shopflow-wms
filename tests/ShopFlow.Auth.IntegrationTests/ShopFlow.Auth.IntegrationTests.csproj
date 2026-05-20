@@ -22,6 +22,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
     <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +30,7 @@
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Api\ShopFlow.Auth.Api.csproj" />
   </ItemGroup>
 
 </Project>

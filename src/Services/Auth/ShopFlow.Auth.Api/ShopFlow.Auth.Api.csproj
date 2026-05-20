@@ -1,7 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <!-- Auth module — dev-mode fake login API (Sprint-6 U4).
-       Replaced by a real auth service in Sprint-7. -->
+  <!-- Auth module — real auth surface (Sprint-8 U9). Replaces the
+       Sprint-6 dev-mode fake login. Composes Application MediatR
+       handlers + Infrastructure (AuthDbContext + Argon2id + Redis +
+       JWT) + ControlPlane (ITenantCatalog) + the SharedKernel
+       middleware pipeline. -->
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -11,6 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
     <ProjectReference Include="..\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
   </ItemGroup>
 

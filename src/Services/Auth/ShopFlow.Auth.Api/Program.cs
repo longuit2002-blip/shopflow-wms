@@ -1,18 +1,28 @@
 using Hellang.Middleware.ProblemDetails;
 using ShopFlow.Auth.Api;
+using ShopFlow.Auth.Infrastructure;
+using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.SharedKernel.Infrastructure;
 
 // ─────────────────────────────────────────────────────────────────────────
-// ShopFlow.Auth.Api — dev-mode fake login service (Sprint-6 plan U4).
+// ShopFlow.Auth.Api — real auth surface (Sprint-8 U9). Composition order
+// per AGENTS.md §11.79:
+//   1. services.AddShopFlowDefaults(configuration)   — kernel cross-cutting
+//      (MediatR, MassTransit + RabbitMQ, IRequestContext,
+//      OutboxInterceptor, TenantRoutingMiddleware, OpenTelemetry,
+//      ProblemDetails, JwtBearer validation against the SAME Auth:DevSecret
+//      this module signs with via JwtTokenIssuer)
+//   2. services.AddControlPlane(configuration)       — ITenantCatalog
+//      for the in-controller subdomain resolver
+//   3. services.AddAuthModule(configuration)         — AuthDbContext,
+//      UserRepository, Argon2idPasswordHasher, RedisRefreshTokenStore,
+//      JwtTokenIssuer, PasswordGenerator
+//   4. services.AddShopFlowControllers()             — Sprint-7.5 camelCase
+//      JSON helper
 //
-// Sprint-7 swaps this for a real auth module with JWT issuance + refresh
-// rotation + Redis-backed denylist + per-user persistence. The current
-// surface accepts any non-empty (email, password) tuple and returns a
-// baked JWT carrying tenant_slug = "yensaokhanhhoa" + role = "tenant_seller".
-//
-// NOT wired through AddShopFlowDefaults — no MediatR, no MassTransit, no
-// outbox, no DbContext. Just controllers + options binding + ProblemDetails.
-// Keep the surface minimal so Sprint-7 can drop it cleanly.
+// Replaces the Sprint-6 dev-mode fake login stub. The AuthOptions class
+// loses its DemoRole + DemoTenantSlug fields; AuthController now resolves
+// tenant from Host subdomain or body fallback (R5).
 // ─────────────────────────────────────────────────────────────────────────
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,23 +32,31 @@ builder.Services
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
     .ValidateOnStart();
 
-// Disambiguate against the built-in IServiceCollection.AddProblemDetails()
-// surfaced by ASP.NET Core; the Hellang variant is what UseProblemDetails()
-// middleware (line 31) reads from. The whole Hellang dependency leaves
-// the tree in U9 when the real Auth.Api Program.cs lands.
-ProblemDetailsExtensions.AddProblemDetails(builder.Services);
+builder.Services.AddShopFlowDefaults(
+    builder.Configuration,
+    configure: o => o.ServiceName = "shopflow-auth",
+    assembliesToScan: new[]
+    {
+        typeof(ShopFlow.Auth.Application.Commands.LoginCommand).Assembly,
+        typeof(AuthDbContext).Assembly,
+    });
+builder.Services.AddControlPlane(builder.Configuration);
+builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 
 app.UseProblemDetails();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseTenantRouting();
 app.MapControllers();
 
 await app.RunAsync().ConfigureAwait(false);
 
 /// <summary>
 /// Exposed as <c>public partial</c> so <c>WebApplicationFactory&lt;Program&gt;</c>
-/// can boot the host in-process for the AuthControllerTests integration
-/// suite (Sprint-6 plan U4).
+/// can boot the host in-process for the integration suite under
+/// <c>tests/ShopFlow.Auth.IntegrationTests/</c>.
 /// </summary>
 public partial class Program;

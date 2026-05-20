@@ -145,7 +145,7 @@
       atomic Lua-scripted rotation + grace-window tombstone pattern
       (OWASP refined refresh-token-rotation).
     -->
-    <PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
+    <PackageVersion Include="StackExchange.Redis" Version="2.11.0" />
     <!--
       Testcontainers.Redis 4.x — companion to Testcontainers.PostgreSql
       for U5's RedisRefreshTokenStoreTests integration suite. Same

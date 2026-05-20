@@ -224,11 +224,16 @@ var stockSyncApi = builder
     .WaitForCompletion(migrateDev2);
 _ = stockSyncApi;
 
-// Sprint-6 U4 — dev-mode fake login API. No infrastructure deps (no DB,
-// no RabbitMQ). Sprint-7 swaps for the real auth service with Redis-backed
-// denylist + refresh token rotation.
+// Sprint-8 U9 — real auth surface. AddControlPlane needs the postgres
+// resource so the tenant catalog connection string flows in via
+// Aspire env injection. AddAuthModule needs the redis resource for
+// the refresh-token store. Without these references the API throws
+// at first request when ITenantCatalog / IConnectionMultiplexer
+// resolution fails.
 var authApi = builder
     .AddProject<Projects.ShopFlow_Auth_Api>("auth-api")
+    .WithReference(postgres)
+    .WithReference(redis)
     .WithExternalHttpEndpoints();
 _ = authApi;
 
