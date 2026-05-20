@@ -16,6 +16,12 @@
          mock IHubContext + ITenantCatalog (real SignalR transport would
          require booting WebApplicationFactory<Program>). -->
     <PackageReference Include="NSubstitute" />
+    <!-- Sprint-8.5 U10 — ILoggingBuilder.AddProvider lives in
+         Microsoft.Extensions.Logging core (not Logging.Configuration);
+         the BuildHarness fixtures want explicit NullLoggerProvider.Instance
+         to silence test logging. Explicit pin preserves the test-author
+         intent without re-deriving the dependency. -->
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
   <ItemGroup>

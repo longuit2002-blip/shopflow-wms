@@ -166,7 +166,7 @@ public sealed class SagaTransitionsAuditFlowTests : IAsyncLifetime
             new StockReservedV1(
                 OrderId: orderId,
                 TenantId: tenantId,
-                LineOutcomes: new[] { new StockReservedLineOutcomeV1("L1", "SKU-A", 1, "reserved") },
+                LineOutcomes: new[] { new LineOutcomeV1("L1", "SKU-A", Guid.NewGuid(), "Reserved") },
                 OccurredAt: DateTime.UtcNow
             )
         );
@@ -210,7 +210,7 @@ public sealed class SagaTransitionsAuditFlowTests : IAsyncLifetime
             new StockReservationFailedV1(
                 OrderId: orderId,
                 TenantId: tenantId,
-                Reason: "insufficient_stock",
+                LineOutcomes: new[] { new LineOutcomeV1("L1", "SKU-A", null, "Oversold") },
                 OccurredAt: DateTime.UtcNow
             )
         );
