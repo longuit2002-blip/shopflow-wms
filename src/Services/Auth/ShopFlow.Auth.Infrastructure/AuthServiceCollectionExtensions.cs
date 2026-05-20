@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Application.Services;
 using ShopFlow.Auth.Infrastructure.Hashing;
+using ShopFlow.Auth.Infrastructure.Mfa;
 using ShopFlow.Auth.Infrastructure.Repositories;
 using ShopFlow.Auth.Infrastructure.Storage;
 using ShopFlow.Auth.Infrastructure.Tokens;
@@ -113,6 +114,17 @@ public static class AuthServiceCollectionExtensions
             return ConnectionMultiplexer.Connect(opts.ConnectionString);
         });
         services.AddSingleton<IRefreshTokenStore, RedisRefreshTokenStore>();
+
+        // Sprint-9 U4 — TOTP stack: Otp.NET wrapper + AES-256-GCM
+        // cipher with KEK-rotation slot + Redis short-TTL enrollment
+        // secret store. KEK bound from Auth:TotpKek per KTD8; the
+        // Current value MUST be set in appsettings.Development.json /
+        // env-var or AesTotpSecretCipher throws at construction.
+        services.AddSingleton<ITotpProvider, OtpNetTotpProvider>();
+        services.AddOptions<TotpKekOptions>()
+            .Bind(configuration.GetSection(TotpKekOptions.SectionName));
+        services.AddSingleton<ITotpSecretCipher, AesTotpSecretCipher>();
+        services.AddSingleton<IEnrollmentSecretStore, RedisEnrollmentSecretStore>();
 
         // Sprint-8 U6 — JWT access-token issuer. Reads iss/aud/secret
         // from the same Auth config section the kernel validator

@@ -173,6 +173,19 @@
       Testcontainers major version (4.0.0) as the Postgres pin.
     -->
     <PackageVersion Include="Testcontainers.Redis" Version="4.0.0" />
+    <!--
+      Sprint-9 U4 — Otp.NET 1.4.1 (Dec 2025), MIT. RFC 6238 TOTP
+      provider used by OtpNetTotpProvider. Wraps secret generation +
+      provisioning URI build + verify with VerificationWindow.RfcSpecifiedNetworkDelay
+      (±1 step drift). Stateless library — no DI lifetime concerns.
+    -->
+    <PackageVersion Include="Otp.NET" Version="1.4.1" />
+    <!--
+      Sprint-9 U4 — QRCoder 1.8.0 (April 2026), MIT. SvgQRCode pure-C#
+      renderer (no System.Drawing.Common). The Auth.Api MFA enroll
+      endpoint emits an SVG with Cache-Control: no-store per KTD16.
+    -->
+    <PackageVersion Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
 
   <ItemGroup Label="Aspire AppHost — dev orchestrator (per ADR-0001)">
