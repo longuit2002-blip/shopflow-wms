@@ -1,3 +1,4 @@
+using ShopFlow.Auth.Domain;
 using ShopFlow.Auth.Domain.Entities;
 using ShopFlow.SharedKernel.Domain;
 
@@ -5,24 +6,19 @@ namespace ShopFlow.Auth.Application.Ports;
 
 /// <summary>
 /// Read + write surface for the per-tenant <c>users</c> table (Sprint-8
-/// U3 ships the EF-backed impl). Email lookups are case-insensitive to
-/// match the <c>ux_users_email_lower</c> UNIQUE index in the AddUsers
-/// migration — callers don't have to normalize at the call site.
+/// U3 ships the EF-backed impl; Sprint-9 U2 adds the role-fan-out shape
+/// the Notification consumers need for Owner-alert email fan-out).
+/// Email lookups are case-insensitive to match the
+/// <c>ux_users_email_lower</c> UNIQUE index — callers don't have to
+/// normalize at the call site.
 /// </summary>
 /// <remarks>
 /// <para>Per ADR-0003 the table lives in the per-tenant database; tenant
 /// context is bound to the scoped <c>AuthDbContext</c> via
 /// <see cref="ShopFlow.SharedKernel.Application.IRequestContext"/>. The
 /// repository never sees a <c>tenantId</c> parameter — the routing
-/// middleware in U9 binds the request to the correct DB before this
-/// port is called.</para>
-///
-/// <para><see cref="AddAsync"/> returns <c>Result&lt;User&gt;</c> rather
-/// than throwing because email-collision is an expected error path
-/// (admin onboarding races, retried provisioning). U3's
-/// <c>UserRepository</c> catches Postgres 23505 and produces the
-/// <c>auth.email_in_use</c> error code; the handler maps that to a 409
-/// without unwinding the request as an exception.</para>
+/// middleware binds the request to the correct DB before this port is
+/// called.</para>
 /// </remarks>
 public interface IUserRepository
 {
@@ -46,19 +42,16 @@ public interface IUserRepository
     /// Insert a new user row. Returns the persisted aggregate on
     /// success; returns failure with <c>auth.email_in_use</c> when the
     /// UNIQUE-23505 violation fires (race between two admin invites,
-    /// or retried provisioning). Does NOT raise the aggregate's
-    /// <see cref="ShopFlow.Auth.Domain.Events.UserCreatedEvent"/> —
-    /// that's already on the aggregate's domain-event buffer at
-    /// <c>User.Create</c> time and gets drained by SaveChanges.
+    /// or retried provisioning).
     /// </summary>
     Task<Result<User>> AddAsync(User user, CancellationToken ct);
 
     /// <summary>
     /// Persist pending changes on the tracked aggregate (role
-    /// transitions, password rotations, deactivations). EF tracks
-    /// the aggregate from a prior <c>GetById</c>/<c>GetByEmail</c>;
-    /// callers mutate via the named aggregate methods then call
-    /// <c>UpdateAsync</c> to flush.
+    /// transitions, password rotations, deactivations, lockout state,
+    /// MFA toggles). EF tracks the aggregate from a prior
+    /// <c>GetById</c>/<c>GetByEmail</c>; callers mutate via the named
+    /// aggregate methods then call <c>UpdateAsync</c> to flush.
     /// </summary>
     Task UpdateAsync(User user, CancellationToken ct);
 
@@ -69,4 +62,13 @@ public interface IUserRepository
     /// <paramref name="page"/> is 1-based.
     /// </summary>
     Task<IReadOnlyList<User>> ListAsync(int page, int pageSize, CancellationToken ct);
+
+    /// <summary>
+    /// All users with the requested role. Used by Sprint-9
+    /// Notification consumers for Owner-fan-out (chain-reuse alert +
+    /// account-locked alert). Does NOT page — the Owner row count is
+    /// expected to be small (typically 1-3 per tenant); for non-Owner
+    /// roles callers should use <see cref="ListAsync"/> with a page.
+    /// </summary>
+    Task<IReadOnlyList<User>> ListByRoleAsync(UserRole role, CancellationToken ct);
 }

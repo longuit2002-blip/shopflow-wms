@@ -269,4 +269,15 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         SHA256.HashData(Encoding.UTF8.GetBytes(plaintext), hash);
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
+
+    // Sprint-9 U2 stub — port shape only. U5 ships the real impl that
+    // SCANs the user's live refresh keys and DELs entries whose record
+    // JSON carries the matching chain_id. The current Sprint-8 store
+    // has no chain_id field on its record payload, so chain revocation
+    // collapses to a no-op until U5 lands. Handlers in U8 that depend
+    // on chain-only revocation behaviour will only ship after U5.
+    public Task RevokeChainAsync(string tenantSlug, Guid userId, Guid chainId, CancellationToken ct)
+    {
+        return Task.CompletedTask;
+    }
 }

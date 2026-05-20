@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using ShopFlow.Auth.Application.Ports;
+using ShopFlow.Auth.Domain;
 using ShopFlow.Auth.Domain.Entities;
 using ShopFlow.SharedKernel.Domain;
 
@@ -107,6 +108,22 @@ public sealed class UserRepository : IUserRepository
             .ThenByDescending(u => u.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .ToListAsync(ct)
+            .ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<User>> ListByRoleAsync(UserRole role, CancellationToken ct)
+    {
+        // Sprint-9 U2: full scan by role. Owner row count is typically
+        // 1-3 per tenant so paging is unnecessary; non-Owner callers
+        // should use ListAsync with explicit paging instead. AsTracking
+        // is intentional — Sprint-9 Notification consumers don't mutate
+        // the row but other call sites may (e.g. fan-out audit emit).
+        return await _db
+            .Users
+            .AsNoTracking()
+            .Where(u => u.Role == role && u.IsActive)
+            .OrderBy(u => u.CreatedAt)
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }

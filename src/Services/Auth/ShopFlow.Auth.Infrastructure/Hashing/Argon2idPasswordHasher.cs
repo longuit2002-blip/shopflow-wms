@@ -44,9 +44,17 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
         _options = options.Value;
     }
 
-    public string Hash(string plaintext)
+    public string Hash(string plaintext, Argon2Profile profile = Argon2Profile.Password)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(plaintext);
+
+        // U2 stub — profile is accepted on the signature but ignored.
+        // U3 wires the per-profile params (Argon2Options.RecoveryCode
+        // section) so RecoveryCode hashes use m=8 MiB / t=2 / p=1 while
+        // password hashes keep the OWASP 2026 m=64 MiB / t=4 / p=4
+        // shape. The PHC string parameter-embedding lets Verify read
+        // the right params regardless of profile (Sprint-8 KTD4).
+        _ = profile;
 
         var salt = RandomNumberGenerator.GetBytes(SaltLengthBytes);
         var hash = ComputeHash(plaintext, salt, _options.MemorySizeKib, _options.Iterations,
