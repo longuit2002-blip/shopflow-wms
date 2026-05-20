@@ -4,6 +4,7 @@ using ShopFlow.Auth.Application.Commands;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Domain;
 using ShopFlow.Auth.Domain.Entities;
+using ShopFlow.SharedKernel.Application;
 using Xunit;
 
 namespace ShopFlow.Auth.UnitTests.Handlers;
@@ -20,8 +21,11 @@ public sealed class RefreshTokenCommandHandlerTests
     private readonly IRefreshTokenStore _refreshStore = Substitute.For<IRefreshTokenStore>();
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly ITokenIssuer _issuer = Substitute.For<ITokenIssuer>();
+    private readonly IAuthOutbox _outbox = Substitute.For<IAuthOutbox>();
+    private readonly IRequestContext _requestContext = Substitute.For<IRequestContext>();
 
-    private RefreshTokenCommandHandler BuildHandler() => new(_refreshStore, _users, _issuer);
+    private RefreshTokenCommandHandler BuildHandler() =>
+        new(_refreshStore, _users, _issuer, _outbox, _requestContext);
 
     [Fact]
     public async Task LiveToken_RotatesAndReturnsNewPair()

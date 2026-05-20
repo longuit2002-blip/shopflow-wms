@@ -1,6 +1,8 @@
 using MediatR;
 using ShopFlow.Auth.Application.Dtos;
 using ShopFlow.Auth.Application.Ports;
+using ShopFlow.Contracts.Auth;
+using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Auth.Application.Commands;
@@ -28,15 +30,21 @@ public sealed class RefreshTokenCommandHandler
     private readonly IRefreshTokenStore _refreshStore;
     private readonly IUserRepository _users;
     private readonly ITokenIssuer _issuer;
+    private readonly IAuthOutbox _outbox;
+    private readonly IRequestContext _requestContext;
 
     public RefreshTokenCommandHandler(
         IRefreshTokenStore refreshStore,
         IUserRepository users,
-        ITokenIssuer issuer)
+        ITokenIssuer issuer,
+        IAuthOutbox outbox,
+        IRequestContext requestContext)
     {
         _refreshStore = refreshStore;
         _users = users;
         _issuer = issuer;
+        _outbox = outbox;
+        _requestContext = requestContext;
     }
 
     public async Task<Result<RefreshResponse>> Handle(RefreshTokenCommand request, CancellationToken ct)
@@ -54,9 +62,29 @@ public sealed class RefreshTokenCommandHandler
 
         switch (rotation.Outcome)
         {
+            case RefreshRotateOutcome.ChainRevoked:
             case RefreshRotateOutcome.ReuseDetected:
+                // Sprint-9 — emit cross-module event so Notification fans
+                // out to Owner role users (R28). Both Sprint-9
+                // ChainRevoked + Sprint-8-legacy ReuseDetected paths
+                // surface the same response shape; the store has already
+                // revoked (chain-only or user-wide depending on outcome).
+                var presentedHash = HashHex(request.RefreshToken);
+                await _outbox.AppendAsync(
+                    typeof(RefreshReuseDetectedV1).FullName!,
+                    new RefreshReuseDetectedV1(
+                        TenantId: _requestContext.TenantId,
+                        UserId: request.UserId,
+                        AffectedUserEmail: string.Empty, // resolved by Notification consumer if needed
+                        ChainId: rotation.ChainId ?? Guid.Empty,
+                        PresentedTokenHash: presentedHash,
+                        PresentingIp: "unknown",
+                        UserAgent: "unknown",
+                        OccurredAtUtc: DateTime.UtcNow,
+                        CorrelationId: Guid.NewGuid()),
+                    ct).ConfigureAwait(false);
                 return Result<RefreshResponse>.Failure(
-                    "Refresh token reuse detected; all sessions revoked.",
+                    "Refresh token reuse detected.",
                     RefreshReused);
 
             case RefreshRotateOutcome.NotFound:
@@ -110,5 +138,13 @@ public sealed class RefreshTokenCommandHandler
             AccessTokenExpiresAt: accessToken.ExpiresAt,
             RefreshToken: rotation.NewToken!,
             RefreshTokenExpiresAt: refreshExpiresAt));
+    }
+
+    private static string HashHex(string plaintext)
+    {
+        Span<byte> hash = stackalloc byte[32];
+        System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(plaintext), hash);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

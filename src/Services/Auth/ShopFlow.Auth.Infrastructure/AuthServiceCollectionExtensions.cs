@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using ShopFlow.Auth.Application;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Application.Services;
 using ShopFlow.Auth.Infrastructure.Hashing;
 using ShopFlow.Auth.Infrastructure.Mfa;
+using ShopFlow.Auth.Infrastructure.Outbox;
 using ShopFlow.Auth.Infrastructure.Repositories;
 using ShopFlow.Auth.Infrastructure.Storage;
 using ShopFlow.Auth.Infrastructure.Tokens;
@@ -125,6 +128,27 @@ public static class AuthServiceCollectionExtensions
             .Bind(configuration.GetSection(TotpKekOptions.SectionName));
         services.AddSingleton<ITotpSecretCipher, AesTotpSecretCipher>();
         services.AddSingleton<IEnrollmentSecretStore, RedisEnrollmentSecretStore>();
+
+        // Sprint-9 U8/U9 — MFA challenge token codec (signs short-lived
+        // intent tokens that bridge login → MFA verify). HMAC-SHA256 with
+        // the shared Auth:DevSecret per KTD5.
+        services.AddSingleton<IMfaChallengeTokenCodec, HmacMfaChallengeTokenCodec>();
+
+        // Sprint-9 U9 — Auth-module outbox (cross-module event surface).
+        // Scoped because it writes inside the per-request AuthDbContext.
+        services.AddScoped<IAuthOutbox, AuthOutbox>();
+
+        // Sprint-9 U8 — handler-side option blocks (lockout sliding-window
+        // params + password-reset cooldown + synthetic-hash sentinel).
+        services.AddOptions<AuthLockoutOptions>()
+            .Bind(configuration.GetSection(AuthLockoutOptions.SectionName));
+        services.AddOptions<AuthPasswordResetOptions>()
+            .Bind(configuration.GetSection(AuthPasswordResetOptions.SectionName));
+
+        // Sprint-9 U8 — TimeProvider for the lockout + reset cooldown +
+        // MFA challenge expiry + tombstone grace checks. Singleton; tests
+        // bind FakeTimeProvider via test composition.
+        services.TryAddSingleton(TimeProvider.System);
 
         // Sprint-8 U6 — JWT access-token issuer. Reads iss/aud/secret
         // from the same Auth config section the kernel validator

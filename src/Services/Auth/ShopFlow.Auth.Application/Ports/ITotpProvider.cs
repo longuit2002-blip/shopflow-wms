@@ -42,6 +42,13 @@ public interface ITotpProvider
     /// (malformed code, mismatch, expired window).
     /// </summary>
     OtpVerificationResult VerifyOtp(byte[] secret, string code, TimeProvider clock);
+
+    /// <summary>
+    /// Encode the raw secret as base32 for manual-entry display in the
+    /// enrollment screen (the QR is the otpauth URI; users without a
+    /// camera need the secret as text).
+    /// </summary>
+    string EncodeSecretBase32(byte[] secret);
 }
 
 /// <summary>

@@ -46,6 +46,12 @@ public sealed class OtpNetTotpProvider : ITotpProvider
         return builder.ToString();
     }
 
+    public string EncodeSecretBase32(byte[] secret)
+    {
+        ArgumentNullException.ThrowIfNull(secret);
+        return Base32Encoding.ToString(secret);
+    }
+
     public OtpVerificationResult VerifyOtp(byte[] secret, string code, TimeProvider clock)
     {
         ArgumentNullException.ThrowIfNull(clock);
