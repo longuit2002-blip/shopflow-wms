@@ -155,6 +155,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Auth.UnitTests", "
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Auth.IntegrationTests", "tests\ShopFlow.Auth.IntegrationTests\ShopFlow.Auth.IntegrationTests.csproj", "{D5A09973-C4BA-46A1-8271-894232B52087}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ShopFlow.Migrate.IntegrationTests", "tests\ShopFlow.Migrate.IntegrationTests\ShopFlow.Migrate.IntegrationTests.csproj", "{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -861,6 +863,18 @@ Global
 		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|x64.Build.0 = Release|Any CPU
 		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|x86.ActiveCfg = Release|Any CPU
 		{D5A09973-C4BA-46A1-8271-894232B52087}.Release|x86.Build.0 = Release|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Debug|x64.Build.0 = Debug|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Debug|x86.Build.0 = Debug|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Release|x64.ActiveCfg = Release|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Release|x64.Build.0 = Release|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Release|x86.ActiveCfg = Release|Any CPU
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -928,5 +942,6 @@ Global
 		{6A1B2C3D-0005-4005-A005-000000000005} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{6A1B2C3D-0006-4006-A006-000000000006} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{D5A09973-C4BA-46A1-8271-894232B52087} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{5B5BDC3D-B142-4E72-A470-9A4D5EC201DA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
