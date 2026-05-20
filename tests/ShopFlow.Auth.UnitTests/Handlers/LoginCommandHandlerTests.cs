@@ -28,8 +28,8 @@ public sealed class LoginCommandHandlerTests
     private void StubIssuerHappyPath(User user, string tenantSlug)
     {
         _issuer
-            .IssueAccessToken(user, tenantSlug)
-            .Returns(new AccessToken("jwt-bytes", DateTime.UtcNow.AddMinutes(15)));
+            .IssueAccessTokenAsync(user, tenantSlug, Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new AccessToken("jwt-bytes", DateTime.UtcNow.AddMinutes(15))));
         _refreshStore
             .IssueAsync(tenantSlug, user.Id, Arg.Any<bool>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult("opaque-refresh"));

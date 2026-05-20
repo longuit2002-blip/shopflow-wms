@@ -94,7 +94,9 @@ public sealed class RefreshTokenCommandHandler
                 "Invalid credentials.", InvalidCredentials);
         }
 
-        var accessToken = _issuer.IssueAccessToken(user, request.TenantSlug);
+        var accessToken = await _issuer
+            .IssueAccessTokenAsync(user, request.TenantSlug, ct)
+            .ConfigureAwait(false);
         // Refresh TTL bucket carried through by the store; recompute the
         // wire value on the same convention the IssueAsync code uses
         // (7d default, 30d remember-me). The handler doesn't know which

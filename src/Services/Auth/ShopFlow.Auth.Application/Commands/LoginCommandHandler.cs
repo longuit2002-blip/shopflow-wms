@@ -68,7 +68,9 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<L
         user.RecordLogin();
         await _users.UpdateAsync(user, ct).ConfigureAwait(false);
 
-        var accessToken = _issuer.IssueAccessToken(user, request.TenantSlug);
+        var accessToken = await _issuer
+            .IssueAccessTokenAsync(user, request.TenantSlug, ct)
+            .ConfigureAwait(false);
         var refreshToken = await _refreshStore
             .IssueAsync(request.TenantSlug, user.Id, request.RememberMe, ct)
             .ConfigureAwait(false);

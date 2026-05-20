@@ -31,8 +31,8 @@ public sealed class RefreshTokenCommandHandlerTests
             .Returns(Task.FromResult(new RefreshRotateResult(RefreshRotateOutcome.Issued, "new-refresh")));
         _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
-        _issuer.IssueAccessToken(user, "t1")
-            .Returns(new AccessToken("new-jwt", DateTime.UtcNow.AddMinutes(15)));
+        _issuer.IssueAccessTokenAsync(user, "t1", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new AccessToken("new-jwt", DateTime.UtcNow.AddMinutes(15))));
 
         var result = await BuildHandler().Handle(
             new RefreshTokenCommand("old-refresh", user.Id, "t1"),
@@ -51,8 +51,8 @@ public sealed class RefreshTokenCommandHandlerTests
             .Returns(Task.FromResult(new RefreshRotateResult(RefreshRotateOutcome.GraceReplay, "successor-refresh")));
         _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
-        _issuer.IssueAccessToken(user, "t1")
-            .Returns(new AccessToken("new-jwt", DateTime.UtcNow.AddMinutes(15)));
+        _issuer.IssueAccessTokenAsync(user, "t1", Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new AccessToken("new-jwt", DateTime.UtcNow.AddMinutes(15))));
 
         var result = await BuildHandler().Handle(
             new RefreshTokenCommand("old-refresh", user.Id, "t1"),
