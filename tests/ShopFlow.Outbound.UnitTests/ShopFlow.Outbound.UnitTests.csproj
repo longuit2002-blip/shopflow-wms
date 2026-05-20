@@ -16,6 +16,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <!-- Sprint-4 U8 — NSubstitute for OrderImportedConsumer test doubles. -->
     <PackageReference Include="NSubstitute" />
+    <!-- Sprint-8.5 U7 — FakeTimeProvider for SagaTransitionObserverTests
+         deterministic timestamp control. See
+         docs/solutions/2026-05-20-microsoft-extensions-timeprovider-testing-cpm.md. -->
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 
   <ItemGroup>
