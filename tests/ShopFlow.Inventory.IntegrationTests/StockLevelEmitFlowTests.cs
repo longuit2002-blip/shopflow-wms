@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using ShopFlow.Contracts.Inventory;
+using ShopFlow.Inventory.Application;
 using ShopFlow.Inventory.Application.Ports;
 using ShopFlow.Inventory.Domain;
 using ShopFlow.Inventory.Infrastructure;

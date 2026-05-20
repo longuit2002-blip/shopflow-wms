@@ -34,7 +34,13 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private SkuRepository BuildRepo(InventoryDbContext db) => new(db);
+    // Sprint-8.5 U9 — SkuRepository ctor gained an IRequestContext
+    // parameter in Sprint-7.5 U3 but this test helper was left at the
+    // 1-arg shape. Bind a fresh RequestContext per call from the
+    // fixture-provisioned tenant so the repo's tenant-scoped logic
+    // (cache-key shape + outbox stamping) exercises the real path.
+    private SkuRepository BuildRepo(InventoryDbContext db) =>
+        new(db, _tenant.BuildRequestContext());
 
     private static Sku NewSku(
         string code,
