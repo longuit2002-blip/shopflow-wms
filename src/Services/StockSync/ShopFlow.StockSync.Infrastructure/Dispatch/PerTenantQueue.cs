@@ -110,7 +110,7 @@ public sealed class PerTenantQueue : IPerTenantQueue
     {
         public static TenantQueuePair Create(int highCap, int normalCap)
         {
-            var high = Channel.CreateBounded<PushIntent>(
+            var high = System.Threading.Channels.Channel.CreateBounded<PushIntent>(
                 new BoundedChannelOptions(highCap)
                 {
                     FullMode = BoundedChannelFullMode.DropOldest,
@@ -119,7 +119,7 @@ public sealed class PerTenantQueue : IPerTenantQueue
                 }
             );
 
-            var normal = Channel.CreateBounded<PushIntent>(
+            var normal = System.Threading.Channels.Channel.CreateBounded<PushIntent>(
                 new BoundedChannelOptions(normalCap)
                 {
                     FullMode = BoundedChannelFullMode.DropOldest,

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ShopFlow.StockSync.Domain.Aggregates;
 
 namespace ShopFlow.StockSync.Infrastructure.EntityConfigurations;

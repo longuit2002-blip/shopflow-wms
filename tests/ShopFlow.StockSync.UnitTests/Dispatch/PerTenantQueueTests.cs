@@ -22,7 +22,7 @@ public sealed class PerTenantQueueTests
     {
         var options = Options.Create(new StockSyncOptions
         {
-            QueueCapacity = new StockSyncOptions.QueueCapacity
+            QueueCapacity = new StockSyncOptions.QueueCapacitySettings
             {
                 HighCap = highCap,
                 NormalCap = normalCap,

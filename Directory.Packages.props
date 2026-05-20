@@ -146,9 +146,10 @@
       lives in this package's public surface and isn't always exposed
       via the transitive graph. Explicit pin preserves test-author
       intent (NullLoggerProvider.Instance silencing) without re-deriving
-      the dependency. 9.0.0 matches the rest of the Extensions stack.
+      the dependency. Pinned to 10.0.7 to match Microsoft.Extensions.Hosting
+      10.0.7 (Aspire + AppHost dep tree) — 9.0.0 would be a NU1109 downgrade.
     -->
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup Label="Auth — Sprint-8 password hashing + Redis refresh store + JWT issuer">
