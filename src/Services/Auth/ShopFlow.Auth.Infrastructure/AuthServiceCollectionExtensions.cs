@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Auth.Application.Ports;
+using ShopFlow.Auth.Infrastructure.Hashing;
 using ShopFlow.Auth.Infrastructure.Repositories;
 using ShopFlow.SharedKernel.Application;
 
@@ -60,7 +61,14 @@ public static class AuthServiceCollectionExtensions
 
         services.AddScoped<IUserRepository, UserRepository>();
 
-        // IPasswordHasher impl lands in U4 (Argon2idPasswordHasher).
+        // Sprint-8 U4 — Argon2id password hashing. Parameters bound
+        // from the Auth:Argon2 config section; OWASP 2026 baseline
+        // defaults if unset. Singleton because the hasher is
+        // stateless + each Hash call generates its own salt.
+        services.AddOptions<Argon2Options>()
+            .Bind(configuration.GetSection(Argon2Options.SectionName));
+        services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
+
         // IRefreshTokenStore impl lands in U5 (RedisRefreshTokenStore).
         // ITokenIssuer impl lands in U6 (JwtTokenIssuer).
 

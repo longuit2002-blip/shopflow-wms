@@ -131,6 +131,16 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.0.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Auth — Sprint-8 password hashing + JWT issuer">
+    <!--
+      Konscious.Security.Cryptography.Argon2 — pure-managed Argon2 impl
+      used by Sprint-8 U4 Argon2idPasswordHasher. Parameters baked into
+      the produced PHC string so future tuning never invalidates
+      existing rows. 1.3.1 is the current stable line.
+    -->
+    <PackageVersion Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
+  </ItemGroup>
+
   <ItemGroup Label="Aspire AppHost — dev orchestrator (per ADR-0001)">
     <!--
       Aspire.Hosting.* pinned at 13.3.0 — the GA stable line as of late 2025.
