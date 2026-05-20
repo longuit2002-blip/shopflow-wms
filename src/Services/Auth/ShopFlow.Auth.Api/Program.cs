@@ -22,7 +22,11 @@ builder.Services
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
     .ValidateOnStart();
 
-builder.Services.AddProblemDetails();
+// Disambiguate against the built-in IServiceCollection.AddProblemDetails()
+// surfaced by ASP.NET Core; the Hellang variant is what UseProblemDetails()
+// middleware (line 31) reads from. The whole Hellang dependency leaves
+// the tree in U9 when the real Auth.Api Program.cs lands.
+ProblemDetailsExtensions.AddProblemDetails(builder.Services);
 builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();

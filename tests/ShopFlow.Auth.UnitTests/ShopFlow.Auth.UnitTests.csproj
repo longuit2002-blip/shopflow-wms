@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Sprint-6 plan U4 — Auth.Api dev-mode fake login smoke tests. Two cases:
-      • Happy POST /auth/login → 200 + JWT with tenant_slug + role + exp claims.
-      • Empty body → 400 ProblemDetails.
-    Uses WebApplicationFactory<Program> for in-process Kestrel boot.
+    Sprint-6 U4 shipped the dev-mode AuthControllerTests (kept until
+    U9 replaces the stub /auth/login endpoint). Sprint-8 U1+ tests the
+    real Auth.Domain aggregate, Application handlers, and Infrastructure
+    repositories. Test framework + FluentAssertions come from
+    tests/Directory.Build.props.
   -->
 
   <PropertyGroup>
@@ -14,9 +15,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="NSubstitute" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Api\ShopFlow.Auth.Api.csproj" />
   </ItemGroup>
 
