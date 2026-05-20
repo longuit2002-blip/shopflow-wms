@@ -16,12 +16,12 @@
  * loading state on press.
  */
 
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { Logo } from '../primitives/Logo';
 import { Button } from '../primitives/Button';
 import { t, useLocale } from '../../hooks/useLocale';
 import { useAuth } from '../../hooks/useAuth';
-import { login, LoginFailedError } from '../../api/auth';
+import { login, LoginFailedError, detectTenantFromHost } from '../../api/auth';
 
 export interface LoginScreenProps {
   onLoginSuccess?: () => void;
@@ -34,22 +34,40 @@ type SubmissionState =
 
 export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   useLocale();
-  const authLogin = useAuth((s) => s.login);
+  const setSession = useAuth((s) => s.setSession);
+  const detectedTenant = useMemo(
+    () => (typeof window !== 'undefined' ? detectTenantFromHost(window.location.hostname) : null),
+    [],
+  );
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [totp, setTotp] = useState('');
+  const [tenantSlug, setTenantSlug] = useState(detectedTenant ?? '');
+  const [rememberMe, setRememberMe] = useState(false);
   const [state, setState] = useState<SubmissionState>({ kind: 'idle' });
 
   const canSubmit =
-    email.trim().length > 0 && password.length > 0 && state.kind !== 'submitting';
+    email.trim().length > 0
+    && password.length > 0
+    && tenantSlug.trim().length > 0
+    && state.kind !== 'submitting';
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!canSubmit) return;
     setState({ kind: 'submitting' });
     try {
-      const result = await login({ email: email.trim(), password });
-      authLogin(result.accessToken);
+      const result = await login({
+        email: email.trim(),
+        password,
+        rememberMe,
+        tenantSlug: tenantSlug.trim().toLowerCase(),
+      });
+      setSession({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        accessTokenExpiresAt: result.accessTokenExpiresAt,
+        refreshTokenExpiresAt: result.refreshTokenExpiresAt,
+      });
       onLoginSuccess?.();
     } catch (err) {
       const message =
@@ -125,26 +143,42 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
         </FormField>
 
         <FormField
-          id="login-totp"
-          label={t('Mã 2FA', '2FA code')}
-          helper={t(
-            'Bỏ qua trong chế độ phát triển',
-            'Skipped in dev mode',
-          )}
+          id="login-tenant"
+          label={t('Workspace', 'Workspace')}
+          helper={detectedTenant
+            ? t('Phát hiện từ tên miền', 'Detected from domain')
+            : t('Nhập slug của workspace của bạn', 'Enter your workspace slug')}
         >
           <input
-            id="login-totp"
+            id="login-tenant"
             type="text"
-            inputMode="numeric"
-            pattern="[0-9]{6}"
-            maxLength={6}
-            placeholder="••••••"
-            value={totp}
-            onChange={(e) => setTotp(e.target.value)}
-            disabled
-            aria-disabled="true"
+            autoComplete="organization"
+            required
+            value={tenantSlug}
+            onChange={(e) => setTenantSlug(e.target.value)}
+            disabled={state.kind === 'submitting' || !!detectedTenant}
+            readOnly={!!detectedTenant}
           />
         </FormField>
+
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--s-2)',
+            cursor: state.kind === 'submitting' ? 'default' : 'pointer',
+            fontSize: 13,
+            color: 'var(--ink-2)',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(e) => setRememberMe(e.target.checked)}
+            disabled={state.kind === 'submitting'}
+          />
+          {t('Ghi nhớ phiên này 30 ngày', 'Stay signed in for 30 days')}
+        </label>
 
         {state.kind === 'error' && (
           <div

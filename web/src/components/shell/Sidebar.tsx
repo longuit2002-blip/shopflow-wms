@@ -32,13 +32,16 @@ import {
   FileSearch,
   Building2,
   UserPlus,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
-import { Link, useLocation } from '@tanstack/react-router';
+import { Link, useLocation, useRouter } from '@tanstack/react-router';
 import { Logo } from '../primitives/Logo';
 import { Pill } from '../primitives/Pill';
 import { t, useLocale } from '../../hooks/useLocale';
 import { SCREEN_PATHS } from './screenPaths';
+import { useAuth } from '../../hooks/useAuth';
+import { logout as apiLogout } from '../../api/auth';
 
 export type ScreenId =
   | 'dashboard'
@@ -170,9 +173,91 @@ export function Sidebar() {
           ))}
         </nav>
 
+        <UserRow />
         <SystemHealth />
       </div>
     </aside>
+  );
+}
+
+function UserRow() {
+  useLocale();
+  const router = useRouter();
+  const user = useAuth((s) => s.user);
+  const refreshToken = useAuth((s) => s.refreshToken);
+  const clearSession = useAuth((s) => s.clearSession);
+
+  if (!user) return null;
+
+  async function handleLogout() {
+    // Best-effort revoke server-side; clear local state regardless.
+    if (refreshToken) {
+      try {
+        await apiLogout(refreshToken);
+      } catch {
+        // Swallow — clearing local state is what matters for UX.
+      }
+    }
+    clearSession();
+    router.navigate({ to: '/login' });
+  }
+
+  return (
+    <div
+      style={{
+        padding: '10px 6px',
+        borderTop: '1px solid var(--line)',
+        marginTop: 8,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 8,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          padding: '0 4px',
+        }}
+        title={user.email}
+      >
+        <div
+          className="t-sm"
+          style={{
+            fontWeight: 600,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {user.email}
+        </div>
+        <div className="mono" style={{ fontSize: 9.5, color: 'var(--ink-3)' }}>
+          {user.role.toUpperCase()} · {user.tenantSlug}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={handleLogout}
+        aria-label={t('Đăng xuất', 'Sign out')}
+        title={t('Đăng xuất', 'Sign out')}
+        style={{
+          background: 'transparent',
+          border: '1px solid var(--line)',
+          borderRadius: 'var(--radius-md)',
+          padding: 6,
+          cursor: 'pointer',
+          color: 'var(--ink-2)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <LogOut size={14} strokeWidth={1.5} aria-hidden />
+      </button>
+    </div>
   );
 }
 

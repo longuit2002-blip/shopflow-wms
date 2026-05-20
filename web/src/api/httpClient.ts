@@ -27,6 +27,49 @@
 import { useAuth } from '../hooks/useAuth';
 import { ulid } from '../lib/ulid';
 
+// Module-scoped guard so one 401 burst doesn't fan out into N
+// parallel refresh calls; concurrent requests all await the same
+// in-flight rotation. Without this, the per-tab parallel widgets
+// would each trip the grace-window tombstone on every silent refresh.
+let inflightRefresh: Promise<boolean> | null = null;
+
+async function attemptRefresh(): Promise<boolean> {
+  if (inflightRefresh) return inflightRefresh;
+
+  const state = useAuth.getState();
+  const { refreshToken, user } = state;
+  if (!refreshToken || !user) {
+    return false;
+  }
+
+  inflightRefresh = (async () => {
+    try {
+      // Dynamic import breaks the cyclic reference — api/auth.ts
+      // depends on httpClient for non-auth endpoints, but refresh
+      // itself uses unauthenticated fetch.
+      const { refresh } = await import('./auth');
+      const result = await refresh({
+        refreshToken,
+        userId: user.userId,
+        tenantSlug: user.tenantSlug,
+      });
+      useAuth.getState().updateTokens(
+        result.accessToken,
+        result.accessTokenExpiresAt,
+        result.refreshToken,
+        result.refreshTokenExpiresAt,
+      );
+      return true;
+    } catch {
+      return false;
+    } finally {
+      inflightRefresh = null;
+    }
+  })();
+
+  return inflightRefresh;
+}
+
 export interface HttpRequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   /** JSON body (auto-serialized) or pre-serialized string / FormData. */
@@ -74,44 +117,60 @@ export async function httpRequest<T = unknown>(
 ): Promise<T> {
   const method = (options.method ?? 'GET').toUpperCase();
   const url = (options.baseUrl ?? '') + path;
+  const idempotencyKey = options.idempotencyKey;
 
-  const headers = new Headers();
-  headers.set('Accept', 'application/json');
-  for (const [k, v] of Object.entries(options.headers ?? {})) {
-    headers.set(k, v);
-  }
-
-  const { jwt, user } = useAuth.getState();
-  if (jwt) {
-    headers.set('Authorization', `Bearer ${jwt}`);
-  }
-  if (user?.tenantSlug) {
-    headers.set('X-Tenant-Slug', user.tenantSlug);
-  }
-
-  if (isMutation(method) && !headers.has('Idempotency-Key')) {
-    headers.set('Idempotency-Key', options.idempotencyKey ?? ulid());
-  }
-
-  let body: BodyInit | undefined;
-  if (options.body != null) {
-    if (isPlainJsonPayload(options.body)) {
-      body = JSON.stringify(options.body);
-      if (!headers.has('Content-Type')) {
-        headers.set('Content-Type', 'application/json');
-      }
-    } else {
-      body = options.body as BodyInit;
+  async function runOnce(skipRefresh: boolean): Promise<Response> {
+    const headers = new Headers();
+    headers.set('Accept', 'application/json');
+    for (const [k, v] of Object.entries(options.headers ?? {})) {
+      headers.set(k, v);
     }
+
+    const { jwt, user } = useAuth.getState();
+    if (jwt) {
+      headers.set('Authorization', `Bearer ${jwt}`);
+    }
+    if (user?.tenantSlug) {
+      headers.set('X-Tenant-Slug', user.tenantSlug);
+    }
+
+    if (isMutation(method) && !headers.has('Idempotency-Key')) {
+      // Same key on retry — keeps the server-side dedup honest if
+      // the retry attempts succeed on the same logical request.
+      headers.set('Idempotency-Key', idempotencyKey ?? ulid());
+    }
+
+    let body: BodyInit | undefined;
+    if (options.body != null) {
+      if (isPlainJsonPayload(options.body)) {
+        body = JSON.stringify(options.body);
+        if (!headers.has('Content-Type')) {
+          headers.set('Content-Type', 'application/json');
+        }
+      } else {
+        body = options.body as BodyInit;
+      }
+    }
+
+    const init: RequestInit = { method, headers, body };
+    if (options.signal) init.signal = options.signal;
+
+    const response = await fetch(url, init);
+
+    if (response.status === 401 && !skipRefresh) {
+      const refreshed = await attemptRefresh();
+      if (refreshed) {
+        return runOnce(true);
+      }
+    }
+
+    return response;
   }
 
-  const init: RequestInit = { method, headers, body };
-  if (options.signal) init.signal = options.signal;
-
-  const response = await fetch(url, init);
+  const response = await runOnce(false);
 
   if (response.status === 401) {
-    useAuth.getState().logout();
+    useAuth.getState().clearSession();
     throw new ApiError(401, 'Unauthorized — session ended.');
   }
 
