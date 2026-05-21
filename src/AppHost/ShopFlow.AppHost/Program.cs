@@ -237,6 +237,32 @@ var authApi = builder
     .WithExternalHttpEndpoints();
 _ = authApi;
 
+// ── Mailpit (Sprint-9.5 U4) ─────────────────────────────────────────────
+// Dev SMTP target for the Notification module. Tag pinned per KTD7
+// (AGENTS.md rule 56 — no :latest). Exposes the SMTP port on 1025 +
+// the browsable web UI on 8025; appsettings.Development.json points
+// MailKitSmtp at host "mailpit" port 1025 so Aspire DNS resolves the
+// container alias. Prod swaps in a real SMTP provider (Sendgrid / SES /
+// Resend) via env-var overrides — Mailpit is NOT deployed to prod.
+var mailpit = builder
+    .AddContainer("mailpit", "axllent/mailpit", "v1.21.0")
+    .WithEndpoint(port: 1025, targetPort: 1025, name: "smtp", scheme: "tcp")
+    .WithEndpoint(port: 8025, targetPort: 8025, name: "web", scheme: "http");
+_ = mailpit;
+
+// Sprint-9.5 U4 — Notification.Api hosted-service host. No REST surface
+// beyond /health; consumes the four Sprint-9 cross-module Auth events
+// via MassTransit and dispatches via SMTP through Mailpit (dev) or
+// real provider (prod). Waits on the tenant-provisioning chain so the
+// dispatcher has Ready tenants to iterate at startup.
+var notificationApi = builder
+    .AddProject<Projects.ShopFlow_Notification_Api>("notification-api")
+    .WithReference(postgres)
+    .WithReference(rabbitmq)
+    .WaitFor(mailpit)
+    .WaitForCompletion(migrateDev2);
+_ = notificationApi;
+
 await builder.Build().RunAsync().ConfigureAwait(false);
 
 static string ResolveRepoRoot()

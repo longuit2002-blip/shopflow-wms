@@ -62,4 +62,10 @@
                       IsAspireProjectResource="true" />
   </ItemGroup>
 
+  <!-- Sprint-9.5 U4 — Notification.Api resource (hosted-service host). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\Notification\ShopFlow.Notification.Api\ShopFlow.Notification.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
 </Project>

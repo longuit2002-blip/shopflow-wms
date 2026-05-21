@@ -1,14 +1,41 @@
+using MassTransit;
+using ShopFlow.ControlPlane.Infrastructure;
+using ShopFlow.Notification.Infrastructure;
+using ShopFlow.SharedKernel.Infrastructure;
+
 // ─────────────────────────────────────────────────────────────────────────
-// Sprint-9.5 U1 stub. The Notification module quartet ships scaffolded
-// but inert: only /health responds, and there is no AddNotificationModule
-// composition yet. U3 wires the four MT consumers + repositories + mailer
-// switch; U4 lands the Aspire Mailpit reference + the
-// MultiplexedOutboxDispatcher<NotificationDbContext> background service +
-// the production appsettings.json. Until then this host process is a
-// no-op apart from health probes.
+// ShopFlow.Notification.Api — hosted-service host (Sprint-9.5 U4).
+// Composition per AGENTS.md §11.79:
+//   1. services.AddShopFlowDefaults(configuration) — kernel cross-cutting
+//      (MassTransit + RabbitMQ wiring incl. consumer scanning,
+//      IRequestContext, OutboxInterceptor, PerRequestDbContextFactory,
+//      OpenTelemetry).
+//   2. services.AddControlPlane(configuration) — ITenantCatalog so the
+//      NotificationDeliveryDispatcher can iterate every Ready tenant.
+//   3. services.AddNotificationModule(configuration) — NotificationDbContext,
+//      INotificationOutboxRepository + INotificationLogRepository, the
+//      ITemplateRenderer + IMailerProvider (LoggingMailer in dev unless
+//      overridden), and the NotificationDeliveryDispatcher background
+//      service.
+//
+// No public REST surface beyond /health — emails arrive via consumed
+// Sprint-9 cross-module events (PasswordResetRequestedV1,
+// RefreshReuseDetectedV1, AccountLockedV1, MfaEnrolledV1). The 4 MT
+// consumers are registered through AddShopFlowDefaults' MassTransit
+// scanning over the Notification.Infrastructure assembly.
 // ─────────────────────────────────────────────────────────────────────────
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddShopFlowDefaults(
+    builder.Configuration,
+    configure: o => o.ServiceName = "shopflow-notification",
+    assembliesToScan: new[]
+    {
+        typeof(NotificationDbContext).Assembly,
+    });
+builder.Services.AddControlPlane(builder.Configuration);
+builder.Services.AddNotificationModule(builder.Configuration);
 
 var app = builder.Build();
 
