@@ -6,6 +6,21 @@
        impls; U3 ships the 4 MT consumers + AddNotificationModule
        composition root + the background dispatcher hosted service. -->
 
+  <PropertyGroup>
+    <!--
+      MailKit GHSA-9j88-vvj5-vhgr — moderate-severity advisory in the
+      MimeKit transitive dep graph; affects the 4.x line and has no
+      patched release at Sprint-9.5 ship time. The Notification module
+      uses MailKit only for outbound SMTP via SmtpClient (no IMAP /
+      cryptography paths) where the advisory's MIME-parsing surface
+      isn't reachable. Documented exception per AGENTS.md NU1902
+      pattern (OpenTelemetry GHSA-4625-4j76-fww9 precedent). Operational
+      pre-flight (docs/plans/...sprint-9.5...plan.md "Operational
+      Pre-Flight") gates re-evaluation on first prod deploy.
+    -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Notification.Application\ShopFlow.Notification.Application.csproj" />
     <ProjectReference Include="..\ShopFlow.Notification.Domain\ShopFlow.Notification.Domain.csproj" />
@@ -16,6 +31,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
   </ItemGroup>
 
 </Project>

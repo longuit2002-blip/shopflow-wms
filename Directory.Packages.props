@@ -188,6 +188,22 @@
     <PackageVersion Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
 
+  <ItemGroup Label="Notification — Sprint-9.5 mailer">
+    <!--
+      MailKit — pure-managed SMTP client used by U2's
+      MailKitSmtpMailer. Connect → STARTTLS (opportunistic) →
+      AuthenticateAsync (SASL PLAIN when Username non-empty) → SendAsync
+      → DisconnectAsync. SmtpClient is not safe for concurrent SendAsync
+      calls, so MailKitSmtpMailer instantiates a fresh client per send
+      (singleton wrapper around per-call SmtpClient). MimeKit pulls in
+      as a transitive dep but isn't directly referenced.
+      4.13.0 — bumped past 4.8.0's GHSA-9j88-vvj5-vhgr (NU1902 enforced
+      by treat-warning-as-error pattern). Upgrade requires re-running
+      the U4 happy-path Testcontainers Mailpit smoke.
+    -->
+    <PackageVersion Include="MailKit" Version="4.13.0" />
+  </ItemGroup>
+
   <ItemGroup Label="Aspire AppHost — dev orchestrator (per ADR-0001)">
     <!--
       Aspire.Hosting.* pinned at 13.3.0 — the GA stable line as of late 2025.

@@ -12,6 +12,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="NSubstitute" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Domain\ShopFlow.Notification.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Application\ShopFlow.Notification.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Infrastructure\ShopFlow.Notification.Infrastructure.csproj" />
