@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sprint-9.5 U1 ships the smoke + value-object tests. U2 adds the
+    template renderer + mailer mapper tests; U3 adds the MT-consumer
+    harness tests. Test framework + FluentAssertions come from
+    tests/Directory.Build.props.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Notification.UnitTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Domain\ShopFlow.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Application\ShopFlow.Notification.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Infrastructure\ShopFlow.Notification.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

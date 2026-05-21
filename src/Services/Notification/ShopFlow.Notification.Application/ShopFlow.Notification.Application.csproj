@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Notification module — Application. Sprint-9.5 U1 ships the
+       repository ports (INotificationOutboxRepository,
+       INotificationLogRepository); U2 adds the mailer + template
+       renderer ports (IMailerProvider, ITemplateRenderer); U3 ships
+       the MT consumers backed by these abstractions. Pure interfaces
+       only — implementations live in Infrastructure. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Notification.Domain\ShopFlow.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

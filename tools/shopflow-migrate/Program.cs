@@ -8,6 +8,7 @@ using ShopFlow.Auth.Infrastructure;
 using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
 using ShopFlow.Migrate;
+using ShopFlow.Notification.Infrastructure;
 using ShopFlow.Migrate.Commands;
 using ShopFlow.Migrate.Modules;
 using ShopFlow.Migrate.Provisioning;
@@ -98,6 +99,18 @@ static IHost BuildHost(string[] args)
                 moduleName: "Auth",
                 dbContextType: typeof(AuthDbContext),
                 migrationsAssemblyName: typeof(AuthDbContext).Assembly.GetName().Name!
+            ))
+            // Sprint-9.5 U1 — Notification migrations apply to every
+            // tenant DB alongside Inventory + Auth. The
+            // InitialNotificationSchema migration creates the three
+            // tables (notification_outbox / notification_log /
+            // notification_dead_letter) + the KTD3 UNIQUE on
+            // notification_log(source_event_id, recipient_email).
+            // Closes Sprint-9 U12 deferral.
+            .Register(new ModuleMigrationDescriptor(
+                moduleName: "Notification",
+                dbContextType: typeof(NotificationDbContext),
+                migrationsAssemblyName: typeof(NotificationDbContext).Assembly.GetName().Name!
             ))
     );
 

@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Notification module — Infrastructure. Sprint-9.5 U1 ships the
+       DbContext + 3 EF entity configurations + the InitialNotificationSchema
+       per-tenant migration. U2 adds the mailer + template renderer
+       impls; U3 ships the 4 MT consumers + AddNotificationModule
+       composition root + the background dispatcher hosted service. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Notification.Application\ShopFlow.Notification.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Notification.Domain\ShopFlow.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+  </ItemGroup>
+
+</Project>

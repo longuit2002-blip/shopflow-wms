@@ -42,6 +42,10 @@
          + Argon2idPasswordHasher + PasswordGenerator so the owner-seed
          path doesn't duplicate the hashing implementation (SG-001 / ADV-010). -->
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
+    <!-- Sprint-9.5 U1 — pulls in NotificationDbContext so the
+         InitialNotificationSchema migration is registered with the
+         IModuleMigrationRegistry and applied on every tenant DB. -->
+    <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Infrastructure\ShopFlow.Notification.Infrastructure.csproj" />
   </ItemGroup>
 
   <ItemGroup>

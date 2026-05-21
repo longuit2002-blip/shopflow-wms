@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Notification module — hosted-service host (Sprint-9.5 U1 stub).
+       Sprint-9.5 U4 wires the AddNotificationModule composition root +
+       MultiplexedOutboxDispatcher<NotificationDbContext> background
+       service + Mailpit Aspire reference. No public REST surface
+       beyond /health (origin R1: "Api is a hosted-service host" —
+       email arrives via event consumption, no synchronous send). -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.Notification.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Notification.Application\ShopFlow.Notification.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Notification.Infrastructure\ShopFlow.Notification.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>
