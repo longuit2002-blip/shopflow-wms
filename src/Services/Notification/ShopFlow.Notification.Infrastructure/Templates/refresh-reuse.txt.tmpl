@@ -1,0 +1,17 @@
+Suspicious activity on account {affected_user_email}
+
+Hi Owner,
+
+A previously-rotated refresh token for {affected_user_email} was replayed from a new request. That session has been signed out as a precaution.
+
+Details:
+  Account:        {affected_user_email}
+  Source IP:      {presenting_ip}
+  User agent:     {user_agent}
+  Detected at:    {occurred_at_utc} UTC
+
+If this wasn't the user, ask them to change their password immediately. If the user does recognise this — e.g. they hit "Back" on a stale browser tab — no further action is needed; future logins continue to work.
+
+Reference chain id: {chain_id}
+
+— ShopFlow WMS Security

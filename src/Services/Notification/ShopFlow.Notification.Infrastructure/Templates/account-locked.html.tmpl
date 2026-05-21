@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Account locked: {user_email}</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 2em auto; color: #1a1a1a;">
+  <h1 style="font-size: 20px; color: #b00020;">Account locked: {user_email}</h1>
+  <p>Hi Owner,</p>
+  <p>The account <strong>{user_email}</strong> reached the failed-login threshold and was locked.</p>
+  <table style="border-collapse: collapse; margin: 1em 0; font-size: 14px;">
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Account</td><td style="padding: 4px 0;">{user_email}</td></tr>
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Failed attempts</td><td style="padding: 4px 0;">{failed_login_count}</td></tr>
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Locked until</td><td style="padding: 4px 0;">{locked_until_utc} UTC</td></tr>
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Last source IP</td><td style="padding: 4px 0;">{source_ip}</td></tr>
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Detected at</td><td style="padding: 4px 0;">{occurred_at_utc} UTC</td></tr>
+  </table>
+  <p>The lockout auto-releases at the time shown above. To unlock the account immediately, sign in as Owner and use the admin → users → Unlock action. If the source IP isn't recognised, consider asking the user to change their password.</p>
+  <p style="color: #999; font-size: 12px; margin-top: 2em;">— ShopFlow WMS Security</p>
+</body>
+</html>

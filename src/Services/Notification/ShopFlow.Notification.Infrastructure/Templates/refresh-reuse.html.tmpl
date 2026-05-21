@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Suspicious activity on {affected_user_email}</title></head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 2em auto; color: #1a1a1a;">
+  <h1 style="font-size: 20px; color: #b00020;">Suspicious activity on account {affected_user_email}</h1>
+  <p>Hi Owner,</p>
+  <p>A previously-rotated refresh token for <strong>{affected_user_email}</strong> was replayed from a new request. That session has been signed out as a precaution.</p>
+  <table style="border-collapse: collapse; margin: 1em 0; font-size: 14px;">
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Account</td><td style="padding: 4px 0;">{affected_user_email}</td></tr>
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Source IP</td><td style="padding: 4px 0;">{presenting_ip}</td></tr>
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">User agent</td><td style="padding: 4px 0;">{user_agent}</td></tr>
+    <tr><td style="padding: 4px 12px 4px 0; color: #666;">Detected at</td><td style="padding: 4px 0;">{occurred_at_utc} UTC</td></tr>
+  </table>
+  <p>If this wasn't the user, ask them to change their password immediately. If the user does recognise this — e.g. they hit "Back" on a stale browser tab — no further action is needed; future logins continue to work.</p>
+  <p style="color: #999; font-size: 12px;">Reference chain id: <code>{chain_id}</code></p>
+  <p style="color: #999; font-size: 12px; margin-top: 2em;">— ShopFlow WMS Security</p>
+</body>
+</html>
