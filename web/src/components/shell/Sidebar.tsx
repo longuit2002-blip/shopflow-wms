@@ -42,6 +42,7 @@ import { t, useLocale } from '../../hooks/useLocale';
 import { SCREEN_PATHS } from './screenPaths';
 import { useAuth } from '../../hooks/useAuth';
 import { logout as apiLogout } from '../../api/auth';
+import { hasPerm } from '../../hooks/usePerm';
 
 export type ScreenId =
   | 'dashboard'
@@ -63,6 +64,13 @@ interface NavItem {
   upcoming?: string;
   /** Section header above the next group. */
   groupBefore?: string;
+  /**
+   * Sprint-9.5 U8 — JWT `perm[]` keys required to render this nav item.
+   * Item is hidden when the active session lacks any of the keys
+   * (KTD12 fail-closed). Items without `permRequired` (Dashboard,
+   * Profile, etc.) are always visible to authenticated users.
+   */
+  permRequired?: readonly string[];
 }
 
 export function Sidebar() {
@@ -77,17 +85,19 @@ export function Sidebar() {
       icon: LayoutDashboard,
       upcoming: 'Sprint 7',
     },
-    { id: 'inventory', label: t('Tồn kho', 'Inventory'), icon: Boxes },
+    { id: 'inventory', label: t('Tồn kho', 'Inventory'), icon: Boxes, permRequired: ['inventory.read'] },
     {
       id: 'inbound',
       label: t('Nhập hàng', 'Inbound'),
       icon: Truck,
       upcoming: 'Sprint 8',
+      permRequired: ['inbound.pos.read'],
     },
     {
       id: 'orders',
       label: t('Đơn hàng', 'Orders'),
       icon: ShoppingBag,
+      permRequired: ['outbound.orders.read'],
     },
     {
       id: 'channels',
@@ -107,26 +117,36 @@ export function Sidebar() {
       icon: Settings,
       upcoming: 'Phase 3',
       groupBefore: t('Quản trị', 'Admin'),
+      permRequired: ['auth.admin.users.list'],
     },
     {
       id: 'audit',
       label: t('Audit log', 'Audit log'),
       icon: FileSearch,
       upcoming: 'Phase 3',
+      permRequired: ['auth.admin.users.list'],
     },
     {
       id: 'tenants',
       label: t('Tenants', 'Tenants'),
       icon: Building2,
       upcoming: 'Phase 3',
+      permRequired: ['auth.admin.users.list'],
     },
     {
       id: 'onboarding',
       label: t('Khởi tạo mới', 'Onboard new'),
       icon: UserPlus,
       upcoming: 'Phase 3',
+      permRequired: ['auth.admin.users.list'],
     },
   ];
+
+  // Sprint-9.5 U8 — fail-closed visibility per item. Items without
+  // `permRequired` (Dashboard) stay visible to any authenticated user.
+  const visibleItems = items.filter(
+    (it) => !it.permRequired || hasPerm(...it.permRequired),
+  );
 
   return (
     <aside
@@ -164,7 +184,7 @@ export function Sidebar() {
           className="scroll-y"
           style={{ flex: 1 }}
         >
-          {items.map((it) => (
+          {visibleItems.map((it) => (
             <NavRow
               key={it.id}
               item={it}
