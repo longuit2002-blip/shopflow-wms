@@ -21,10 +21,17 @@ import { Logo } from '../primitives/Logo';
 import { Button } from '../primitives/Button';
 import { t, useLocale } from '../../hooks/useLocale';
 import { useAuth } from '../../hooks/useAuth';
-import { login, LoginFailedError, detectTenantFromHost } from '../../api/auth';
+import { login, detectTenantFromHost } from '../../api/auth';
 
 export interface LoginScreenProps {
+  /** Fired after a `kind:'success'` login that promotes useAuth to `full-session`. */
   onLoginSuccess?: () => void;
+  /** Sprint-9.5 — fired after a `kind:'mfa-challenge'` login (route to /mfa/challenge). */
+  onMfaChallenge?: () => void;
+  /** Sprint-9.5 — fired after a `kind:'mfa-enrollment'` login (route to /mfa/enroll). */
+  onMfaEnrollment?: () => void;
+  /** Sprint-9.5 — fired when user clicks "Forgot password?". */
+  onForgotPassword?: () => void;
 }
 
 type SubmissionState =
@@ -32,9 +39,16 @@ type SubmissionState =
   | { kind: 'submitting' }
   | { kind: 'error'; message: string };
 
-export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
+export function LoginScreen({
+  onLoginSuccess,
+  onMfaChallenge,
+  onMfaEnrollment,
+  onForgotPassword,
+}: LoginScreenProps) {
   useLocale();
   const setSession = useAuth((s) => s.setSession);
+  const setMfaChallenge = useAuth((s) => s.setMfaChallenge);
+  const setMfaEnrollment = useAuth((s) => s.setMfaEnrollment);
   const detectedTenant = useMemo(
     () => (typeof window !== 'undefined' ? detectTenantFromHost(window.location.hostname) : null),
     [],
@@ -55,26 +69,37 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     e.preventDefault();
     if (!canSubmit) return;
     setState({ kind: 'submitting' });
-    try {
-      const result = await login({
-        email: email.trim(),
-        password,
-        rememberMe,
-        tenantSlug: tenantSlug.trim().toLowerCase(),
-      });
-      setSession({
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        accessTokenExpiresAt: result.accessTokenExpiresAt,
-        refreshTokenExpiresAt: result.refreshTokenExpiresAt,
-      });
-      onLoginSuccess?.();
-    } catch (err) {
-      const message =
-        err instanceof LoginFailedError
-          ? err.message
-          : t('Đăng nhập thất bại. Vui lòng thử lại.', 'Login failed. Please try again.');
-      setState({ kind: 'error', message });
+    const result = await login({
+      email: email.trim(),
+      password,
+      rememberMe,
+      tenantSlug: tenantSlug.trim().toLowerCase(),
+    });
+    switch (result.kind) {
+      case 'success':
+        setSession({
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          accessTokenExpiresAt: result.accessTokenExpiresAt,
+          refreshTokenExpiresAt: result.refreshTokenExpiresAt,
+        });
+        onLoginSuccess?.();
+        return;
+      case 'mfa-challenge':
+        setMfaChallenge(result.intentToken, result.mfaMethods);
+        onMfaChallenge?.();
+        return;
+      case 'mfa-enrollment':
+        setMfaEnrollment(result.intentToken);
+        onMfaEnrollment?.();
+        return;
+      case 'failure':
+        setState({
+          kind: 'error',
+          message: result.message
+            || t('Đăng nhập thất bại. Vui lòng thử lại.', 'Login failed. Please try again.'),
+        });
+        return;
     }
   }
 
@@ -179,6 +204,26 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
           />
           {t('Ghi nhớ phiên này 30 ngày', 'Stay signed in for 30 days')}
         </label>
+
+        {onForgotPassword && (
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            disabled={state.kind === 'submitting'}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'var(--accent-1)',
+              fontSize: 13,
+              textAlign: 'left',
+              cursor: 'pointer',
+              textDecoration: 'underline',
+            }}
+          >
+            {t('Quên mật khẩu?', 'Forgot password?')}
+          </button>
+        )}
 
         {state.kind === 'error' && (
           <div

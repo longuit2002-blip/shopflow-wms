@@ -12,11 +12,30 @@ export interface JwtPayload {
   email?: string;
   role?: string;
   tenant_slug?: string;
+  /**
+   * Sprint-9 KTD1 — emitted as a JSON `string[]` (one `Claim("perm", value)`
+   * per key, flattened by JsonWebTokenHandler). The client treats anything
+   * other than an array of strings as the empty set per KTD12 fail-closed.
+   */
+  perm?: string[];
   exp?: number;
   iat?: number;
   iss?: string;
   aud?: string;
   [key: string]: unknown;
+}
+
+/**
+ * Defensive extractor for the `perm[]` claim. Returns an empty array
+ * when the payload is missing the claim, when the claim is present but
+ * not a string array (e.g. a string-shaped fallback emitted by a future
+ * JsonWebTokenHandler quirk), or when individual entries are non-strings.
+ * Empty array → `usePerm` returns false per KTD12 fail-closed.
+ */
+export function permsFrom(payload: JwtPayload): readonly string[] {
+  const raw = payload.perm;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((entry): entry is string => typeof entry === 'string');
 }
 
 function base64UrlDecode(input: string): string {

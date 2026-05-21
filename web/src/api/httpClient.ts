@@ -94,6 +94,20 @@ export class ApiError extends Error {
     this.status = status;
     this.body = body;
   }
+
+  /**
+   * Sprint-9.5 — extract a stable `error_code` (or `errorCode`) from a
+   * problem-details JSON body when present, falling back to a generic
+   * `http.<status>` token. Used by UI toasts + the F4 403 path.
+   */
+  get errorCode(): string {
+    if (this.body && typeof this.body === 'object') {
+      const b = this.body as Record<string, unknown>;
+      if (typeof b.error_code === 'string') return b.error_code;
+      if (typeof b.errorCode === 'string') return b.errorCode;
+    }
+    return `http.${this.status}`;
+  }
 }
 
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -158,9 +172,17 @@ export async function httpRequest<T = unknown>(
     const response = await fetch(url, init);
 
     if (response.status === 401 && !skipRefresh) {
-      const refreshed = await attemptRefresh();
-      if (refreshed) {
-        return runOnce(true);
+      // Sprint-9.5 — KTD9 401 branching reads authState first. Only
+      // `full-session` is eligible for transparent refresh + retry;
+      // MFA-state 401 means the intent token expired (or was reset)
+      // and the user must re-login; signed-out 401 means a route that
+      // somehow hit an authenticated endpoint without a session.
+      const authState = useAuth.getState().authState;
+      if (authState === 'full-session') {
+        const refreshed = await attemptRefresh();
+        if (refreshed) {
+          return runOnce(true);
+        }
       }
     }
 
@@ -170,7 +192,18 @@ export async function httpRequest<T = unknown>(
   const response = await runOnce(false);
 
   if (response.status === 401) {
-    useAuth.getState().clearSession();
+    // Branch the cleanup path on the authState that triggered the 401.
+    // - full-session: refresh attempt above already failed → tear down
+    //   the session (chain revoked / refresh expired).
+    // - mfa-challenge / mfa-enrollment: drop the intent token; the user
+    //   re-logs in to mint a fresh one.
+    // - signed-out: nothing to tear down; surface the error.
+    const authState = useAuth.getState().authState;
+    if (authState === 'full-session') {
+      useAuth.getState().clearSession();
+    } else if (authState === 'mfa-challenge' || authState === 'mfa-enrollment') {
+      useAuth.getState().clearIntent();
+    }
     throw new ApiError(401, 'Unauthorized — session ended.');
   }
 

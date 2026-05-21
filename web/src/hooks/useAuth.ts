@@ -20,15 +20,28 @@
  */
 
 import { create } from 'zustand';
-import { decodeJwt, isJwtExpired, type JwtPayload } from '../lib/jwt';
+import { decodeJwt, isJwtExpired, permsFrom, type JwtPayload } from '../lib/jwt';
 
 const STORAGE_KEY = 'shopflow.auth.v2';
+
+/**
+ * Sprint-9.5 U5 — three-way auth state machine bridging login → MFA.
+ * `signed-out` is the boot default; `full-session` is the post-login
+ * steady state (Sprint-8 behaviour preserved); `mfa-challenge` and
+ * `mfa-enrollment` carry an in-memory `intentToken` (5-min HMAC) that
+ * never persists to localStorage (KTD8).
+ */
+export type AuthStateKind = 'signed-out' | 'mfa-challenge' | 'mfa-enrollment' | 'full-session';
+
+export type MfaMethod = 'totp' | 'recovery';
 
 export interface AuthUser {
   email: string;
   role: string;
   tenantSlug: string;
   userId: string;
+  /** Sprint-9 KTD1 `perm[]` claim, defensively parsed per KTD12. */
+  perm: readonly string[];
 }
 
 export interface StoredSession {
@@ -45,6 +58,12 @@ export interface AuthState {
   refreshTokenExpiresAt: string | null;
   user: AuthUser | null;
   isAuthenticated: boolean;
+  /** Sprint-9.5 — three-way state machine. Default `signed-out` on boot. */
+  authState: AuthStateKind;
+  /** In-memory only (never localStorage); 5-min HMAC intent token from backend. */
+  intentToken: string | null;
+  /** Methods accepted during `mfa-challenge` (e.g. `['totp', 'recovery']`). */
+  mfaMethods: readonly MfaMethod[];
   setSession: (session: StoredSession) => void;
   clearSession: () => void;
   updateTokens: (
@@ -53,6 +72,12 @@ export interface AuthState {
     refreshToken: string,
     refreshTokenExpiresAt: string,
   ) => void;
+  /** Sprint-9.5 — transition to `mfa-challenge`; stores intent token in memory. */
+  setMfaChallenge: (intentToken: string, methods: readonly MfaMethod[]) => void;
+  /** Sprint-9.5 — transition to `mfa-enrollment`; stores intent token in memory. */
+  setMfaEnrollment: (intentToken: string) => void;
+  /** Sprint-9.5 — drop intent token + transition back to `signed-out`. */
+  clearIntent: () => void;
   /** Back-compat alias for the Sprint-6 `jwt` getter. */
   jwt: string | null;
   /** Back-compat alias for `clearSession`. */
@@ -107,7 +132,8 @@ function userFromJwt(jwt: string | null): AuthUser | null {
   const tenantSlug = typeof payload.tenant_slug === 'string' ? payload.tenant_slug : '';
   const userId = typeof payload.sub === 'string' ? payload.sub : '';
   if (!email || !tenantSlug || !userId) return null;
-  return { email, role, tenantSlug, userId };
+  // Sprint-9.5 — perm[] always present (empty array fallback per KTD12).
+  return { email, role, tenantSlug, userId, perm: permsFrom(payload) };
 }
 
 function writeStored(session: StoredSession | null): void {
@@ -133,6 +159,9 @@ export const useAuth = create<AuthState>((set, get) => ({
   refreshTokenExpiresAt: initialSession?.refreshTokenExpiresAt ?? null,
   user: initialUser,
   isAuthenticated: initialUser !== null,
+  authState: initialUser !== null ? 'full-session' : 'signed-out',
+  intentToken: null,
+  mfaMethods: [],
   jwt: initialSession?.accessToken ?? null,
   setSession: (session) => {
     const user = userFromJwt(session.accessToken);
@@ -145,6 +174,9 @@ export const useAuth = create<AuthState>((set, get) => ({
         refreshTokenExpiresAt: null,
         user: null,
         isAuthenticated: false,
+        authState: 'signed-out',
+        intentToken: null,
+        mfaMethods: [],
         jwt: null,
       });
       return;
@@ -157,6 +189,10 @@ export const useAuth = create<AuthState>((set, get) => ({
       refreshTokenExpiresAt: session.refreshTokenExpiresAt,
       user,
       isAuthenticated: true,
+      authState: 'full-session',
+      // Promotion to full-session clears any in-flight MFA intent.
+      intentToken: null,
+      mfaMethods: [],
       jwt: session.accessToken,
     });
   },
@@ -180,6 +216,9 @@ export const useAuth = create<AuthState>((set, get) => ({
       refreshTokenExpiresAt,
       user,
       isAuthenticated: true,
+      authState: 'full-session',
+      intentToken: null,
+      mfaMethods: [],
       jwt: accessToken,
     });
   },
@@ -192,7 +231,33 @@ export const useAuth = create<AuthState>((set, get) => ({
       refreshTokenExpiresAt: null,
       user: null,
       isAuthenticated: false,
+      authState: 'signed-out',
+      intentToken: null,
+      mfaMethods: [],
       jwt: null,
+    });
+  },
+  setMfaChallenge: (intentToken, methods) => {
+    // In-memory only — never persist intent tokens (KTD8). Browser
+    // reload during this state forces a fresh login (5-min TTL).
+    set({
+      authState: 'mfa-challenge',
+      intentToken,
+      mfaMethods: methods,
+    });
+  },
+  setMfaEnrollment: (intentToken) => {
+    set({
+      authState: 'mfa-enrollment',
+      intentToken,
+      mfaMethods: [],
+    });
+  },
+  clearIntent: () => {
+    set({
+      authState: 'signed-out',
+      intentToken: null,
+      mfaMethods: [],
     });
   },
   logout: () => {
@@ -204,6 +269,9 @@ export const useAuth = create<AuthState>((set, get) => ({
       refreshTokenExpiresAt: null,
       user: null,
       isAuthenticated: false,
+      authState: 'signed-out',
+      intentToken: null,
+      mfaMethods: [],
       jwt: null,
     });
   },
@@ -244,6 +312,9 @@ export function __resetAuthForTests(): void {
     refreshTokenExpiresAt: null,
     user: null,
     isAuthenticated: false,
+    authState: 'signed-out',
+    intentToken: null,
+    mfaMethods: [],
     jwt: null,
   });
 }

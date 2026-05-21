@@ -332,3 +332,139 @@ describe('httpClient — Sprint-8 token-pair + refresh interceptor', () => {
     expect(refreshCalls).toHaveLength(0);
   });
 });
+
+// ─── Sprint-9.5 U5 — 401/403 split branching on authState (KTD9) ─────────
+describe('httpClient — Sprint-9.5 401/403 split branching on authState', () => {
+  beforeEach(() => {
+    __resetAuthForTests();
+    vi.stubGlobal('fetch', vi.fn());
+  });
+  afterEach(() => {
+    __resetAuthForTests();
+    vi.unstubAllGlobals();
+    window.localStorage.removeItem(STORAGE_KEY);
+  });
+
+  it('401 in mfa-challenge state → does NOT refresh, clears intent, throws', async () => {
+    useAuth.getState().setMfaChallenge('intent-abc', ['totp']);
+    expect(useAuth.getState().authState).toBe('mfa-challenge');
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
+
+    await expect(httpClient.get('/api/auth/mfa/some-endpoint')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 401,
+    });
+
+    // Refresh endpoint was NEVER hit.
+    const refreshCalls = fetchMock.mock.calls.filter(
+      (c) => (typeof c[0] === 'string' ? c[0] : (c[0] as URL).toString()) === '/api/auth/refresh',
+    );
+    expect(refreshCalls).toHaveLength(0);
+
+    // Intent token cleared; transitioned to signed-out.
+    expect(useAuth.getState().intentToken).toBeNull();
+    expect(useAuth.getState().authState).toBe('signed-out');
+  });
+
+  it('401 in mfa-enrollment state → does NOT refresh, clears intent, throws', async () => {
+    useAuth.getState().setMfaEnrollment('intent-xyz');
+    expect(useAuth.getState().authState).toBe('mfa-enrollment');
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
+
+    await expect(httpClient.get('/api/auth/mfa/enroll/some')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 401,
+    });
+
+    const refreshCalls = fetchMock.mock.calls.filter(
+      (c) => (typeof c[0] === 'string' ? c[0] : (c[0] as URL).toString()) === '/api/auth/refresh',
+    );
+    expect(refreshCalls).toHaveLength(0);
+
+    expect(useAuth.getState().intentToken).toBeNull();
+    expect(useAuth.getState().authState).toBe('signed-out');
+  });
+
+  it('401 in signed-out state → does NOT refresh, throws', async () => {
+    // No session at all — authState should default to signed-out.
+    expect(useAuth.getState().authState).toBe('signed-out');
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
+
+    await expect(httpClient.get('/api/v1/something')).rejects.toMatchObject({
+      name: 'ApiError',
+      status: 401,
+    });
+
+    const refreshCalls = fetchMock.mock.calls.filter(
+      (c) => (typeof c[0] === 'string' ? c[0] : (c[0] as URL).toString()) === '/api/auth/refresh',
+    );
+    expect(refreshCalls).toHaveLength(0);
+  });
+
+  it('403 surfaces as ApiError with errorCode propagated from problem-details body', async () => {
+    useAuth.getState().setSession(freshSession());
+    expect(useAuth.getState().authState).toBe('full-session');
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    const problemDetails = {
+      title: 'Forbidden',
+      status: 403,
+      error_code: 'inventory.read_permission_denied',
+    };
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify(problemDetails), {
+        status: 403,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }),
+    );
+
+    let caught: ApiError | null = null;
+    try {
+      await httpClient.get('/api/v1/inventory/skus');
+    } catch (err) {
+      caught = err as ApiError;
+    }
+
+    expect(caught).not.toBeNull();
+    expect(caught!.status).toBe(403);
+    expect(caught!.errorCode).toBe('inventory.read_permission_denied');
+
+    // 403 must NOT clear the session — Sprint-9.5 contract per KTD9.
+    expect(useAuth.getState().isAuthenticated).toBe(true);
+    expect(useAuth.getState().authState).toBe('full-session');
+
+    // 403 must NOT trigger a refresh.
+    const refreshCalls = fetchMock.mock.calls.filter(
+      (c) => (typeof c[0] === 'string' ? c[0] : (c[0] as URL).toString()) === '/api/auth/refresh',
+    );
+    expect(refreshCalls).toHaveLength(0);
+  });
+
+  it('403 errorCode falls back to http.403 when body has no error_code field', async () => {
+    useAuth.getState().setSession(freshSession());
+
+    const fetchMock = vi.mocked(globalThis.fetch);
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: 'no' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    let caught: ApiError | null = null;
+    try {
+      await httpClient.get('/api/v1/inventory/skus');
+    } catch (err) {
+      caught = err as ApiError;
+    }
+
+    expect(caught).not.toBeNull();
+    expect(caught!.errorCode).toBe('http.403');
+  });
+});

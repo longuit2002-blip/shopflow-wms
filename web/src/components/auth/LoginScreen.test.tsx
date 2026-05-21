@@ -273,3 +273,127 @@ describe('LoginScreen — Sprint-8 token-pair + tenant_slug + rememberMe', () =>
     expect(useAuth.getState().isAuthenticated).toBe(false);
   });
 });
+
+// ─── Sprint-9.5 U5 — MFA challenge / enrollment branches + forgot-password ─
+describe('LoginScreen — Sprint-9.5 MFA branches + forgot-password', () => {
+  beforeEach(() => {
+    __resetAuthForTests();
+    __resetLocaleForTests();
+    vi.stubGlobal('fetch', vi.fn());
+    stubHostname('localhost');
+  });
+
+  afterEach(() => {
+    __resetAuthForTests();
+    __resetLocaleForTests();
+    vi.unstubAllGlobals();
+  });
+
+  function mfaChallengeResponse() {
+    return new Response(
+      JSON.stringify({
+        accessToken: null,
+        accessTokenExpiresAt: null,
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+        role: null,
+        email: null,
+        mfaChallengeRequired: true,
+        mfaEnrollmentRequired: false,
+        intentToken: 'mfa-intent-token-abc',
+        mfaMethods: ['totp', 'recovery'],
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  function mfaEnrollmentResponse() {
+    return new Response(
+      JSON.stringify({
+        accessToken: null,
+        accessTokenExpiresAt: null,
+        refreshToken: null,
+        refreshTokenExpiresAt: null,
+        role: null,
+        email: null,
+        mfaChallengeRequired: false,
+        mfaEnrollmentRequired: true,
+        intentToken: 'enrollment-intent-token-xyz',
+        mfaMethods: null,
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+
+  it('backend returns mfa-challenge → setMfaChallenge + onMfaChallenge fires', async () => {
+    const user = userEvent.setup();
+    vi.mocked(globalThis.fetch).mockResolvedValue(mfaChallengeResponse());
+    const onMfaChallenge = vi.fn();
+    const onLoginSuccess = vi.fn();
+
+    render(
+      <LoginScreen
+        onLoginSuccess={onLoginSuccess}
+        onMfaChallenge={onMfaChallenge}
+      />,
+    );
+    await user.type(screen.getByLabelText(/Email/i), 'owner@yensao.vn');
+    await user.type(screen.getByLabelText(/Mật khẩu/i), 'pw');
+    await user.type(screen.getByLabelText(/Workspace/i), 'yensaokhanhhoa');
+    await user.click(screen.getByRole('button', { name: /Đăng nhập$/i }));
+
+    await waitFor(() => expect(onMfaChallenge).toHaveBeenCalledTimes(1));
+    expect(onLoginSuccess).not.toHaveBeenCalled();
+
+    const state = useAuth.getState();
+    expect(state.authState).toBe('mfa-challenge');
+    expect(state.intentToken).toBe('mfa-intent-token-abc');
+    expect(state.mfaMethods).toEqual(['totp', 'recovery']);
+    expect(state.isAuthenticated).toBe(false);
+  });
+
+  it('backend returns mfa-enrollment → setMfaEnrollment + onMfaEnrollment fires', async () => {
+    const user = userEvent.setup();
+    vi.mocked(globalThis.fetch).mockResolvedValue(mfaEnrollmentResponse());
+    const onMfaEnrollment = vi.fn();
+    const onLoginSuccess = vi.fn();
+
+    render(
+      <LoginScreen
+        onLoginSuccess={onLoginSuccess}
+        onMfaEnrollment={onMfaEnrollment}
+      />,
+    );
+    await user.type(screen.getByLabelText(/Email/i), 'owner@yensao.vn');
+    await user.type(screen.getByLabelText(/Mật khẩu/i), 'pw');
+    await user.type(screen.getByLabelText(/Workspace/i), 'yensaokhanhhoa');
+    await user.click(screen.getByRole('button', { name: /Đăng nhập$/i }));
+
+    await waitFor(() => expect(onMfaEnrollment).toHaveBeenCalledTimes(1));
+    expect(onLoginSuccess).not.toHaveBeenCalled();
+
+    const state = useAuth.getState();
+    expect(state.authState).toBe('mfa-enrollment');
+    expect(state.intentToken).toBe('enrollment-intent-token-xyz');
+    expect(state.isAuthenticated).toBe(false);
+  });
+
+  it('renders Forgot password? link when onForgotPassword is provided', async () => {
+    const user = userEvent.setup();
+    const onForgotPassword = vi.fn();
+    render(<LoginScreen onForgotPassword={onForgotPassword} />);
+
+    const link = screen.getByRole('button', { name: /Forgot password\?|Quên mật khẩu/i });
+    expect(link).toBeInTheDocument();
+
+    await user.click(link);
+    expect(onForgotPassword).toHaveBeenCalledTimes(1);
+  });
+
+  it('omits Forgot password? link when onForgotPassword is undefined', () => {
+    render(<LoginScreen />);
+    expect(
+      screen.queryByRole('button', { name: /Forgot password\?|Quên mật khẩu/i }),
+    ).not.toBeInTheDocument();
+  });
+});
