@@ -22,5 +22,12 @@ export const Route = createFileRoute('/login')({
 
 function LoginRouteComponent() {
   const navigate = useNavigate();
-  return <LoginScreen onLoginSuccess={() => navigate({ to: '/inventory' })} />;
+  return (
+    <LoginScreen
+      onLoginSuccess={() => navigate({ to: '/inventory' })}
+      onMfaChallenge={() => navigate({ to: '/mfa/challenge' })}
+      onMfaEnrollment={() => navigate({ to: '/mfa/enroll' })}
+      onForgotPassword={() => navigate({ to: '/forgot-password' })}
+    />
+  );
 }
