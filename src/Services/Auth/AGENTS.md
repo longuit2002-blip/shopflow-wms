@@ -1,9 +1,10 @@
 # Auth module — agent invariants
 
-Sprint-8 + Sprint-9 ship the real auth surface. Plaintext credentials cross the `IPasswordHasher` boundary only; rest of the system handles PHC strings, opaque refresh tokens, and AES-GCM-encrypted TOTP blobs.
+Sprint-8 + Sprint-9 ship the real auth surface. Plaintext credentials cross the `IPasswordHasher` boundary only; rest of the system handles PHC strings, opaque refresh tokens, and AES-GCM-encrypted TOTP blobs. Sprint-10 lifts the gating mechanism on `AuthAdminController` from class-level `[Authorize(Roles="Owner")]` to per-action `[Authorize(Policy = PermissionKeys.X)]`.
 
 ## Hard rules
 
+- **Sprint-10 gating shape**: `AuthAdminController`'s 9 actions carry per-action `[Authorize(Policy = PermissionKeys.X)]` referencing the 9 keys in `PermissionKeys.OwnerCritical`. Class-level `[Authorize(Roles="Owner")]` is removed. Safety nets that prevent Owner lockout: `RolePermissionsSeed` (Sprint-9 U12) bootstraps Owner with all 24 keys at every tenant provision; KTD13 `OwnerCritical` guard in `RolePermissionsCommandHandler` rejects any edit that would shed an admin key from Owner; Sprint-10 U4 `AuthAdminAuthorizePolicyCoverageTests` dual-pins the AuthAdmin policy set against `PermissionKeys.OwnerCritical`. `AuthController` self-service endpoints (logout / me-password / mfa-enroll-begin / mfa-disable / mfa-recovery-codes) keep bare `[Authorize]` — no perm key for self-service over the authenticated user, by design.
 - **R6 enumeration discipline**: every credential failure leg collapses to `auth.invalid_credentials` + 401. No leg leaks "missing user" vs "wrong password" vs "locked" vs "tenant unknown" — see `LoginCommandHandler` + `ResolveTenantAsync` in `AuthController` for the canonical shape.
 - **KTD5 single-source config**: `Auth:DevSecret` + `Auth:Issuer` + `Auth:Audience` are read by JwtTokenIssuer, the kernel JwtBearer validator, AND the HMAC MFA challenge codec. Bump one and you bump all three.
 - **KTD1 perm claim shape**: `perm` is a JSON string array (one `Claim("perm", value)` per key). The U7 policy registration uses `RequireClaim("perm", <key>)` which matches element-by-element. Do NOT space-delimit.
