@@ -12,6 +12,7 @@ using ShopFlow.Outbound.Application.Sagas.Events;
 using ShopFlow.Outbound.Domain;
 using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Application.Attributes;
+using ShopFlow.SharedKernel.Authorization;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Outbound.Api.Controllers;
@@ -48,7 +49,6 @@ namespace ShopFlow.Outbound.Api.Controllers;
 /// lands in a separate MassTransit transaction.</para>
 /// </remarks>
 [ApiController]
-[Authorize]
 [Route("api/outbound/orders")]
 public sealed class OrdersController : ControllerBase
 {
@@ -112,12 +112,14 @@ public sealed class OrdersController : ControllerBase
     private readonly TimeProvider _clock;
     private readonly IPublishEndpoint _publishEndpoint;
     private readonly IMockShippingProvider _shippingProvider;
+
     // Sprint-7 U4 — MediatR powers the read endpoints (list / detail /
     // transitions) per the Sprint-6 Inventory controller pattern. The
     // handlers (U3) live in ShopFlow.Outbound.Application and are wired
     // through AddShopFlowDefaults' MediatR assembly scan (see
     // Program.cs — Outbound.Application is added to assembliesToScan).
     private readonly IMediator _mediator;
+
     // Sprint-7 U4 — IHostEnvironment gates POST /seed to development
     // only. IsDevelopment() returns true when ASPNETCORE_ENVIRONMENT is
     // "Development"; production / staging boots return 404 +
@@ -183,9 +185,7 @@ public sealed class OrdersController : ControllerBase
             shippingProvider,
             mediator: new LegacyTestUnsupportedMediator(),
             env: new LegacyTestHostEnvironment()
-        )
-    {
-    }
+        ) { }
 
     /// <summary>
     /// Sprint-7 U4 — placeholder injected by the legacy test-only
@@ -205,8 +205,8 @@ public sealed class OrdersController : ControllerBase
             CancellationToken cancellationToken = default
         ) => throw NotSupported();
 
-        public Task Publish(object notification, CancellationToken cancellationToken = default)
-            => throw NotSupported();
+        public Task Publish(object notification, CancellationToken cancellationToken = default) =>
+            throw NotSupported();
 
         public Task Publish<TNotification>(
             TNotification notification,
@@ -219,18 +219,18 @@ public sealed class OrdersController : ControllerBase
             CancellationToken cancellationToken = default
         ) => throw NotSupported();
 
-        public Task<object?> Send(
-            object request,
-            CancellationToken cancellationToken = default
-        ) => throw NotSupported();
+        public Task<object?> Send(object request, CancellationToken cancellationToken = default) =>
+            throw NotSupported();
 
         public Task Send<TRequest>(TRequest request, CancellationToken cancellationToken = default)
             where TRequest : IRequest => throw NotSupported();
 
         private static InvalidOperationException NotSupported() =>
-            new("Sprint-7 U4 — legacy test-only constructor: MediatR is not available. "
-                + "Use the 9-arg constructor to exercise the Sprint-7 list / detail / "
-                + "transitions / seed endpoints.");
+            new(
+                "Sprint-7 U4 — legacy test-only constructor: MediatR is not available. "
+                    + "Use the 9-arg constructor to exercise the Sprint-7 list / detail / "
+                    + "transitions / seed endpoints."
+            );
     }
 
     /// <summary>
@@ -244,13 +244,12 @@ public sealed class OrdersController : ControllerBase
         public string EnvironmentName { get; set; } = "Test";
         public string ApplicationName { get; set; } = "ShopFlow.Outbound.Api";
         public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
-        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider
-        {
-            get; set;
-        } = new Microsoft.Extensions.FileProviders.NullFileProvider();
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } =
+            new Microsoft.Extensions.FileProviders.NullFileProvider();
     }
 
     [HttpPost]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersWrite)]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreateOrderRequest request,
         CancellationToken ct
@@ -309,9 +308,7 @@ public sealed class OrdersController : ControllerBase
                 .ToArray(),
             OccurredAt: placedAt
         );
-        await _outbox
-            .AppendAsync(OrderPlacedV1EventType, placedPayload, ct)
-            .ConfigureAwait(false);
+        await _outbox.AppendAsync(OrderPlacedV1EventType, placedPayload, ct).ConfigureAwait(false);
 
         await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -319,6 +316,7 @@ public sealed class OrdersController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersRead)]
     public async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct)
     {
         var order = await _orderRepo.FindByIdAsync(id, ct).ConfigureAwait(false);
@@ -352,6 +350,7 @@ public sealed class OrdersController : ControllerBase
     /// </list>
     /// </remarks>
     [HttpGet]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersRead)]
     [ProducesResponseType(typeof(OrderListResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ListAsync(
@@ -369,12 +368,15 @@ public sealed class OrdersController : ControllerBase
         DateTime? untilParsed = null;
         if (!string.IsNullOrWhiteSpace(since))
         {
-            if (!DateTime.TryParse(
+            if (
+                !DateTime.TryParse(
                     since,
                     System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.RoundtripKind
                         | System.Globalization.DateTimeStyles.AssumeUniversal,
-                    out var parsed))
+                    out var parsed
+                )
+            )
             {
                 return ProblemFromError(
                     $"since '{since}' is not a valid ISO 8601 timestamp.",
@@ -386,12 +388,15 @@ public sealed class OrdersController : ControllerBase
         }
         if (!string.IsNullOrWhiteSpace(until))
         {
-            if (!DateTime.TryParse(
+            if (
+                !DateTime.TryParse(
                     until,
                     System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.RoundtripKind
                         | System.Globalization.DateTimeStyles.AssumeUniversal,
-                    out var parsed))
+                    out var parsed
+                )
+            )
             {
                 return ProblemFromError(
                     $"until '{until}' is not a valid ISO 8601 timestamp.",
@@ -404,19 +409,11 @@ public sealed class OrdersController : ControllerBase
 
         if (skip < 0)
         {
-            return ProblemFromError(
-                "skip must be non-negative.",
-                "order.invalid_skip",
-                400
-            );
+            return ProblemFromError("skip must be non-negative.", "order.invalid_skip", 400);
         }
         if (take < 1)
         {
-            return ProblemFromError(
-                "take must be at least 1.",
-                "order.invalid_take",
-                400
-            );
+            return ProblemFromError("take must be at least 1.", "order.invalid_take", 400);
         }
 
         var filter = new OrderListFilter(
@@ -432,8 +429,8 @@ public sealed class OrdersController : ControllerBase
             .ConfigureAwait(false);
 
         var now = _clock.GetUtcNow().UtcDateTime;
-        var items = page.Items
-            .Select(r => new OrderListItemDto(
+        var items = page
+            .Items.Select(r => new OrderListItemDto(
                 Id: r.Id,
                 ChannelExternalOrderId: r.ChannelExternalOrderId,
                 Channel: r.Channel,
@@ -458,6 +455,7 @@ public sealed class OrdersController : ControllerBase
     /// repo infrastructure without bolting a separate query type onto U3.
     /// </summary>
     [HttpGet("kpis")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersRead)]
     [ProducesResponseType(typeof(OrderKpiResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetKpisAsync(CancellationToken ct)
     {
@@ -468,43 +466,88 @@ public sealed class OrdersController : ControllerBase
         // DbCommand. The handler asks for one row + reads TotalCount so
         // each call is a single COUNT(*) plus a 1-row materialise; total
         // wall-time is acceptable for the KPI strip's 2-s polling cadence.
-        var awaitingPick = (await _mediator.Send(
-            new ListOrdersQuery(
-                new OrderListFilter(Status: nameof(OrderStatus.AwaitingPick)),
-                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
-        var awaitingShip = (await _mediator.Send(
-            new ListOrdersQuery(
-                new OrderListFilter(Status: nameof(OrderStatus.AwaitingShip)),
-                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
-        var failedToday = (await _mediator.Send(
-            new ListOrdersQuery(
-                new OrderListFilter(
-                    Status: nameof(OrderStatus.Cancelled),
-                    Since: startOfTodayUtc),
-                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
+        var awaitingPick = (
+            await _mediator
+                .Send(
+                    new ListOrdersQuery(
+                        new OrderListFilter(Status: nameof(OrderStatus.AwaitingPick)),
+                        Skip: 0,
+                        Take: 1
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false)
+        ).TotalCount;
+        var awaitingShip = (
+            await _mediator
+                .Send(
+                    new ListOrdersQuery(
+                        new OrderListFilter(Status: nameof(OrderStatus.AwaitingShip)),
+                        Skip: 0,
+                        Take: 1
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false)
+        ).TotalCount;
+        var failedToday = (
+            await _mediator
+                .Send(
+                    new ListOrdersQuery(
+                        new OrderListFilter(
+                            Status: nameof(OrderStatus.Cancelled),
+                            Since: startOfTodayUtc
+                        ),
+                        Skip: 0,
+                        Take: 1
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false)
+        ).TotalCount;
 
         // Active = total - shipped - cancelled. Three reads against the
         // status-indexed orders table; the SQL planner picks the right
         // path for each filter.
-        var total = (await _mediator.Send(
-            new ListOrdersQuery(new OrderListFilter(), Skip: 0, Take: 1),
-            ct).ConfigureAwait(false)).TotalCount;
-        var shipped = (await _mediator.Send(
-            new ListOrdersQuery(
-                new OrderListFilter(Status: nameof(OrderStatus.Shipped)),
-                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
-        var cancelled = (await _mediator.Send(
-            new ListOrdersQuery(
-                new OrderListFilter(Status: nameof(OrderStatus.Cancelled)),
-                Skip: 0, Take: 1), ct).ConfigureAwait(false)).TotalCount;
+        var total = (
+            await _mediator
+                .Send(new ListOrdersQuery(new OrderListFilter(), Skip: 0, Take: 1), ct)
+                .ConfigureAwait(false)
+        ).TotalCount;
+        var shipped = (
+            await _mediator
+                .Send(
+                    new ListOrdersQuery(
+                        new OrderListFilter(Status: nameof(OrderStatus.Shipped)),
+                        Skip: 0,
+                        Take: 1
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false)
+        ).TotalCount;
+        var cancelled = (
+            await _mediator
+                .Send(
+                    new ListOrdersQuery(
+                        new OrderListFilter(Status: nameof(OrderStatus.Cancelled)),
+                        Skip: 0,
+                        Take: 1
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false)
+        ).TotalCount;
         var active = Math.Max(0, total - shipped - cancelled);
 
-        return Ok(new OrderKpiResponse(
-            ActiveOrders: active,
-            AwaitingPick: awaitingPick,
-            AwaitingShip: awaitingShip,
-            FailedToday: failedToday
-        ));
+        return Ok(
+            new OrderKpiResponse(
+                ActiveOrders: active,
+                AwaitingPick: awaitingPick,
+                AwaitingShip: awaitingShip,
+                FailedToday: failedToday
+            )
+        );
     }
 
     /// <summary>
@@ -517,15 +560,13 @@ public sealed class OrdersController : ControllerBase
     /// table per Sprint-7 R14).
     /// </summary>
     [HttpGet("{id:guid}/transitions")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersRead)]
     [ProducesResponseType(typeof(IReadOnlyList<OrderTransitionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTransitionsAsync(Guid id, CancellationToken ct)
     {
-        var rows = await _mediator
-            .Send(new GetOrderTransitionsQuery(id), ct)
-            .ConfigureAwait(false);
+        var rows = await _mediator.Send(new GetOrderTransitionsQuery(id), ct).ConfigureAwait(false);
 
-        var dtos = rows
-            .Select(r => new OrderTransitionDto(
+        var dtos = rows.Select(r => new OrderTransitionDto(
                 Id: r.Id,
                 OrderId: r.OrderId,
                 FromState: r.FromState,
@@ -564,6 +605,7 @@ public sealed class OrdersController : ControllerBase
     /// UNIQUE index.</para>
     /// </remarks>
     [HttpPost("seed")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersWrite)]
     [Idempotent]
     [ProducesResponseType(typeof(OrderResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -597,7 +639,8 @@ public sealed class OrdersController : ControllerBase
         // not block repeated seeds. ULID-shaped suffix mirrors the
         // frontend's idempotency-key shape.
         var now = _clock.GetUtcNow().UtcDateTime;
-        var suffix = now.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture)
+        var suffix =
+            now.ToString("yyyyMMddHHmmssfff", System.Globalization.CultureInfo.InvariantCulture)
             + "-"
             + Guid.NewGuid().ToString("N")[..8];
         var channelRef = $"{prefix}{suffix}";
@@ -635,9 +678,7 @@ public sealed class OrdersController : ControllerBase
                 .ToArray(),
             OccurredAt: now
         );
-        await _outbox
-            .AppendAsync(OrderPlacedV1EventType, placedPayload, ct)
-            .ConfigureAwait(false);
+        await _outbox.AppendAsync(OrderPlacedV1EventType, placedPayload, ct).ConfigureAwait(false);
 
         await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
@@ -651,6 +692,7 @@ public sealed class OrdersController : ControllerBase
     /// transitions to its own Picked state.
     /// </summary>
     [HttpPost("{id:guid}/confirm-pick")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersPickConfirm)]
     public async Task<IActionResult> ConfirmPickAsync(Guid id, CancellationToken ct)
     {
         var order = await _orderRepo.FindByIdAsync(id, ct).ConfigureAwait(false);
@@ -688,6 +730,7 @@ public sealed class OrdersController : ControllerBase
     /// (R3 eventual-consistency boundary).
     /// </summary>
     [HttpPost("{id:guid}/mark-pick-failed")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersPickConfirm)]
     public async Task<IActionResult> MarkPickFailedAsync(
         Guid id,
         [FromBody] MarkPickFailedRequest? request,
@@ -707,8 +750,10 @@ public sealed class OrdersController : ControllerBase
         // surface 400 invalid_state. A duplicate POST against a Compensating
         // / Cancelled order returns 409 conflict so operators see the
         // serialization, not a silent no-op.
-        if (order.Status == OrderStatus.CompensatingReservation
-            || order.Status == OrderStatus.Cancelled)
+        if (
+            order.Status == OrderStatus.CompensatingReservation
+            || order.Status == OrderStatus.Cancelled
+        )
         {
             return ProblemFromError(
                 $"order {id} is already in {order.Status} state; pick-failure already recorded.",
@@ -731,10 +776,10 @@ public sealed class OrdersController : ControllerBase
         // saga commit. The Reason string is captured on the event for
         // diagnostic logging; not persisted on the Order row (no
         // pick_failed_reason column in the U1 schema — Phase-2 candidate).
-        var reason = string.IsNullOrWhiteSpace(request?.Reason) ? string.Empty : request!.Reason!.Trim();
-        await _publishEndpoint
-            .Publish(new PickFailed(order.Id, reason), ct)
-            .ConfigureAwait(false);
+        var reason = string.IsNullOrWhiteSpace(request?.Reason)
+            ? string.Empty
+            : request!.Reason!.Trim();
+        await _publishEndpoint.Publish(new PickFailed(order.Id, reason), ct).ConfigureAwait(false);
 
         return Ok(Map(order));
     }
@@ -749,6 +794,7 @@ public sealed class OrdersController : ControllerBase
     /// transitions through its own Packed state on the next dispatch tick.
     /// </summary>
     [HttpPost("{id:guid}/confirm-pack")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersPackConfirm)]
     public async Task<IActionResult> ConfirmPackAsync(
         Guid id,
         [FromBody] ConfirmPackRequest request,
@@ -837,6 +883,7 @@ public sealed class OrdersController : ControllerBase
     /// AwaitingShip; no Inventory commands published.
     /// </summary>
     [HttpPost("{id:guid}/confirm-ship")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersShipConfirm)]
     public async Task<IActionResult> ConfirmShipAsync(Guid id, CancellationToken ct)
     {
         var order = await _orderRepo.FindByIdAsync(id, ct).ConfigureAwait(false);
@@ -857,9 +904,7 @@ public sealed class OrdersController : ControllerBase
         ShippingLabel label;
         try
         {
-            label = await _shippingProvider
-                .CreateLabelAsync(order, ct)
-                .ConfigureAwait(false);
+            label = await _shippingProvider.CreateLabelAsync(order, ct).ConfigureAwait(false);
         }
         catch (TransientShippingException ex)
         {
@@ -910,10 +955,7 @@ public sealed class OrdersController : ControllerBase
         await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         await _publishEndpoint
-            .Publish(
-                new ShipConfirmed(order.Id, label.LabelUrl, label.TrackingNumber),
-                ct
-            )
+            .Publish(new ShipConfirmed(order.Id, label.LabelUrl, label.TrackingNumber), ct)
             .ConfigureAwait(false);
 
         return Ok(
@@ -941,11 +983,7 @@ public sealed class OrdersController : ControllerBase
     }
 
     private IActionResult ProblemFromError(string detail, string code, int status) =>
-        Problem(
-            statusCode: status,
-            title: detail,
-            type: $"https://shopflow.example/errors/{code}"
-        );
+        Problem(statusCode: status, title: detail, type: $"https://shopflow.example/errors/{code}");
 
     private IActionResult ProblemFromResult(string detail, string code)
     {
