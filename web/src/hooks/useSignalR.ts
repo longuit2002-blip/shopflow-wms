@@ -91,6 +91,12 @@ function is401(err: unknown): boolean {
   return e.statusCode === 401 || e.status === 401;
 }
 
+// Sprint-10.5 U3 SEC-003: hub.connect policy failure surfaces as 403 from /hub/negotiate.
+// The @microsoft/signalr SDK error-object shape on 403 is SDK-version-dependent —
+// verify at U3 deployment time and pin the shape here. Current safe-fallback: state
+// machine transitions to 'disconnected' on any non-2xx negotiate response, R13
+// polling fallback engages.
+
 // ---------------------------------------------------------------------------
 // Zustand store
 // ---------------------------------------------------------------------------

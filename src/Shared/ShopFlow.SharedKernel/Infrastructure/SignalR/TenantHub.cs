@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using ShopFlow.SharedKernel.Authorization;
 
 namespace ShopFlow.SharedKernel.Infrastructure.SignalR;
 
@@ -19,9 +20,15 @@ namespace ShopFlow.SharedKernel.Infrastructure.SignalR;
 /// MapHub can produce a SignalR endpoint and so relays can resolve the
 /// hub context for sends.</para>
 ///
-/// <para>Auth posture: <see cref="AuthorizeAttribute"/> at class level means
-/// every connection must carry a validated JWT (the access-token query
-/// parameter is converted to <c>context.Token</c> inside the JwtBearer
+/// <para>Auth posture: Sprint-10.5 U3 + KTD4 — <see cref="AuthorizeAttribute"/>
+/// at class level pins the <see cref="PermissionKeys.HubConnect"/> policy so
+/// the hub joins the per-permission gating cross-cut Sprint-10 attached to
+/// the 33 controller actions. The policy registered by
+/// <c>AddShopFlowPermissionPolicies</c> inherits
+/// <c>RequireAuthenticatedUser()</c> alongside
+/// <c>RequireClaim("perm", "hub.connect")</c>, so every connection must carry
+/// both a validated JWT AND the <c>hub.connect</c> perm (the access-token
+/// query parameter is converted to <c>context.Token</c> inside the JwtBearer
 /// <c>OnMessageReceived</c> handler in <c>AddShopFlowDefaults</c>; URLs
 /// containing <c>?access_token=</c> are also scrubbed before they reach
 /// request logging per doc-review SEC-001).</para>
@@ -34,8 +41,6 @@ namespace ShopFlow.SharedKernel.Infrastructure.SignalR;
 /// then binds <see cref="Application.RequestContext"/> via the K12 / KTD7
 /// singleton-scope-binding pattern.</para>
 /// </remarks>
-[Authorize]
+[Authorize(Policy = PermissionKeys.HubConnect)]
 [SkipTenantRouting]
-public sealed class TenantHub : Hub
-{
-}
+public sealed class TenantHub : Hub { }
