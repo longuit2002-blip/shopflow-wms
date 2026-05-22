@@ -6,7 +6,33 @@ import type { ReactElement } from 'react';
 import { ThresholdInlineEdit } from './ThresholdInlineEdit';
 import { useToast, __resetToastsForTests } from '../../hooks/useToast';
 import { __resetLocaleForTests } from '../../hooks/useLocale';
-import { __resetAuthForTests } from '../../hooks/useAuth';
+import { useAuth, __resetAuthForTests } from '../../hooks/useAuth';
+
+// Sprint-10.5 U5 — JWT-with-perm helper so the component's
+// usePerm('inventory.skus.threshold.write') call sees the key.
+function jwtWithPerm(perm: string[]): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = btoa(
+    JSON.stringify({
+      sub: '8f72f516-cc02-4f54-9cc8-be0f3b96c4f3',
+      email: 'owner@yensao.vn',
+      role: 'Owner',
+      tenant_slug: 'yensaokhanhhoa',
+      perm,
+      exp: 9999999999,
+    }),
+  );
+  return `${header}.${payload}.signature`;
+}
+
+function sessionWith(perm: string[]) {
+  return {
+    accessToken: jwtWithPerm(perm),
+    refreshToken: 'opaque',
+    accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
 
 function renderWithClient(ui: ReactElement) {
   const qc = new QueryClient({
@@ -32,6 +58,10 @@ beforeEach(() => {
   __resetLocaleForTests();
   __resetAuthForTests();
   __resetToastsForTests();
+  // Sprint-10.5 U5 — existing tests assume the editable button is the
+  // primary rendered surface. Without a perm-holding session the new
+  // gate falls back to the static <span> DL-001 path.
+  useAuth.getState().setSession(sessionWith(['inventory.skus.threshold.write']));
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -190,5 +220,38 @@ describe('ThresholdInlineEdit', () => {
       'aria-label',
       expect.stringContaining('YN-001'),
     );
+  });
+
+  // ── Sprint-10.5 U5: perm-gated editing with DL-001 static fallback ───────
+  describe('perm gating (Sprint-10.5 U5)', () => {
+    it('renders the editable button when the user holds inventory.skus.threshold.write', () => {
+      // beforeEach already sets the perm.
+      renderWithClient(<ThresholdInlineEdit sku="YN-001" value={50} />);
+      expect(screen.getByTestId('threshold-cell-YN-001')).toBeInTheDocument();
+      expect(screen.queryByTestId('threshold-static-YN-001')).not.toBeInTheDocument();
+    });
+
+    it('renders the static <span> fallback (DL-001) when the user lacks the perm', () => {
+      useAuth.getState().setSession(sessionWith(['inventory.read']));
+      renderWithClient(<ThresholdInlineEdit sku="YN-001" value={50} />);
+      const span = screen.getByTestId('threshold-static-YN-001');
+      expect(span).toBeInTheDocument();
+      expect(span.tagName.toLowerCase()).toBe('span');
+      expect(span).toHaveTextContent('50');
+      // The interactive button is hidden.
+      expect(screen.queryByTestId('threshold-cell-YN-001')).not.toBeInTheDocument();
+    });
+
+    it('static fallback renders em-dash when value is null', () => {
+      useAuth.getState().setSession(sessionWith(['inventory.read']));
+      renderWithClient(<ThresholdInlineEdit sku="YN-001" value={null} />);
+      expect(screen.getByTestId('threshold-static-YN-001')).toHaveTextContent('—');
+    });
+
+    it('no session → static <span> fallback (fail-closed — KTD12)', () => {
+      __resetAuthForTests();
+      renderWithClient(<ThresholdInlineEdit sku="YN-001" value={50} />);
+      expect(screen.getByTestId('threshold-static-YN-001')).toBeInTheDocument();
+    });
   });
 });

@@ -29,6 +29,7 @@ import { Modal } from '../primitives/Modal';
 import { useInventoryMutations } from '../../hooks/useInventoryMutations';
 import { ApiError } from '../../api/httpClient';
 import { t, useLocale } from '../../hooks/useLocale';
+import { usePerm } from '../../hooks/usePerm';
 
 export interface CreateSkuModalProps {
   isOpen: boolean;
@@ -46,6 +47,13 @@ interface FieldErrors {
 
 export function CreateSkuModal({ isOpen, onClose }: CreateSkuModalProps) {
   useLocale();
+  // Sprint-10.5 U5 — perm-gate defence-in-depth (KTD8 hidden-by-default).
+  // The FilterStrip's "New SKU" CTA should also be gated route-side, but
+  // the modal still early-returns null if the user lacks the perm — the
+  // backend Sprint-10 [Authorize(Policy=...)] guard remains authoritative.
+  // Uses `usePerm` (reactive — KTD3) so a mid-session narrowing unmounts
+  // the modal.
+  const canCreate = usePerm('inventory.skus.write');
   const [sku, setSku] = useState('');
   const [initialAvailable, setInitialAvailable] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -126,6 +134,8 @@ export function CreateSkuModal({ isOpen, onClose }: CreateSkuModalProps) {
       // 5xx surfaces via the error toast pushed by the hook; modal stays open.
     }
   }
+
+  if (!canCreate) return null;
 
   return (
     <Modal

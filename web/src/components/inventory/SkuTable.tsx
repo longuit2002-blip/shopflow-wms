@@ -17,6 +17,7 @@ import type { SkuListItem } from '../../api/inventory';
 import { Pill } from '../primitives/Pill';
 import { ThresholdInlineEdit } from './ThresholdInlineEdit';
 import { t, useLocale } from '../../hooks/useLocale';
+import { usePerm } from '../../hooks/usePerm';
 import { fmtNum } from '../../lib/format';
 
 /** Sortable columns exposed in the URL schema (Sprint-7.5 U7). */
@@ -53,6 +54,16 @@ export function SkuTable({
   onEditClick,
 }: SkuTableProps) {
   const { lang } = useLocale();
+  // Sprint-10.5 U5 — DL-003-aligned suppression. The route is expected to
+  // compute `canEditSku = usePerm('inventory.skus.write')` once and pass
+  // `onEditClick={canEdit ? handler : undefined}`. This in-component
+  // guard is a defence-in-depth backstop that overrides a still-provided
+  // `onEditClick` when the user lacks the perm — keeps the existing
+  // conditional-column logic (`{onEditClick ? <th> : null}`) as the single
+  // visibility seam so the `<th>` + `<td>` stay in lockstep. Uses
+  // `usePerm` (reactive — KTD3).
+  const canEditSku = usePerm('inventory.skus.write');
+  const effectiveOnEditClick = canEditSku ? onEditClick : undefined;
 
   if (items.length === 0 && !isLoading) {
     return <SkuTableEmpty />;
@@ -91,7 +102,7 @@ export function SkuTable({
               {t('Mức an toàn', 'Threshold')}
             </th>
             <th scope="col">{t('Trạng thái', 'Status')}</th>
-            {onEditClick ? (
+            {effectiveOnEditClick ? (
               <th scope="col" aria-label={t('Thao tác', 'Actions')}></th>
             ) : null}
           </tr>
@@ -166,7 +177,7 @@ export function SkuTable({
                     <Pill kind="ok">{t('Ổn định', 'OK')}</Pill>
                   )}
                 </td>
-                {onEditClick ? (
+                {effectiveOnEditClick ? (
                   <td
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => e.stopPropagation()}
@@ -174,7 +185,7 @@ export function SkuTable({
                     <button
                       type="button"
                       className="btn ghost"
-                      onClick={() => onEditClick(row.sku)}
+                      onClick={() => effectiveOnEditClick(row.sku)}
                       data-testid={`sku-edit-${row.sku}`}
                       aria-label={`${t('Chỉnh sửa SKU', 'Edit SKU')} ${row.sku}`}
                     >

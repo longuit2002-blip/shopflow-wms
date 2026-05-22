@@ -25,8 +25,10 @@
 
 import { useState } from 'react';
 import { Toggle } from '../primitives/Toggle';
+import { Pill } from '../primitives/Pill';
 import { useInventoryMutations } from '../../hooks/useInventoryMutations';
 import { t, useLocale } from '../../hooks/useLocale';
+import { usePerm } from '../../hooks/usePerm';
 
 export interface FlashSaleToggleProps {
   sku: string;
@@ -36,6 +38,12 @@ export interface FlashSaleToggleProps {
 export function FlashSaleToggle({ sku, value }: FlashSaleToggleProps) {
   useLocale();
   const { setFlashSale } = useInventoryMutations();
+  // Sprint-10.5 U5 — DL-002 disambiguation: this toggle lives in the
+  // LedgerDrawer header. When the user lacks the flash-sale write perm,
+  // render a static <Pill> showing the current state so the read-only
+  // context still surfaces the flag rather than disappearing entirely.
+  // Uses `usePerm` (reactive — KTD3).
+  const canWriteFlashSale = usePerm('inventory.skus.flash-sale.write');
   const [optimisticValue, setOptimisticValue] = useState(value);
   const [lastServerValue, setLastServerValue] = useState(value);
 
@@ -56,6 +64,17 @@ export function FlashSaleToggle({ sku, value }: FlashSaleToggleProps) {
     } catch {
       setOptimisticValue(value);
     }
+  }
+
+  if (!canWriteFlashSale) {
+    return (
+      <Pill
+        kind={optimisticValue ? 'accent' : 'default'}
+        data-testid={`flash-status-${sku}`}
+      >
+        {t('Flash-sale', 'Flash-sale')}: {optimisticValue ? t('Bật', 'On') : t('Tắt', 'Off')}
+      </Pill>
+    );
   }
 
   return (

@@ -36,6 +36,7 @@ import { useInventoryMutations } from '../../hooks/useInventoryMutations';
 import type { SkuListItem, UpdateSkuPayload } from '../../api/inventory';
 import { ApiError } from '../../api/httpClient';
 import { t, useLocale } from '../../hooks/useLocale';
+import { usePerm } from '../../hooks/usePerm';
 
 export interface EditSkuModalProps {
   isOpen: boolean;
@@ -62,6 +63,11 @@ const URL_REGEX = /^https?:\/\/.+/i;
 
 export function EditSkuModal({ isOpen, initial, initialRich, onClose }: EditSkuModalProps) {
   useLocale();
+  // Sprint-10.5 U5 — perm-gate defence-in-depth (KTD8 hidden-by-default).
+  // SkuTable suppresses the per-row Edit button via DL-003 when the user
+  // lacks the perm, but a stray render of this modal still early-returns
+  // null. Uses `usePerm` (reactive — KTD3).
+  const canEdit = usePerm('inventory.skus.write');
   const { editSku } = useInventoryMutations();
   const nameId = useId();
   const categoryId = useId();
@@ -214,6 +220,7 @@ export function EditSkuModal({ isOpen, initial, initialRich, onClose }: EditSkuM
   }
 
   if (!initial) return null;
+  if (!canEdit) return null;
 
   return (
     <Modal

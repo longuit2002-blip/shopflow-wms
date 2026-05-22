@@ -26,6 +26,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useInventoryMutations } from '../../hooks/useInventoryMutations';
 import { t, useLocale } from '../../hooks/useLocale';
+import { usePerm } from '../../hooks/usePerm';
 import { fmtNum } from '../../lib/format';
 
 export interface ThresholdInlineEditProps {
@@ -36,6 +37,12 @@ export interface ThresholdInlineEditProps {
 export function ThresholdInlineEdit({ sku, value }: ThresholdInlineEditProps) {
   const { lang } = useLocale();
   const { setThreshold } = useInventoryMutations();
+  // Sprint-10.5 U5 — DL-001 fallback: when the user lacks the
+  // threshold-write perm, render the numeric value as a static <span>
+  // (same tabular-nums style as the active button) so the column keeps
+  // its width and the value stays legible. `return null` would delete the
+  // value from the row entirely. Uses `usePerm` (reactive — KTD3).
+  const canEdit = usePerm('inventory.skus.threshold.write');
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<string>(value == null ? '' : String(value));
   const [optimisticValue, setOptimisticValue] = useState<number | null>(value);
@@ -108,6 +115,26 @@ export function ThresholdInlineEdit({ sku, value }: ThresholdInlineEditProps) {
       e.preventDefault();
       cancel();
     }
+  }
+
+  // DL-001: when gated-hidden, render a static <span> mirroring the
+  // tabular-nums style so the column width is preserved without giving
+  // the appearance of an interactive control.
+  if (!canEdit) {
+    return (
+      <span
+        data-testid={`threshold-static-${sku}`}
+        style={{
+          display: 'inline-block',
+          minWidth: 60,
+          textAlign: 'right',
+          fontVariantNumeric: 'tabular-nums',
+          padding: '0 6px',
+        }}
+      >
+        {value != null ? fmtNum(value, lang) : '—'}
+      </span>
+    );
   }
 
   if (isEditing) {

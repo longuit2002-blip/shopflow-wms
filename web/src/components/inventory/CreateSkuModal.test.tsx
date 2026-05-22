@@ -6,7 +6,32 @@ import type { ReactElement } from 'react';
 import { CreateSkuModal } from './CreateSkuModal';
 import { useToast, __resetToastsForTests } from '../../hooks/useToast';
 import { __resetLocaleForTests } from '../../hooks/useLocale';
-import { __resetAuthForTests } from '../../hooks/useAuth';
+import { useAuth, __resetAuthForTests } from '../../hooks/useAuth';
+
+// Sprint-10.5 U5 — JWT-with-perm helper.
+function jwtWithPerm(perm: string[]): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = btoa(
+    JSON.stringify({
+      sub: '8f72f516-cc02-4f54-9cc8-be0f3b96c4f3',
+      email: 'owner@yensao.vn',
+      role: 'Owner',
+      tenant_slug: 'yensaokhanhhoa',
+      perm,
+      exp: 9999999999,
+    }),
+  );
+  return `${header}.${payload}.signature`;
+}
+
+function sessionWith(perm: string[]) {
+  return {
+    accessToken: jwtWithPerm(perm),
+    refreshToken: 'opaque',
+    accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
 
 function renderWithClient(ui: ReactElement) {
   const qc = new QueryClient({
@@ -32,6 +57,9 @@ beforeEach(() => {
   __resetLocaleForTests();
   __resetAuthForTests();
   __resetToastsForTests();
+  // Sprint-10.5 U5 — pre-populate a session carrying inventory.skus.write
+  // so the new gate doesn't hide the modal in pre-Sprint-10.5 tests.
+  useAuth.getState().setSession(sessionWith(['inventory.skus.write']));
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -210,5 +238,25 @@ describe('CreateSkuModal', () => {
     await user.type(screen.getByTestId('create-sku-initial'), '100');
     await user.click(screen.getByTestId('create-sku-submit'));
     expect(screen.getByTestId('create-sku-sku')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  // ── Sprint-10.5 U5: perm-gated rendering ────────────────────────────────
+  describe('perm gating (Sprint-10.5 U5)', () => {
+    it('renders the modal when the user holds inventory.skus.write', () => {
+      renderWithClient(<CreateSkuModal isOpen onClose={() => {}} />);
+      expect(screen.getByText(/Thêm SKU mới/)).toBeInTheDocument();
+    });
+
+    it('renders nothing when the user lacks inventory.skus.write (hidden — KTD8)', () => {
+      useAuth.getState().setSession(sessionWith(['inventory.read']));
+      const { container } = renderWithClient(<CreateSkuModal isOpen onClose={() => {}} />);
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('renders nothing when the user has no session (fail-closed — KTD12)', () => {
+      __resetAuthForTests();
+      const { container } = renderWithClient(<CreateSkuModal isOpen onClose={() => {}} />);
+      expect(container).toBeEmptyDOMElement();
+    });
   });
 });

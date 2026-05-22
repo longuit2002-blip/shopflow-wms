@@ -6,7 +6,35 @@ import type { ReactElement } from 'react';
 import { AdjustStockModal } from './AdjustStockModal';
 import { useToast, __resetToastsForTests } from '../../hooks/useToast';
 import { __resetLocaleForTests } from '../../hooks/useLocale';
-import { __resetAuthForTests } from '../../hooks/useAuth';
+import { useAuth, __resetAuthForTests } from '../../hooks/useAuth';
+
+// Sprint-10.5 U5 — encode a JWT with the given perm[] keys so the
+// component's usePerm('inventory.adjust') call sees them. `setSession`
+// then puts the store in the right shape. Signature unverified — the
+// client-side decoder only reads payload claims.
+function jwtWithPerm(perm: string[]): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = btoa(
+    JSON.stringify({
+      sub: '8f72f516-cc02-4f54-9cc8-be0f3b96c4f3',
+      email: 'owner@yensao.vn',
+      role: 'Owner',
+      tenant_slug: 'yensaokhanhhoa',
+      perm,
+      exp: 9999999999,
+    }),
+  );
+  return `${header}.${payload}.signature`;
+}
+
+function sessionWith(perm: string[]) {
+  return {
+    accessToken: jwtWithPerm(perm),
+    refreshToken: 'opaque',
+    accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
 
 function renderWithClient(ui: ReactElement) {
   const qc = new QueryClient({
@@ -32,6 +60,11 @@ beforeEach(() => {
   __resetLocaleForTests();
   __resetAuthForTests();
   __resetToastsForTests();
+  // Sprint-10.5 U5 — pre-Sprint-10.5 tests assumed the modal always
+  // renders. The new usePerm('inventory.adjust') gate would hide the
+  // modal under __resetAuthForTests's null user, breaking every test.
+  // Pre-populate a session that carries the required perm.
+  useAuth.getState().setSession(sessionWith(['inventory.adjust']));
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -209,5 +242,31 @@ describe('AdjustStockModal', () => {
     expect((screen.getByTestId('adjust-note') as HTMLTextAreaElement).value).toHaveLength(
       240,
     );
+  });
+
+  // ── Sprint-10.5 U5: perm-gated rendering ────────────────────────────────
+  describe('perm gating (Sprint-10.5 U5)', () => {
+    it('renders the modal when the user holds inventory.adjust', () => {
+      // beforeEach already sets the perm; assert the title surface renders.
+      renderWithClient(<AdjustStockModal isOpen onClose={() => {}} sku="YN-001" />);
+      expect(screen.getByText(/Điều chỉnh tồn · YN-001/)).toBeInTheDocument();
+    });
+
+    it('renders nothing when the user lacks inventory.adjust (hidden — KTD8)', () => {
+      // Narrow the session to a perm[] without the key.
+      useAuth.getState().setSession(sessionWith(['inventory.read']));
+      const { container } = renderWithClient(
+        <AdjustStockModal isOpen onClose={() => {}} sku="YN-001" />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('renders nothing when the user has no session (fail-closed — KTD12)', () => {
+      __resetAuthForTests();
+      const { container } = renderWithClient(
+        <AdjustStockModal isOpen onClose={() => {}} sku="YN-001" />,
+      );
+      expect(container).toBeEmptyDOMElement();
+    });
   });
 });

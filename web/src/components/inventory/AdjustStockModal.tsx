@@ -29,6 +29,7 @@ import { useState, useId, type FormEvent } from 'react';
 import { Modal } from '../primitives/Modal';
 import { useInventoryMutations } from '../../hooks/useInventoryMutations';
 import { t, useLocale } from '../../hooks/useLocale';
+import { usePerm } from '../../hooks/usePerm';
 
 export interface AdjustStockModalProps {
   isOpen: boolean;
@@ -42,6 +43,14 @@ const NOTE_MAX_LENGTH = 240;
 
 export function AdjustStockModal({ isOpen, onClose, sku }: AdjustStockModalProps) {
   useLocale();
+  // Sprint-10.5 U5 — perm-gate defence-in-depth (KTD8 hidden-by-default).
+  // The route should also gate the trigger button on `inventory.adjust`,
+  // but a missing route-level guard would still surface the modal here —
+  // early-return null preserves the "hidden when user can't act" contract.
+  // Uses `usePerm` (reactive — KTD3) so a mid-session perm narrowing
+  // (refresh-token rotation issuing a tighter perm[] claim) unmounts the
+  // modal on the next render.
+  const canAdjust = usePerm('inventory.adjust');
   const [delta, setDelta] = useState<string>('');
   const [reason, setReason] = useState<Reason | ''>('');
   const [note, setNote] = useState('');
@@ -83,6 +92,8 @@ export function AdjustStockModal({ isOpen, onClose, sku }: AdjustStockModalProps
       // The hook pushes an error toast; keep the modal open with values intact.
     }
   }
+
+  if (!canAdjust) return null;
 
   return (
     <Modal

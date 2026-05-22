@@ -6,7 +6,32 @@ import type { ReactElement } from 'react';
 import { FlashSaleToggle } from './FlashSaleToggle';
 import { useToast, __resetToastsForTests } from '../../hooks/useToast';
 import { __resetLocaleForTests } from '../../hooks/useLocale';
-import { __resetAuthForTests } from '../../hooks/useAuth';
+import { useAuth, __resetAuthForTests } from '../../hooks/useAuth';
+
+// Sprint-10.5 U5 — JWT-with-perm helper.
+function jwtWithPerm(perm: string[]): string {
+  const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
+  const payload = btoa(
+    JSON.stringify({
+      sub: '8f72f516-cc02-4f54-9cc8-be0f3b96c4f3',
+      email: 'owner@yensao.vn',
+      role: 'Owner',
+      tenant_slug: 'yensaokhanhhoa',
+      perm,
+      exp: 9999999999,
+    }),
+  );
+  return `${header}.${payload}.signature`;
+}
+
+function sessionWith(perm: string[]) {
+  return {
+    accessToken: jwtWithPerm(perm),
+    refreshToken: 'opaque',
+    accessTokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
 
 function renderWithClient(ui: ReactElement) {
   const qc = new QueryClient({
@@ -32,6 +57,9 @@ beforeEach(() => {
   __resetLocaleForTests();
   __resetAuthForTests();
   __resetToastsForTests();
+  // Sprint-10.5 U5 — without a perm-carrying session the new gate falls
+  // back to the static <Pill> (DL-002), breaking existing toggle tests.
+  useAuth.getState().setSession(sessionWith(['inventory.skus.flash-sale.write']));
   vi.stubGlobal('fetch', vi.fn());
 });
 
@@ -142,5 +170,37 @@ describe('FlashSaleToggle', () => {
       'aria-checked',
       'true',
     );
+  });
+
+  // ── Sprint-10.5 U5: perm-gated toggle with DL-002 Pill fallback ──────────
+  describe('perm gating (Sprint-10.5 U5)', () => {
+    it('renders the toggle when the user holds inventory.skus.flash-sale.write', () => {
+      // beforeEach already sets the perm.
+      renderWithClient(<FlashSaleToggle sku="YN-001" value={true} />);
+      expect(screen.getByTestId('flash-toggle-YN-001')).toBeInTheDocument();
+      expect(screen.queryByTestId('flash-status-YN-001')).not.toBeInTheDocument();
+    });
+
+    it('renders the static <Pill> fallback (DL-002) when the user lacks the perm — On state', () => {
+      useAuth.getState().setSession(sessionWith(['inventory.read']));
+      renderWithClient(<FlashSaleToggle sku="YN-001" value={true} />);
+      const pill = screen.getByTestId('flash-status-YN-001');
+      expect(pill).toBeInTheDocument();
+      expect(pill).toHaveTextContent(/Bật|On/);
+      // Interactive toggle is hidden.
+      expect(screen.queryByTestId('flash-toggle-YN-001')).not.toBeInTheDocument();
+    });
+
+    it('renders the static <Pill> showing Off when the user lacks the perm + value=false', () => {
+      useAuth.getState().setSession(sessionWith(['inventory.read']));
+      renderWithClient(<FlashSaleToggle sku="YN-001" value={false} />);
+      expect(screen.getByTestId('flash-status-YN-001')).toHaveTextContent(/Tắt|Off/);
+    });
+
+    it('no session → DL-002 Pill fallback (fail-closed — KTD12)', () => {
+      __resetAuthForTests();
+      renderWithClient(<FlashSaleToggle sku="YN-001" value={true} />);
+      expect(screen.getByTestId('flash-status-YN-001')).toBeInTheDocument();
+    });
   });
 });

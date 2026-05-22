@@ -24,14 +24,21 @@ import { Plus } from 'lucide-react';
 import { Button } from '../primitives/Button';
 import { useSeedOrderMutation } from '../../hooks/useOrderMutations';
 import { t, useLocale } from '../../hooks/useLocale';
+import { usePerm } from '../../hooks/usePerm';
 
 const isDev = !!import.meta.env.DEV;
 
 export function SeedTestOrderButton() {
   useLocale();
   const seedOrder = useSeedOrderMutation();
+  // Sprint-10.5 U5 — perm-gate hidden-by-default (KTD8). The DEV-only
+  // condition above is a separate gate; both must be true to render.
+  // Uses `usePerm` (reactive — KTD3) so a mid-session perm narrowing
+  // unmounts the button on next render.
+  const canSeed = usePerm('outbound.orders.write');
 
   if (!isDev) return null;
+  if (!canSeed) return null;
 
   return (
     <Button
