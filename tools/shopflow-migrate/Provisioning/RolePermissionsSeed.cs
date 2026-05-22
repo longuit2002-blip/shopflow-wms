@@ -8,10 +8,11 @@ namespace ShopFlow.Migrate.Provisioning;
 /// Sprint-9 U12 — seeds <c>role_permissions</c> with the Owner row
 /// carrying every <see cref="PermissionKeys.All"/> entry. Sprint-11 U1
 /// extends the seed to also insert the canonical Picker 4-key baseline
-/// (<see cref="PickerBaseline"/>). Dispatcher still starts empty
-/// (the Owner admin editor populates it via the Sprint-9.5 U7 surface).
-/// Idempotent — re-running against a populated table inserts only
-/// missing rows via <c>ON CONFLICT DO NOTHING</c> on the composite PK
+/// (<see cref="PickerBaseline"/>). Sprint-12 U1 extends further with
+/// the canonical Dispatcher 3-key baseline
+/// (<see cref="DispatcherBaseline"/>). Idempotent — re-running against
+/// a populated table inserts only missing rows via
+/// <c>ON CONFLICT DO NOTHING</c> on the composite PK
 /// <c>(role, permission_key)</c>.
 /// </summary>
 /// <remarks>
@@ -21,7 +22,8 @@ namespace ShopFlow.Migrate.Provisioning;
 /// preserved across re-seeds, and deletions of any baseline row are
 /// reverted on the next provision (re-insertion of the missing key).
 /// The seed never DELETEs, never UPDATEs — it only ensures the
-/// baseline set is present.</para>
+/// baseline set is present. Same contract holds for Picker
+/// (Sprint-11) AND Dispatcher (Sprint-12).</para>
 /// </remarks>
 public sealed class RolePermissionsSeed
 {
@@ -39,6 +41,27 @@ public sealed class RolePermissionsSeed
         PermissionKeys.HubConnect,
     };
 
+    /// <summary>
+    /// Sprint-12 U1 — the canonical 3-key Dispatcher baseline
+    /// pre-seeded at every tenant provision. Dispatcher owns the
+    /// ship-confirm transition (Owner pack-confirms; Picker
+    /// pick-confirms; Dispatcher ship-confirms). Frontend mirror lives
+    /// at <c>web/src/lib/auth/dispatcherBaseline.ts</c>; both lists
+    /// must stay in lock-step.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Important — DOES NOT contain
+    /// <c>outbound.orders.pack-confirm</c>.</b> Pack stays Owner-only
+    /// at Sprint-12 (no Packer fourth role). The hand-off chain is
+    /// Picker → Owner → Dispatcher on one saga.</para>
+    /// </remarks>
+    public static readonly IReadOnlyList<string> DispatcherBaseline = new[]
+    {
+        PermissionKeys.OutboundOrdersRead,
+        PermissionKeys.OutboundOrdersShipConfirm,
+        PermissionKeys.HubConnect,
+    };
+
     private readonly ILogger<RolePermissionsSeed> _logger;
 
     public RolePermissionsSeed(ILogger<RolePermissionsSeed> logger)
@@ -47,9 +70,10 @@ public sealed class RolePermissionsSeed
     }
 
     /// <summary>
-    /// Seed the Owner row with every PermissionKeys.All entry and the
-    /// Picker row with the canonical baseline. Safe to run multiple
-    /// times (additive-only via ON CONFLICT DO NOTHING).
+    /// Seed the Owner row with every PermissionKeys.All entry, the
+    /// Picker row with its canonical baseline, and the Dispatcher row
+    /// with its canonical baseline. Safe to run multiple times
+    /// (additive-only via ON CONFLICT DO NOTHING).
     /// </summary>
     public async Task SeedAsync(string tenantConnectionString, CancellationToken ct)
     {
@@ -59,8 +83,9 @@ public sealed class RolePermissionsSeed
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
         // Sprint-9 — Owner gets every key. Sprint-11 — Picker gets the
-        // 4-key baseline. PK(role, permission_key) makes the seed
-        // idempotent: ON CONFLICT DO NOTHING.
+        // 4-key baseline. Sprint-12 — Dispatcher gets the 3-key
+        // baseline. PK(role, permission_key) makes the seed idempotent:
+        // ON CONFLICT DO NOTHING.
         await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
         try
         {
@@ -74,6 +99,11 @@ public sealed class RolePermissionsSeed
                 await InsertAsync(conn, tx, "Picker", key, ct).ConfigureAwait(false);
             }
 
+            foreach (var key in DispatcherBaseline)
+            {
+                await InsertAsync(conn, tx, "Dispatcher", key, ct).ConfigureAwait(false);
+            }
+
             await tx.CommitAsync(ct).ConfigureAwait(false);
         }
         catch
@@ -83,9 +113,10 @@ public sealed class RolePermissionsSeed
         }
 
         _logger.LogInformation(
-            "RolePermissionsSeed: ensured Owner row has {OwnerCount} permission keys and Picker row has {PickerCount} baseline keys.",
+            "RolePermissionsSeed: ensured Owner row has {OwnerCount} permission keys, Picker row has {PickerCount} baseline keys, Dispatcher row has {DispatcherCount} baseline keys.",
             PermissionKeys.All.Count,
-            PickerBaseline.Count);
+            PickerBaseline.Count,
+            DispatcherBaseline.Count);
     }
 
     private static async Task InsertAsync(

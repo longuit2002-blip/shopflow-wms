@@ -47,17 +47,20 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
         new(NullLogger<RolePermissionsSeed>.Instance);
 
     [Fact]
-    public async Task SeedAsync_FreshTenant_Inserts_Owner_And_Picker_Baseline_Rows()
+    public async Task SeedAsync_FreshTenant_Inserts_Owner_Picker_And_Dispatcher_Baseline_Rows()
     {
         var seed = BuildSeed();
 
         await seed.SeedAsync(_tenant.ConnectionString, CancellationToken.None);
 
-        // 24 Owner rows (every PermissionKeys.All entry) + 4 Picker
-        // rows = 28 total. The Owner count is wired off the live
-        // PermissionKeys.All snapshot so the assertion survives future
-        // catalog growth.
-        var expectedTotal = PermissionKeys.All.Count + RolePermissionsSeed.PickerBaseline.Count;
+        // Sprint-12 — 24 Owner rows (every PermissionKeys.All entry) +
+        // 4 Picker rows + 3 Dispatcher rows = 31 total. All three role
+        // counts are wired off live constants so the assertion survives
+        // future baseline growth.
+        var expectedTotal =
+            PermissionKeys.All.Count
+            + RolePermissionsSeed.PickerBaseline.Count
+            + RolePermissionsSeed.DispatcherBaseline.Count;
 
         var total = await CountRowsAsync(_tenant.ConnectionString);
         total.Should().Be(expectedTotal);
@@ -71,8 +74,48 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
             "hub.connect",
         });
 
+        var dispatcherKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Dispatcher");
+        dispatcherKeys.Should().BeEquivalentTo(new[]
+        {
+            "outbound.orders.read",
+            "outbound.orders.ship-confirm",
+            "hub.connect",
+        });
+
         var ownerKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Owner");
         ownerKeys.Should().BeEquivalentTo(PermissionKeys.All);
+    }
+
+    [Fact]
+    public async Task SeedAsync_PreservesOwnerAdditionsToDispatcher_AndDispatcherBaselinePreserved()
+    {
+        // Sprint-12 doc-review AE6 mitigation — operator pre-grants
+        // outbound.orders.ship-confirm to Picker before Sprint-12
+        // deploy. Sprint-12 re-runs provisioning; the additive-only
+        // contract leaves Picker's manual grant intact AND writes the
+        // Dispatcher baseline cleanly. Two roles end up with
+        // ship-confirm — the documented operator-runbook scenario.
+        var seed = BuildSeed();
+        await seed.SeedAsync(_tenant.ConnectionString, CancellationToken.None);
+
+        // Operator pre-Sprint-12 grants ship-confirm to Picker.
+        await InsertRoleKeyAsync(
+            _tenant.ConnectionString,
+            "Picker",
+            PermissionKeys.OutboundOrdersShipConfirm);
+
+        // Sprint-12 re-runs provisioning.
+        await seed.SeedAsync(_tenant.ConnectionString, CancellationToken.None);
+
+        var pickerKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Picker");
+        pickerKeys.Should().HaveCount(5);
+        pickerKeys.Should().Contain(PermissionKeys.OutboundOrdersShipConfirm,
+            because: "KTD1 additive-only — Owner addition on Picker survives re-seed");
+
+        var dispatcherKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Dispatcher");
+        dispatcherKeys.Should().HaveCount(3);
+        dispatcherKeys.Should().BeEquivalentTo(RolePermissionsSeed.DispatcherBaseline,
+            because: "Dispatcher baseline writes cleanly alongside the preserved Picker grant");
     }
 
     [Fact]
@@ -134,7 +177,10 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
         var seed = BuildSeed();
         await seed.SeedAsync(_tenant.ConnectionString, CancellationToken.None);
 
-        var expectedTotal = PermissionKeys.All.Count + RolePermissionsSeed.PickerBaseline.Count;
+        var expectedTotal =
+            PermissionKeys.All.Count
+            + RolePermissionsSeed.PickerBaseline.Count
+            + RolePermissionsSeed.DispatcherBaseline.Count;
         var firstSnapshot = await ReadRowSnapshotAsync(_tenant.ConnectionString);
         firstSnapshot.Should().HaveCount(expectedTotal);
 

@@ -89,4 +89,87 @@ public class RolePermissionsSeedTests
         RolePermissionsSeed.PickerBaseline.Should()
             .BeSubsetOf(PermissionKeys.All);
     }
+
+    // ── Sprint-12 U1 — Dispatcher baseline ────────────────────────────
+
+    [Fact]
+    public void DispatcherBaseline_Has_Exactly_Three_Keys()
+    {
+        RolePermissionsSeed.DispatcherBaseline.Count.Should().Be(3);
+    }
+
+    [Fact]
+    public void DispatcherBaseline_Contains_OutboundOrdersRead()
+    {
+        RolePermissionsSeed.DispatcherBaseline.Should()
+            .Contain(PermissionKeys.OutboundOrdersRead)
+            .And.Contain("outbound.orders.read");
+    }
+
+    [Fact]
+    public void DispatcherBaseline_Contains_OutboundOrdersShipConfirm()
+    {
+        RolePermissionsSeed.DispatcherBaseline.Should()
+            .Contain(PermissionKeys.OutboundOrdersShipConfirm)
+            .And.Contain("outbound.orders.ship-confirm");
+    }
+
+    [Fact]
+    public void DispatcherBaseline_Contains_HubConnect()
+    {
+        RolePermissionsSeed.DispatcherBaseline.Should()
+            .Contain(PermissionKeys.HubConnect)
+            .And.Contain("hub.connect");
+    }
+
+    [Fact]
+    public void DispatcherBaseline_Does_Not_Contain_Owner_Critical_Keys()
+    {
+        // Dispatcher must never carry Owner-critical admin keys — the
+        // KTD13 server-side guard locks those on the Owner row.
+        RolePermissionsSeed.DispatcherBaseline
+            .Intersect(PermissionKeys.OwnerCritical)
+            .Should()
+            .BeEmpty();
+    }
+
+    [Fact]
+    public void DispatcherBaseline_Does_Not_Contain_OutboundOrdersPickConfirm()
+    {
+        // Dispatcher owns ship-confirm only. Pick-confirm is Picker's
+        // transition; cross-contamination would break the role-confusion
+        // proof Sprint-12 exists to land.
+        RolePermissionsSeed.DispatcherBaseline.Should()
+            .NotContain(PermissionKeys.OutboundOrdersPickConfirm);
+    }
+
+    [Fact]
+    public void DispatcherBaseline_Does_Not_Contain_OutboundOrdersPackConfirm()
+    {
+        // Sprint-12 design — Pack stays Owner-only (no Packer fourth
+        // role). Dispatcher owns ship-confirm only.
+        RolePermissionsSeed.DispatcherBaseline.Should()
+            .NotContain(PermissionKeys.OutboundOrdersPackConfirm);
+    }
+
+    [Fact]
+    public void PickerBaseline_DoesNotContain_OutboundOrdersShipConfirm()
+    {
+        // Sprint-12 doc-review security-F1 mitigation — explicit
+        // baseline-isolation guard. The canonical Picker baseline has
+        // NO outbound.orders.ship-confirm. The runtime additive-only
+        // contract (KTD1) preserves operator-added overlaps, but this
+        // test ensures the baseline doesn't ship pre-overlapped (which
+        // would silently grant carrier-cost capability to Picker).
+        RolePermissionsSeed.PickerBaseline.Should()
+            .NotContain(PermissionKeys.OutboundOrdersShipConfirm);
+    }
+
+    [Fact]
+    public void DispatcherBaseline_Keys_Are_All_In_PermissionKeys_All()
+    {
+        // Every baseline key must be a canonical PermissionKeys entry.
+        RolePermissionsSeed.DispatcherBaseline.Should()
+            .BeSubsetOf(PermissionKeys.All);
+    }
 }
