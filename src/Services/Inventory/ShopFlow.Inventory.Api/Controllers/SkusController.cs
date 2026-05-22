@@ -5,6 +5,7 @@ using ShopFlow.Inventory.Application.Commands;
 using ShopFlow.Inventory.Application.Dtos;
 using ShopFlow.Inventory.Application.Queries;
 using ShopFlow.Inventory.Domain.Catalog.ValueObjects;
+using ShopFlow.SharedKernel.Authorization;
 
 namespace ShopFlow.Inventory.Api.Controllers;
 
@@ -18,7 +19,6 @@ namespace ShopFlow.Inventory.Api.Controllers;
 /// tenant database before MediatR handlers run.
 /// </summary>
 [ApiController]
-[Authorize]
 [Route("api/v1/inventory/skus")]
 public sealed class SkusController(IMediator mediator) : ControllerBase
 {
@@ -29,15 +29,19 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     /// GET /api/v1/inventory/skus?search=&page=&pageSize=
     /// </summary>
     [HttpGet]
+    [Authorize(Policy = PermissionKeys.InventoryRead)]
     [ProducesResponseType(typeof(PaginatedSkuListDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<PaginatedSkuListDto>> List(
         [FromQuery] string? search,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var result = await this.mediator.Send(
-            new ListSkusQuery(search, page, pageSize), cancellationToken);
+            new ListSkusQuery(search, page, pageSize),
+            cancellationToken
+        );
         return this.Ok(result);
     }
 
@@ -49,27 +53,35 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     /// when more rows remain.
     /// </summary>
     [HttpGet("{sku}/ledger")]
+    [Authorize(Policy = PermissionKeys.InventoryRead)]
     [ProducesResponseType(typeof(SkuLedgerDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<SkuLedgerDto>> Ledger(
         string sku,
         [FromQuery] int limit = 50,
         [FromQuery] string? cursor = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
             return this.ValidationProblem("sku is required.");
         }
-        if (!string.IsNullOrEmpty(cursor) &&
-            ShopFlow.Inventory.Infrastructure.Pagination.OpaqueCursor.TryDecode(cursor) is null)
+        if (
+            !string.IsNullOrEmpty(cursor)
+            && ShopFlow.Inventory.Infrastructure.Pagination.OpaqueCursor.TryDecode(cursor) is null
+        )
         {
             return this.Problem(
                 title: "Invalid cursor",
                 detail: "ledger.cursor_invalid",
-                statusCode: StatusCodes.Status400BadRequest);
+                statusCode: StatusCodes.Status400BadRequest
+            );
         }
-        var result = await this.mediator.Send(new GetSkuLedgerQuery(sku, limit, cursor), cancellationToken);
+        var result = await this.mediator.Send(
+            new GetSkuLedgerQuery(sku, limit, cursor),
+            cancellationToken
+        );
         return this.Ok(result);
     }
 
@@ -80,14 +92,17 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     /// convention). Idempotent via the table's PK on sku.
     /// </summary>
     [HttpPut("{sku}")]
+    [Authorize(Policy = PermissionKeys.InventorySkusWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> Update(
         string sku,
         [FromBody] UpdateSkuRequest body,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        if (body is null) return this.ValidationProblem("request body is required.");
+        if (body is null)
+            return this.ValidationProblem("request body is required.");
         var idem = this.Request.Headers[IdempotencyHeader].ToString();
         SkuDimensions? dims = null;
         if (body.Dimensions is { } d)
@@ -114,8 +129,10 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
                 Barcode: body.Barcode,
                 Brand: body.Brand,
                 IsFlashSale: body.IsFlashSale,
-                IdempotencyKey: idem),
-            cancellationToken);
+                IdempotencyKey: idem
+            ),
+            cancellationToken
+        );
         return result.IsSuccess ? this.NoContent() : this.ValidationProblem(result.Error);
     }
 
@@ -123,12 +140,14 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     /// POST /api/v1/inventory/skus — create a new SKU (R11 / Sprint-6 U8 / U12).
     /// </summary>
     [HttpPost]
+    [Authorize(Policy = PermissionKeys.InventorySkusWrite)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<ActionResult> Create(
         [FromBody] CreateSkuRequest body,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         if (body is null)
         {
@@ -137,7 +156,8 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
         var idem = this.Request.Headers[IdempotencyHeader].ToString();
         var result = await this.mediator.Send(
             new CreateSkuCommand(body.Sku, body.InitialAvailable, idem),
-            cancellationToken);
+            cancellationToken
+        );
 
         if (result.IsSuccess)
         {
@@ -148,7 +168,8 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
             return this.Problem(
                 title: "SKU already exists",
                 detail: result.Error,
-                statusCode: StatusCodes.Status409Conflict);
+                statusCode: StatusCodes.Status409Conflict
+            );
         }
         return this.ValidationProblem(result.Error);
     }
@@ -159,18 +180,22 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     /// a real <c>stock_items.threshold</c> column.
     /// </summary>
     [HttpPut("{sku}/threshold")]
+    [Authorize(Policy = PermissionKeys.InventorySkusThresholdWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> SetThreshold(
         string sku,
         [FromBody] SetThresholdRequest body,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        if (body is null) return this.ValidationProblem("request body is required.");
+        if (body is null)
+            return this.ValidationProblem("request body is required.");
         var idem = this.Request.Headers[IdempotencyHeader].ToString();
         var result = await this.mediator.Send(
             new SetThresholdCommand(sku, body.Threshold, idem),
-            cancellationToken);
+            cancellationToken
+        );
         return result.IsSuccess ? this.NoContent() : this.ValidationProblem(result.Error);
     }
 
@@ -179,24 +204,30 @@ public sealed class SkusController(IMediator mediator) : ControllerBase
     /// (R10 / Sprint-6 U12). Same in-memory caveat as threshold.
     /// </summary>
     [HttpPut("{sku}/flash-sale")]
+    [Authorize(Policy = PermissionKeys.InventorySkusFlashSaleWrite)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult> SetFlashSale(
         string sku,
         [FromBody] SetFlashSaleRequest body,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
-        if (body is null) return this.ValidationProblem("request body is required.");
+        if (body is null)
+            return this.ValidationProblem("request body is required.");
         var idem = this.Request.Headers[IdempotencyHeader].ToString();
         var result = await this.mediator.Send(
             new SetFlashSaleCommand(sku, body.Active, idem),
-            cancellationToken);
+            cancellationToken
+        );
         return result.IsSuccess ? this.NoContent() : this.ValidationProblem(result.Error);
     }
 }
 
 public sealed record CreateSkuRequest(string Sku, int InitialAvailable);
+
 public sealed record SetThresholdRequest(int Threshold);
+
 public sealed record SetFlashSaleRequest(bool Active);
 
 public sealed record UpdateSkuRequest(
@@ -209,6 +240,12 @@ public sealed record UpdateSkuRequest(
     string? ImageUrl,
     string? Barcode,
     string? Brand,
-    bool IsFlashSale);
+    bool IsFlashSale
+);
 
-public sealed record SkuDimensionsRequest(decimal Length, decimal Width, decimal Height, string Unit);
+public sealed record SkuDimensionsRequest(
+    decimal Length,
+    decimal Width,
+    decimal Height,
+    string Unit
+);

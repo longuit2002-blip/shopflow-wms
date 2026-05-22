@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopFlow.Inventory.Application.Dtos;
 using ShopFlow.Inventory.Application.Queries;
+using ShopFlow.SharedKernel.Authorization;
 
 namespace ShopFlow.Inventory.Api.Controllers;
 
@@ -18,7 +19,6 @@ namespace ShopFlow.Inventory.Api.Controllers;
 /// under <c>api/v1/inventory/</c> in U8.
 /// </summary>
 [ApiController]
-[Authorize]
 [Route("api/v1/inventory")]
 public sealed class InventoryController(IMediator mediator) : ControllerBase
 {
@@ -28,9 +28,11 @@ public sealed class InventoryController(IMediator mediator) : ControllerBase
     /// GET /api/v1/inventory/summary
     /// </summary>
     [HttpGet("summary")]
+    [Authorize(Policy = PermissionKeys.InventoryRead)]
     [ProducesResponseType(typeof(InventorySummaryDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<InventorySummaryDto>> Summary(
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default
+    )
     {
         var result = await this.mediator.Send(new GetInventorySummaryQuery(), cancellationToken);
         return this.Ok(result);
