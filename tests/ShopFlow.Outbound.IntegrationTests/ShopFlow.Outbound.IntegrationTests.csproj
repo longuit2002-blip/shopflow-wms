@@ -56,6 +56,17 @@
     <Compile Include="..\ShopFlow.Auth.IntegrationTests\Authorization\NarrowedJwtBuilder.cs">
       <Link>Authorization\NarrowedJwtBuilder.cs</Link>
     </Compile>
+    <!-- Sprint-12 U4 — RolePermissionsSeed is linked from tools/shopflow-migrate/
+         so HandoffFixture's BuildPickerJwt / BuildDispatcherJwt can pin the
+         JWT perm[] against the canonical PickerBaseline + DispatcherBaseline
+         constants directly. Cross-project ProjectReference to the migrate
+         tool would pull its Program entrypoint (OutputType=Exe) and collide
+         with this project's Outbound.Api Program WAF target — same trap
+         Sprint-10.5 U4 documented for Auth.Api. The Compile-link keeps a
+         single source of truth without the transitive cost. -->
+    <Compile Include="..\..\tools\shopflow-migrate\Provisioning\RolePermissionsSeed.cs">
+      <Link>Provisioning\RolePermissionsSeed.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>
