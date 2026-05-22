@@ -99,6 +99,20 @@ export interface OrderDetailDto {
   lines: OrderLineResponse[];
 }
 
+/**
+ * Sprint-12 U2 — POST /api/outbound/orders/{id}/confirm-ship response.
+ * Mirrors the backend `ConfirmShipResponse` record
+ * (`src/Services/Outbound/ShopFlow.Outbound.Api/Contracts/OrderDtos.cs`).
+ * The label URL + tracking number are surfaced in the success toast and
+ * re-rendered on the order-detail header (KTD10 persistent tracking-pill)
+ * via the post-confirm detail refetch.
+ */
+export interface ConfirmShipResponse {
+  labelUrl: string;
+  trackingNumber: string;
+  order: OrderResponse;
+}
+
 export interface OrderTransitionDto {
   id: string;
   orderId: string;
@@ -231,6 +245,22 @@ export const ordersApi = {
     return httpClient.post<OrderResponse>(
       `${BASE}/${encodeURIComponent(orderId)}/mark-pick-failed`,
       { reason },
+      options,
+    );
+  },
+
+  /**
+   * Sprint-12 U2 — Dispatcher confirm-ship action.
+   * POST /api/outbound/orders/{id}/confirm-ship. Backend gated by
+   * [Authorize(Policy="outbound.orders.ship-confirm")] (Sprint-10 U2);
+   * pre-state requirement is `OrderStatus.AwaitingShip`. Empty body;
+   * Idempotency-Key threaded via options. Response carries the carrier
+   * label URL + tracking number alongside the post-confirm order shape.
+   */
+  confirmShip(orderId: string, options: MutationOptions = {}) {
+    return httpClient.post<ConfirmShipResponse>(
+      `${BASE}/${encodeURIComponent(orderId)}/confirm-ship`,
+      {},
       options,
     );
   },

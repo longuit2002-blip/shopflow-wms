@@ -27,7 +27,7 @@
 
 import { useRef } from 'react';
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
-import { ordersApi, type SeedOrderRequest, type OrderResponse } from '../api/orders';
+import { ordersApi, type SeedOrderRequest, type OrderResponse, type ConfirmShipResponse } from '../api/orders';
 import { ApiError } from '../api/httpClient';
 import { useToast } from './useToast';
 import { t } from './useLocale';
@@ -207,6 +207,41 @@ export const useMarkPickFailedMutation = createIdempotentMutation<
   },
 );
 
+// ── confirmShip (Sprint-12 U2 — Dispatcher) ──────────────────────────────
+
+/**
+ * Variables shape for confirmShip — orderId is the route param the
+ * detail-screen button passes in. The endpoint takes no request body
+ * (carrier label is generated server-side); orderId is the only thing
+ * the caller threads through. Wrapped as a record (or accepts a raw
+ * string for the button call-site's `confirmShip.mutate(orderId)`
+ * shorthand) so future per-call fields can land without breaking
+ * existing consumers.
+ */
+export interface ConfirmShipVariables {
+  orderId: string;
+}
+
+export const useConfirmShipMutation = createIdempotentMutation<
+  ConfirmShipVariables | string,
+  ConfirmShipResponse
+>(
+  (input, key) => {
+    const orderId = typeof input === 'string' ? input : input.orderId;
+    return ordersApi.confirmShip(orderId, { idempotencyKey: key });
+  },
+  [['orders'], ['order-detail'], ['order-transitions']],
+  {
+    successTitle: t('Xác nhận giao hàng thành công', 'Ship confirmed'),
+    // Surface the carrier tracking number in the toast body so the
+    // Dispatcher has a copyable handle. The persistent tracking-pill
+    // on order-detail header (Sprint-12 KTD10) is the post-dismiss
+    // fallback.
+    successBody: (res) => res.trackingNumber,
+    errorTitle: t('Lỗi xác nhận giao hàng', 'Ship confirm failed'),
+  },
+);
+
 // ── Aggregator ───────────────────────────────────────────────────────────
 
 /**
@@ -217,5 +252,6 @@ export function useOrderMutations() {
   const seedOrder = useSeedOrderMutation();
   const confirmPick = useConfirmPickMutation();
   const markPickFailed = useMarkPickFailedMutation();
-  return { seedOrder, confirmPick, markPickFailed };
+  const confirmShip = useConfirmShipMutation();
+  return { seedOrder, confirmPick, markPickFailed, confirmShip };
 }

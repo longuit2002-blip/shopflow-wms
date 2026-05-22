@@ -27,6 +27,7 @@ import {
   useSeedOrderMutation,
   useConfirmPickMutation,
   useMarkPickFailedMutation,
+  useConfirmShipMutation,
   useOrderMutations,
 } from './useOrderMutations';
 import { useToast, __resetToastsForTests } from './useToast';
@@ -473,15 +474,156 @@ describe('useMarkPickFailedMutation (Sprint-11 U2)', () => {
   });
 });
 
-describe('useOrderMutations aggregator (Sprint-11 U2)', () => {
-  it('exposes seedOrder + confirmPick + markPickFailed handles', () => {
+// ── Sprint-12 U2 — confirmShip ──────────────────────────────────────────
+
+// ConfirmShipResponse-shaped fixture for the success path. The mutation
+// reads `trackingNumber` for the toast body; nothing else is inspected.
+function fakeShipResponse(tracking: string) {
+  return {
+    labelUrl: `https://carrier.test/labels/${tracking}.pdf`,
+    trackingNumber: tracking,
+    order: { ...fakeSeededOrder('SHIP'), status: 'Shipped' },
+  };
+}
+
+describe('useConfirmShipMutation (Sprint-12 U2)', () => {
+  const ORDER_ID = '01HSHIP000000000000000000A';
+
+  it('POSTs to /api/outbound/orders/{id}/confirm-ship with a ULID Idempotency-Key', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeShipResponse('TRK-CS1'), 200));
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmShipMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+
+    expect(fetchMock()).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock().mock.calls[0]!;
+    expect(String(url)).toContain(
+      `/api/outbound/orders/${encodeURIComponent(ORDER_ID)}/confirm-ship`,
+    );
+    expect((init as RequestInit).method).toBe('POST');
+    expect(
+      ((init as RequestInit).headers as Headers).get('Idempotency-Key'),
+    ).toMatch(ULID_RE);
+  });
+
+  it('accepts a bare string variable as a convenience (route-id shorthand)', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeShipResponse('TRK-CS2'), 200));
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmShipMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync(ORDER_ID);
+    });
+
+    const [url] = fetchMock().mock.calls[0]!;
+    expect(String(url)).toContain(`/${encodeURIComponent(ORDER_ID)}/confirm-ship`);
+  });
+
+  it('each call generates a different ULID idempotency-key', async () => {
+    fetchMock().mockImplementation(() =>
+      Promise.resolve(jsonResponse(fakeShipResponse('TRK-CS3'), 200)),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmShipMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+
+    const k1 = (
+      (fetchMock().mock.calls[0]![1] as RequestInit).headers as Headers
+    ).get('Idempotency-Key');
+    const k2 = (
+      (fetchMock().mock.calls[1]![1] as RequestInit).headers as Headers
+    ).get('Idempotency-Key');
+    expect(k1).not.toBe(k2);
+  });
+
+  it('on success: invalidates orders + order-detail + order-transitions + pushes success toast with tracking number', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeShipResponse('TRK-CS4'), 200));
+    const { wrapper, qc } = makeWrapper();
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+    const { result } = renderHook(() => useConfirmShipMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['orders'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['order-detail'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['order-transitions'] });
+
+    const toast = useToast.getState().toasts[0]!;
+    expect(toast.kind).toBe('success');
+    expect(toast.title).toContain('Xác nhận giao hàng');
+    // KTD10 — tracking number surfaced in the toast body (persistent
+    // tracking-pill on order-detail is the post-dismiss fallback).
+    expect(toast.body).toBe('TRK-CS4');
+  });
+
+  it('on 403: pushes an error toast with idempotency-key + traceId', async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse({ traceId: 'trace-ship-403', title: 'Forbidden' }, 403),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmShipMutation(), { wrapper });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ orderId: ORDER_ID });
+      } catch {
+        /* expected */
+      }
+    });
+
+    const sentKey = (
+      (fetchMock().mock.calls[0]![1] as RequestInit).headers as Headers
+    ).get('Idempotency-Key');
+    const toast = useToast.getState().toasts[0]!;
+    expect(toast.kind).toBe('error');
+    expect(toast.idempotencyKey).toBe(sentKey);
+    expect(toast.traceId).toBe('trace-ship-403');
+  });
+
+  it('on 503 carrier_unavailable: pushes an error toast with traceId', async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse(
+        { TraceId: 'trace-ship-503', code: 'shipping.carrier_unavailable' },
+        503,
+      ),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmShipMutation(), { wrapper });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ orderId: ORDER_ID });
+      } catch {
+        /* expected */
+      }
+    });
+
+    expect(useToast.getState().toasts[0]!.traceId).toBe('trace-ship-503');
+  });
+});
+
+describe('useOrderMutations aggregator (Sprint-11 U2 + Sprint-12 U2)', () => {
+  it('exposes seedOrder + confirmPick + markPickFailed + confirmShip handles', () => {
     const { wrapper } = makeWrapper();
     const { result } = renderHook(() => useOrderMutations(), { wrapper });
 
     expect(result.current.seedOrder).toBeDefined();
     expect(result.current.confirmPick).toBeDefined();
     expect(result.current.markPickFailed).toBeDefined();
+    expect(result.current.confirmShip).toBeDefined();
     expect(typeof result.current.confirmPick.mutate).toBe('function');
     expect(typeof result.current.markPickFailed.mutate).toBe('function');
+    expect(typeof result.current.confirmShip.mutate).toBe('function');
   });
 });
