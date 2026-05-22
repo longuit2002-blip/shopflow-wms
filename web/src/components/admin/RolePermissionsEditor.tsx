@@ -3,6 +3,7 @@ import { Button } from '../primitives/Button';
 import { t, useLocale } from '../../hooks/useLocale';
 import {
   MODULES,
+  ORPHAN_KEYS,
   PERMISSION_KEYS,
   type EditableRole,
   type RolePermissions,
@@ -168,10 +169,24 @@ export function RolePermissionsEditor({ initial, canEdit, onSave }: RolePermissi
                 {!isCollapsed
                   && moduleKeys.map((p) => {
                     const tooltipId = `lock-${p.key}`;
+                    const orphanTooltipId = `orphan-${p.key}`;
+                    const isOrphan = ORPHAN_KEYS.includes(p.key);
                     return (
                       <tr key={p.key}>
                         <td style={td}>
                           <code style={{ fontSize: 13 }}>{p.key}</code>
+                          {isOrphan && (
+                            <span
+                              aria-hidden="true"
+                              title={t(
+                                'Chưa gắn hành động — bật quyền này hiện không có hiệu lực.',
+                                'No action attached yet — enabling this key is a no-op today but would grant any future action attached to it.',
+                              )}
+                              style={{ marginLeft: 6, color: 'var(--ink-3)', fontSize: 12 }}
+                            >
+                              {'⚠'}
+                            </span>
+                          )}
                         </td>
                         <td style={td}>
                           <input
@@ -191,20 +206,30 @@ export function RolePermissionsEditor({ initial, canEdit, onSave }: RolePermissi
                         <td style={td}>
                           <input
                             type="checkbox"
-                            disabled={!canEdit}
+                            disabled={!canEdit || isOrphan}
                             checked={picker.has(p.key)}
                             onChange={() => togglePicker(p.key)}
                             aria-label={`Picker ${p.key}`}
+                            aria-describedby={isOrphan ? orphanTooltipId : undefined}
                           />
                         </td>
                         <td style={td}>
                           <input
                             type="checkbox"
-                            disabled={!canEdit}
+                            disabled={!canEdit || isOrphan}
                             checked={dispatcher.has(p.key)}
                             onChange={() => toggleDispatcher(p.key)}
                             aria-label={`Dispatcher ${p.key}`}
+                            aria-describedby={isOrphan ? orphanTooltipId : undefined}
                           />
+                          {isOrphan && (
+                            <span id={orphanTooltipId} className="sr-only">
+                              {t(
+                                'Chưa gắn hành động — bật quyền này hiện không có hiệu lực nhưng sẽ áp dụng cho bất kỳ hành động nào được gắn trong tương lai.',
+                                'No action attached yet — enabling this key is a no-op today but would grant any future action attached to it.',
+                              )}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );

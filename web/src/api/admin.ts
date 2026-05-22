@@ -74,54 +74,78 @@ export async function updateRolePermissions(
 }
 
 /**
- * Sprint-9 permission catalog. Mirrors PermissionKeys.All from
- * SharedKernel. Module grouping drives the RolePermissionsEditor's
+ * Sprint-10.5 U1 — permission catalog rewrite. Exact-mirrors the 24
+ * backend keys in `ShopFlow.SharedKernel.Authorization.PermissionKeys`
+ * (Sprint-9 U1). Module grouping drives the RolePermissionsEditor's
  * collapsible sections.
+ *
+ * The Sprint-9.5 U7 version had drifted ~9 entries (used `.update` /
+ * `.create` / `.toggle` / `.confirm-*` / `notification.dlq.*` /
+ * `hub.tenant.*` names that don't exist server-side). Sprint-10 attached
+ * policies to 33 actions using the canonical names, making the drift a
+ * privilege-escalation vector once Sprint-11's non-Owner role lands.
  */
 export const PERMISSION_KEYS: readonly { key: string; module: string }[] = [
-  // Auth admin
+  // Auth admin (9)
   { key: 'auth.admin.users.list', module: 'Auth' },
   { key: 'auth.admin.users.create', module: 'Auth' },
-  { key: 'auth.admin.users.update', module: 'Auth' },
+  { key: 'auth.admin.users.update-role', module: 'Auth' },
+  { key: 'auth.admin.users.reset-password', module: 'Auth' },
   { key: 'auth.admin.users.deactivate', module: 'Auth' },
   { key: 'auth.admin.lockout.unlock', module: 'Auth' },
   { key: 'auth.admin.mfa-reset', module: 'Auth' },
   { key: 'auth.admin.role-permissions.read', module: 'Auth' },
   { key: 'auth.admin.role-permissions.update', module: 'Auth' },
-  // Inventory
+  // Inventory (5)
   { key: 'inventory.read', module: 'Inventory' },
   { key: 'inventory.adjust', module: 'Inventory' },
-  { key: 'inventory.flash-sale.toggle', module: 'Inventory' },
-  { key: 'inventory.skus.create', module: 'Inventory' },
-  { key: 'inventory.skus.update', module: 'Inventory' },
-  // Outbound / Orders
+  { key: 'inventory.skus.write', module: 'Inventory' },
+  { key: 'inventory.skus.flash-sale.write', module: 'Inventory' },
+  { key: 'inventory.skus.threshold.write', module: 'Inventory' },
+  // Outbound / Orders (6)
   { key: 'outbound.orders.read', module: 'Outbound' },
-  { key: 'outbound.orders.confirm-pick', module: 'Outbound' },
-  { key: 'outbound.orders.confirm-pack', module: 'Outbound' },
-  { key: 'outbound.orders.confirm-ship', module: 'Outbound' },
-  { key: 'outbound.orders.mark-pick-failed', module: 'Outbound' },
-  // Inbound
+  { key: 'outbound.orders.write', module: 'Outbound' },
+  { key: 'outbound.orders.pick-confirm', module: 'Outbound' },
+  { key: 'outbound.orders.pack-confirm', module: 'Outbound' },
+  { key: 'outbound.orders.ship-confirm', module: 'Outbound' },
+  { key: 'outbound.orders.cancel', module: 'Outbound' },
+  // Inbound (3)
   { key: 'inbound.pos.read', module: 'Inbound' },
-  { key: 'inbound.pos.create', module: 'Inbound' },
-  { key: 'inbound.receiving.confirm', module: 'Inbound' },
-  // Hub (SignalR)
-  { key: 'hub.tenant.read', module: 'Hub' },
-  { key: 'hub.tenant.write', module: 'Hub' },
-  // Notifications
-  { key: 'notification.dlq.read', module: 'Notification' },
+  { key: 'inbound.pos.write', module: 'Inbound' },
+  { key: 'inbound.receive.confirm', module: 'Inbound' },
+  // Hub (SignalR) (1)
+  { key: 'hub.connect', module: 'Hub' },
 ];
 
-/** Sprint-9 KTD13 OwnerCritical guard — client mirror. */
+/**
+ * Sprint-9 KTD13 OwnerCritical guard — client mirror. Exact-mirrors
+ * `PermissionKeys.OwnerCritical` (9 entries, all `auth.admin.*`).
+ * Server-side guard in `RolePermissionsCommandHandler` remains
+ * authoritative; this list drives UX cues only.
+ */
 export const OWNER_CRITICAL_KEYS: readonly string[] = [
   'auth.admin.users.list',
   'auth.admin.users.create',
-  'auth.admin.users.update',
+  'auth.admin.users.update-role',
+  'auth.admin.users.reset-password',
   'auth.admin.users.deactivate',
   'auth.admin.lockout.unlock',
   'auth.admin.mfa-reset',
   'auth.admin.role-permissions.read',
   'auth.admin.role-permissions.update',
-  'inventory.read',
 ];
 
-export const MODULES: readonly string[] = ['Auth', 'Inventory', 'Outbound', 'Inbound', 'Hub', 'Notification'];
+/**
+ * Sprint-10.5 U1 — permission keys catalogued server-side but not yet
+ * attached to any controller action. Granting these to Picker /
+ * Dispatcher is a no-op today but would grant any future action
+ * attached. The RolePermissionsEditor disables the Picker + Dispatcher
+ * toggles for these rows + surfaces an `aria-describedby` tooltip so an
+ * Owner can't silently arm a future privilege (SEC-006 / adv-1 risk).
+ *
+ * `hub.connect` is NOT orphan post-Sprint-10.5 U3 — that unit attaches
+ * the policy to the SignalR connect handshake.
+ */
+export const ORPHAN_KEYS: readonly string[] = ['outbound.orders.cancel'];
+
+export const MODULES: readonly string[] = ['Auth', 'Inventory', 'Outbound', 'Inbound', 'Hub'];
