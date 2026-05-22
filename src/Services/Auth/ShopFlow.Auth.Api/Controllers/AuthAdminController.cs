@@ -7,26 +7,37 @@ using ShopFlow.Auth.Application.Dtos;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Application.Queries;
 using ShopFlow.Auth.Domain;
+using ShopFlow.SharedKernel.Authorization;
 
 namespace ShopFlow.Auth.Api.Controllers;
 
 /// <summary>
-/// Sprint-8 U9 — Owner-gated admin surface for tenant user CRUD
-/// (R12 / R13 / R14 / R15 / R16 / F5). Standard tenant routing
-/// applies (header > JWT > subdomain via
-/// <c>TenantRoutingMiddleware</c>) — the caller already holds a
-/// valid access token, so the JWT claim carries the tenant.
+/// Sprint-8 U9 / Sprint-10 U4 — admin surface for tenant user CRUD,
+/// MFA reset, account unlock, and role-permission management
+/// (R12 / R13 / R14 / R15 / R16 / F5). Standard tenant routing applies
+/// (header &gt; JWT &gt; subdomain via <c>TenantRoutingMiddleware</c>) —
+/// the caller already holds a valid access token, so the JWT claim
+/// carries the tenant.
 /// </summary>
 /// <remarks>
-/// <para>The <c>role=Owner</c> claim check is enforced via
-/// <c>[Authorize(Roles = "Owner")]</c> — ASP.NET Core's authorization
-/// pipeline rejects the request with 403 before this controller's
-/// action body runs. Non-Owner callers (Picker, Dispatcher) see a
-/// 403 ProblemDetails; unauthenticated callers see 401.</para>
+/// <para>Sprint-10 U4 retired the class-level <c>[Authorize(Roles = "Owner")]</c>
+/// gate in favor of per-action <c>[Authorize(Policy = PermissionKeys.X)]</c>
+/// attributes. Each action's policy name is one of the 9 entries in
+/// <see cref="PermissionKeys.OwnerCritical"/>; the mapping is pinned by
+/// <c>AuthAdminAuthorizePolicyCoverageTests</c> (KTD5 dual-pin).
+/// ASP.NET Core's authorization pipeline rejects the request with 403
+/// before the action body runs when the caller's <c>perm</c> claim
+/// lacks the required key; unauthenticated callers see 401.</para>
+///
+/// <para>Two safety nets guarantee Owner is never locked out of this
+/// surface: (1) <c>RolePermissionsSeed</c> (Sprint-9 U12) seeds Owner
+/// with all 24 keys at every tenant provision, and (2) the KTD13
+/// <c>OwnerCritical</c> server-side guard in
+/// <c>RolePermissionsCommandHandler</c> (Sprint-9 U8) blocks any edit
+/// that would shed an admin key from Owner.</para>
 /// </remarks>
 [ApiController]
 [Route("api/auth/admin")]
-[Authorize(Roles = "Owner")]
 public sealed class AuthAdminController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -37,6 +48,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpPost("users")]
+    [Authorize(Policy = PermissionKeys.AuthAdminUsersCreate)]
     [ProducesResponseType(typeof(CreateUserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
@@ -72,6 +84,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpGet("users")]
+    [Authorize(Policy = PermissionKeys.AuthAdminUsersList)]
     [ProducesResponseType(typeof(ListUsersResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> ListUsers(
         [FromQuery] int page = 1,
@@ -86,6 +99,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpPut("users/{userId:guid}/role")]
+    [Authorize(Policy = PermissionKeys.AuthAdminUsersUpdateRole)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -112,6 +126,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpPost("users/{userId:guid}/reset-password")]
+    [Authorize(Policy = PermissionKeys.AuthAdminUsersResetPassword)]
     [ProducesResponseType(typeof(ResetPasswordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ResetPassword(Guid userId, CancellationToken ct)
@@ -133,6 +148,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpDelete("users/{userId:guid}")]
+    [Authorize(Policy = PermissionKeys.AuthAdminUsersDeactivate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Deactivate(Guid userId, CancellationToken ct)
@@ -177,6 +193,7 @@ public sealed class AuthAdminController : ControllerBase
     // ───────────── Sprint-9 admin endpoints ─────────────
 
     [HttpPost("users/{userId:guid}/mfa/reset")]
+    [Authorize(Policy = PermissionKeys.AuthAdminMfaReset)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> AdminMfaReset(Guid userId, CancellationToken ct)
@@ -203,6 +220,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpPost("users/{userId:guid}/unlock")]
+    [Authorize(Policy = PermissionKeys.AuthAdminLockoutUnlock)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> AdminUnlock(Guid userId, CancellationToken ct)
@@ -224,6 +242,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpGet("role-permissions")]
+    [Authorize(Policy = PermissionKeys.AuthAdminRolePermissionsRead)]
     [ProducesResponseType(typeof(IDictionary<string, IReadOnlyList<string>>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetRolePermissions(
         [FromServices] IRolePermissionRepository repo,
@@ -235,6 +254,7 @@ public sealed class AuthAdminController : ControllerBase
     }
 
     [HttpPut("role-permissions")]
+    [Authorize(Policy = PermissionKeys.AuthAdminRolePermissionsUpdate)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> UpdateRolePermissions(
