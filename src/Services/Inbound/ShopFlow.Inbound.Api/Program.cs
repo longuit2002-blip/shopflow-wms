@@ -12,6 +12,11 @@ using ShopFlow.SharedKernel.Infrastructure;
 //   2. services.AddInboundModule(configuration)     — module specifics
 //      (InboundDbContext, repositories, MultiplexedOutboxDispatcher
 //      hosted service, ConfirmReceivingLineService)
+//
+// Sprint-10 KTD3 — UseAuthentication() + UseAuthorization() are now wired
+// here (they were missing pre-Sprint-10, leaving PurchaseOrdersController
+// unauthenticated). Kept hand-wired (not via UseShopFlowSecurityPipeline)
+// per KTD4 for cross-business-module consistency with Inventory/Outbound.
 // ─────────────────────────────────────────────────────────────────────────
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,6 +35,8 @@ builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseTenantRouting();
 app.MapControllers();
 await app.RunAsync().ConfigureAwait(false);

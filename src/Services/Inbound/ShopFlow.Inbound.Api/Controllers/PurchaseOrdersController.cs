@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ShopFlow.Inbound.Api.Contracts;
 using ShopFlow.Inbound.Application.Ports;
 using ShopFlow.Inbound.Application.Services;
 using ShopFlow.Inbound.Domain;
+using ShopFlow.SharedKernel.Authorization;
 using ShopFlow.SharedKernel.Domain;
 
 namespace ShopFlow.Inbound.Api.Controllers;
@@ -36,6 +38,7 @@ public sealed class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Policy = PermissionKeys.InboundPosWrite)]
     public async Task<IActionResult> CreateAsync(
         [FromBody] CreatePoRequest request,
         CancellationToken ct
@@ -67,6 +70,7 @@ public sealed class PurchaseOrdersController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize(Policy = PermissionKeys.InboundPosRead)]
     public async Task<IActionResult> GetByIdAsync(Guid id, CancellationToken ct)
     {
         var po = await _poRepo.FindByIdAsync(id, ct);
@@ -78,6 +82,7 @@ public sealed class PurchaseOrdersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = PermissionKeys.InboundPosRead)]
     public async Task<IActionResult> ListOpenAsync(CancellationToken ct)
     {
         var list = await _poRepo.ListOpenAsync(ct);
@@ -85,6 +90,7 @@ public sealed class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/open")]
+    [Authorize(Policy = PermissionKeys.InboundPosWrite)]
     public async Task<IActionResult> OpenAsync(Guid id, CancellationToken ct)
     {
         var po = await _poRepo.FindByIdAsync(id, ct);
@@ -102,6 +108,7 @@ public sealed class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPatch("{id:guid}/cancel")]
+    [Authorize(Policy = PermissionKeys.InboundPosWrite)]
     public async Task<IActionResult> CancelAsync(
         Guid id,
         [FromBody] CancelPoRequest request,
@@ -131,6 +138,7 @@ public sealed class PurchaseOrdersController : ControllerBase
     }
 
     [HttpPost("{id:guid}/receive")]
+    [Authorize(Policy = PermissionKeys.InboundReceiveConfirm)]
     public async Task<IActionResult> ReceiveLineAsync(
         Guid id,
         [FromBody] ConfirmReceivingLineRequest request,
@@ -176,11 +184,7 @@ public sealed class PurchaseOrdersController : ControllerBase
     }
 
     private IActionResult ProblemFromError(string detail, string code, int status) =>
-        Problem(
-            statusCode: status,
-            title: detail,
-            type: $"https://shopflow.example/errors/{code}"
-        );
+        Problem(statusCode: status, title: detail, type: $"https://shopflow.example/errors/{code}");
 
     private IActionResult ProblemFromResult(string detail, string code)
     {
@@ -197,8 +201,12 @@ public sealed class PurchaseOrdersController : ControllerBase
             OpenedAt: po.OpenedAt,
             ClosedAt: po.ClosedAt,
             CancelledAt: po.CancelledAt,
-            Lines: po
-                .Lines.Select(l => new PoLineResponse(l.Id, l.Sku, l.ExpectedQty, l.ReceivedQty))
+            Lines: po.Lines.Select(l => new PoLineResponse(
+                    l.Id,
+                    l.Sku,
+                    l.ExpectedQty,
+                    l.ReceivedQty
+                ))
                 .ToArray()
         );
 }
