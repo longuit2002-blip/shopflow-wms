@@ -95,6 +95,28 @@ const READONLY_JWT =
   + '.eyJzdWIiOiI4ZjcyZjUxNi1jYzAyLTRmNTQtOWNjOC1iZTBmM2I5NmM0ZjMiLCJlbWFpbCI6InZpZXdlckB5ZW5zYW8udm4iLCJyb2xlIjoiVmlld2VyIiwidGVuYW50X3NsdWciOiJ5ZW5zYW9raGFuaGhvYSIsInBlcm0iOlsib3V0Ym91bmQub3JkZXJzLnJlYWQiXSwiZXhwIjo5OTk5OTk5OTk5fQ'
   + '.signature';
 
+// Sprint-12 U3 — Dispatcher JWT. Payload:
+//   { sub, email: "dispatcher@yensao.vn", role: "Dispatcher",
+//     tenant_slug: "yensaokhanhhoa",
+//     perm: ["outbound.orders.read", "outbound.orders.ship-confirm", "hub.connect"],
+//     exp: 9999999999 }
+// Matches RolePermissionsSeed.DispatcherBaseline exactly (Sprint-12 U1).
+const DISPATCHER_JWT =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+  + '.eyJzdWIiOiI4ZjcyZjUxNi1jYzAyLTRmNTQtOWNjOC1iZTBmM2I5NmM0ZjQiLCJlbWFpbCI6ImRpc3BhdGNoZXJAeWVuc2FvLnZuIiwicm9sZSI6IkRpc3BhdGNoZXIiLCJ0ZW5hbnRfc2x1ZyI6InllbnNhb2toYW5oaG9hIiwicGVybSI6WyJvdXRib3VuZC5vcmRlcnMucmVhZCIsIm91dGJvdW5kLm9yZGVycy5zaGlwLWNvbmZpcm0iLCJodWIuY29ubmVjdCJdLCJleHAiOjk5OTk5OTk5OTl9'
+  + '.signature';
+
+// Sprint-12 U3 — Owner JWT (multi-perm). Payload includes both
+// pick-confirm AND ship-confirm so AE5's Owner-sees-ConfirmShip-button
+// scenario can fire. Real Owner JWTs carry all 24 PermissionKeys.All
+// entries; the subset here is the minimum needed for the assertions
+// (the JWT-shape contract is the perm[] string presence check, not
+// the literal Owner role superset).
+const OWNER_JWT =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+  + '.eyJzdWIiOiI4ZjcyZjUxNi1jYzAyLTRmNTQtOWNjOC1iZTBmM2I5NmM0ZjUiLCJlbWFpbCI6Im93bmVyQHllbnNhby52biIsInJvbGUiOiJPd25lciIsInRlbmFudF9zbHVnIjoieWVuc2Fva2hhbmhob2EiLCJwZXJtIjpbIm91dGJvdW5kLm9yZGVycy5yZWFkIiwib3V0Ym91bmQub3JkZXJzLnBpY2stY29uZmlybSIsIm91dGJvdW5kLm9yZGVycy5wYWNrLWNvbmZpcm0iLCJvdXRib3VuZC5vcmRlcnMuc2hpcC1jb25maXJtIiwiaW52ZW50b3J5LnJlYWQiLCJodWIuY29ubmVjdCJdLCJleHAiOjk5OTk5OTk5OTl9'
+  + '.signature';
+
 function sessionWith(jwt: string) {
   return {
     accessToken: jwt,
@@ -260,6 +282,160 @@ describe('orders/$orderId — Sprint-11 U2 a11y (DL-008)', () => {
     // violation in OrderLineItems (CLAUDE.md "3 pre-existing frontend
     // test failures") that is out of scope for U2.
     const section = screen.getByTestId('order-detail-pick-actions');
+    expect(await axe(section)).toHaveNoViolations();
+  });
+});
+
+// ── Sprint-12 U3 — Dispatcher action gating ──────────────────────────────
+
+describe('orders/$orderId — Sprint-12 U3 dispatcher action gating', () => {
+  // KTD2 — Gate reads `Order.status` (Order aggregate field, which DOES
+  // reach 'AwaitingShip' via order.MarkAwaitingShip()), NOT
+  // `currentSagaState` (saga's CurrentState, which has NO AwaitingShip
+  // handler — FulfillmentSaga.cs:213 TODO documents the missing
+  // transition). All Sprint-12 visibility scenarios pin `status`, not
+  // `currentSagaState`.
+
+  it('AE5: Dispatcher session + status=AwaitingShip → ConfirmShip button visible', () => {
+    useAuth.getState().setSession(sessionWith(DISPATCHER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'AwaitingShip',
+      currentSagaState: 'Packed', // saga reality per KTD2
+    });
+
+    renderRoute();
+
+    expect(screen.getByTestId('confirm-ship-button')).toBeInTheDocument();
+  });
+
+  it('AE5: Picker session (no ship-confirm) + status=AwaitingShip → ConfirmShip button hidden', () => {
+    useAuth.getState().setSession(sessionWith(PICKER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'AwaitingShip',
+      currentSagaState: 'Packed',
+    });
+
+    renderRoute();
+
+    expect(screen.queryByTestId('confirm-ship-button')).not.toBeInTheDocument();
+  });
+
+  it('AE5: Owner session + status=AwaitingShip → ConfirmShip button visible', () => {
+    useAuth.getState().setSession(sessionWith(OWNER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'AwaitingShip',
+      currentSagaState: 'Packed',
+    });
+
+    renderRoute();
+
+    expect(screen.getByTestId('confirm-ship-button')).toBeInTheDocument();
+  });
+
+  it('AE5: Dispatcher session + status=AwaitingPick → ConfirmShip button hidden (state gate fails)', () => {
+    useAuth.getState().setSession(sessionWith(DISPATCHER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'AwaitingPick',
+      currentSagaState: 'AwaitingPick',
+    });
+
+    renderRoute();
+
+    expect(screen.queryByTestId('confirm-ship-button')).not.toBeInTheDocument();
+  });
+
+  it('Dispatcher session + status=Packed → ConfirmShip button hidden (transient pre-MarkAwaitingShip)', () => {
+    // status moves Packed → AwaitingShip inside the same SaveChanges
+    // in PackConfirmAsync, so the Packed window is narrow in practice;
+    // gate still must be strict so the button doesn't render briefly.
+    useAuth.getState().setSession(sessionWith(DISPATCHER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'Packed',
+      currentSagaState: 'Picked',
+    });
+
+    renderRoute();
+
+    expect(screen.queryByTestId('confirm-ship-button')).not.toBeInTheDocument();
+  });
+
+  it('Dispatcher session + status=Shipped → ConfirmShip button hidden (terminal)', () => {
+    useAuth.getState().setSession(sessionWith(DISPATCHER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'Shipped',
+      currentSagaState: 'Shipped',
+    });
+
+    renderRoute();
+
+    expect(screen.queryByTestId('confirm-ship-button')).not.toBeInTheDocument();
+  });
+
+  it('No session → ConfirmShip button hidden (usePerm fails closed)', () => {
+    detailRef.current.data = fakeDetail({
+      status: 'AwaitingShip',
+      currentSagaState: 'Packed',
+    });
+    // No setSession call → useAuth.user is null → usePerm returns false.
+
+    renderRoute();
+
+    expect(screen.queryByTestId('confirm-ship-button')).not.toBeInTheDocument();
+  });
+});
+
+// ── Sprint-12 U3 — tracking-pill persistent surface (KTD10, design-F2) ──
+
+describe('orders/$orderId — Sprint-12 U3 tracking-pill (KTD10)', () => {
+  it('renders the tracking pill when trackingNumber + labelUrl are set', () => {
+    useAuth.getState().setSession(sessionWith(OWNER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'Shipped',
+      currentSagaState: 'Shipped',
+      trackingNumber: 'SHIP-12345',
+      labelUrl: 'https://carrier.test/label/12345.pdf',
+    });
+
+    renderRoute();
+
+    const wrap = screen.getByTestId('order-detail-tracking');
+    expect(wrap).toBeInTheDocument();
+    expect(wrap).toHaveTextContent('SHIP-12345');
+    expect(screen.getByTestId('order-detail-tracking-pill')).toBeInTheDocument();
+  });
+
+  it('hides the tracking pill when trackingNumber is null (pre-ship state)', () => {
+    useAuth.getState().setSession(sessionWith(DISPATCHER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'AwaitingShip',
+      currentSagaState: 'Packed',
+      trackingNumber: null,
+      labelUrl: null,
+    });
+
+    renderRoute();
+
+    expect(screen.queryByTestId('order-detail-tracking')).not.toBeInTheDocument();
+  });
+});
+
+// ── Sprint-12 U3 — a11y smoke test (design-F4 mitigation) ──────────────
+
+describe('orders/$orderId — Sprint-12 U3 a11y', () => {
+  it('Ship action button has zero axe violations on AwaitingShip render', async () => {
+    useAuth.getState().setSession(sessionWith(DISPATCHER_JWT));
+    detailRef.current.data = fakeDetail({
+      status: 'AwaitingShip',
+      currentSagaState: 'Packed',
+    });
+
+    renderRoute();
+
+    // Scope to the ship-actions section, mirroring the Sprint-11
+    // pick-actions axe scope — wider page tree includes a Sprint-7
+    // baseline `empty-table-header` violation in OrderLineItems that
+    // is out of scope for U3.
+    const section = screen.getByTestId('order-detail-ship-actions');
     expect(await axe(section)).toHaveNoViolations();
   });
 });

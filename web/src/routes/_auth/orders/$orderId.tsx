@@ -90,12 +90,25 @@ export function OrderDetailRouteComponent() {
   // Server-side [Authorize(Policy="outbound.orders.pick-confirm")]
   // remains authoritative.
   const canPickConfirm = usePerm('outbound.orders.pick-confirm');
-  const { confirmPick, markPickFailed } = useOrderMutations();
+  // Sprint-12 U3 — Dispatcher action wiring. KTD2 — gate on
+  // `detail.status` (Order aggregate field, which DOES reach
+  // 'AwaitingShip') not `detail.currentSagaState` (saga's CurrentState,
+  // which never enters 'AwaitingShip' on the happy path —
+  // FulfillmentSaga.cs:213 TODO documents the missing auto-transition).
+  // Server-side [Authorize(Policy="outbound.orders.ship-confirm")]
+  // remains authoritative; `usePerm` (reactive) re-renders if the
+  // operator's perm[] narrows mid-session.
+  const canShipConfirm = usePerm('outbound.orders.ship-confirm');
+  const { confirmPick, markPickFailed, confirmShip } = useOrderMutations();
   const [markFailedOpen, setMarkFailedOpen] = useState(false);
   // Optimistic-hide via local state: once a successful confirm-pick fires
   // we suppress the buttons until detail.currentSagaState ticks past
   // AwaitingPick on the next refetch (DL-007).
   const [justConfirmed, setJustConfirmed] = useState(false);
+  // Sprint-12 U3 — parallel optimistic-hide for ship-confirm. Cleared
+  // when `detail.status` ticks past 'AwaitingShip' (i.e. reaches
+  // 'Shipped').
+  const [justShipped, setJustShipped] = useState(false);
 
   const failureCause = useMemo(() => inferFailureCause(transitions), [transitions]);
 
@@ -107,6 +120,15 @@ export function OrderDetailRouteComponent() {
       setJustConfirmed(false);
     }
   }, [detail?.currentSagaState]);
+
+  // Sprint-12 U3 — parallel ship-confirm hide-clear. Mirrors the
+  // pick-confirm pattern but reads `detail.status` (Order aggregate
+  // field per KTD2) rather than `currentSagaState`.
+  useEffect(() => {
+    if (detail?.status && detail.status !== 'AwaitingShip') {
+      setJustShipped(false);
+    }
+  }, [detail?.status]);
 
   // The drawer was built for the inventory shape — build a minimal stub
   // from the open SKU so the header renders. The internal useSkuLedgerQuery
@@ -220,6 +242,19 @@ export function OrderDetailRouteComponent() {
             {detail.currentSagaState}
           </Pill>
         )}
+        {detail.trackingNumber !== null && detail.labelUrl !== null && (
+          <div
+            data-testid="order-detail-tracking"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--s-2)' }}
+          >
+            <span className="lbl" style={{ color: 'var(--ink-2)' }}>
+              {t('Mã vận đơn', 'Tracking')}:
+            </span>
+            <Pill kind="ok" data-testid="order-detail-tracking-pill">
+              {detail.trackingNumber}
+            </Pill>
+          </div>
+        )}
         <div
           className="t-sm"
           data-testid="order-detail-channel"
@@ -276,6 +311,37 @@ export function OrderDetailRouteComponent() {
             {markPickFailed.isPending
               ? t('Đang gửi…', 'Submitting…')
               : t('Báo lỗi lấy hàng', 'Mark Pick Failed')}
+          </button>
+        </section>
+      )}
+
+      {canShipConfirm
+        && detail.status === 'AwaitingShip'
+        && !justShipped && (
+        <section
+          data-testid="order-detail-ship-actions"
+          aria-label={t('Tác vụ Dispatcher', 'Dispatcher actions')}
+          style={{
+            display: 'flex',
+            gap: 'var(--s-2)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            type="button"
+            className="btn primary"
+            data-testid="confirm-ship-button"
+            disabled={confirmShip.isPending}
+            aria-busy={confirmShip.isPending ? true : undefined}
+            onClick={() =>
+              confirmShip.mutate(orderId, {
+                onSuccess: () => setJustShipped(true),
+              })
+            }
+          >
+            {confirmShip.isPending
+              ? t('Đang xác nhận…', 'Confirming…')
+              : t('Xác nhận giao hàng', 'Confirm Ship')}
           </button>
         </section>
       )}
