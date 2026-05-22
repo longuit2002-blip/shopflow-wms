@@ -28,13 +28,16 @@
  *     transition. Null when the saga did not compensate.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { ArrowLeft } from 'lucide-react';
 import { useOrderDetailQuery, useOrderTransitionsQuery } from '../../../hooks/useOrdersQuery';
+import { useOrderMutations } from '../../../hooks/useOrderMutations';
+import { usePerm } from '../../../hooks/usePerm';
 import { SagaPipeline } from '../../../components/orders/SagaPipeline';
 import { OrderLineItems } from '../../../components/orders/OrderLineItems';
 import { TransitionsLog } from '../../../components/orders/TransitionsLog';
+import { MarkPickFailedModal } from '../../../components/orders/MarkPickFailedModal';
 import { LedgerDrawer } from '../../../components/inventory/LedgerDrawer';
 import { Pill, type PillKind } from '../../../components/primitives/Pill';
 import { t, useLocale } from '../../../hooks/useLocale';
@@ -72,7 +75,7 @@ function sagaStatePillKind(state: string | null): PillKind {
   return 'info';
 }
 
-function OrderDetailRouteComponent() {
+export function OrderDetailRouteComponent() {
   useLocale();
   const { orderId } = Route.useParams();
 
@@ -82,7 +85,28 @@ function OrderDetailRouteComponent() {
 
   const [openLedgerSku, setOpenLedgerSku] = useState<string | null>(null);
 
+  // Sprint-11 U2 — Picker action wiring. `usePerm` (reactive — KTD3)
+  // unmounts the buttons mid-session if the operator's perm[] narrows.
+  // Server-side [Authorize(Policy="outbound.orders.pick-confirm")]
+  // remains authoritative.
+  const canPickConfirm = usePerm('outbound.orders.pick-confirm');
+  const { confirmPick, markPickFailed } = useOrderMutations();
+  const [markFailedOpen, setMarkFailedOpen] = useState(false);
+  // Optimistic-hide via local state: once a successful confirm-pick fires
+  // we suppress the buttons until detail.currentSagaState ticks past
+  // AwaitingPick on the next refetch (DL-007).
+  const [justConfirmed, setJustConfirmed] = useState(false);
+
   const failureCause = useMemo(() => inferFailureCause(transitions), [transitions]);
+
+  // Clear the optimistic-hide once the server-side saga state has
+  // actually moved past AwaitingPick. Re-entering AwaitingPick (rare —
+  // would require a saga retry) then re-shows the buttons.
+  useEffect(() => {
+    if (detail?.currentSagaState && detail.currentSagaState !== 'AwaitingPick') {
+      setJustConfirmed(false);
+    }
+  }, [detail?.currentSagaState]);
 
   // The drawer was built for the inventory shape — build a minimal stub
   // from the open SKU so the header renders. The internal useSkuLedgerQuery
@@ -213,6 +237,49 @@ function OrderDetailRouteComponent() {
         />
       </section>
 
+      {canPickConfirm
+        && detail.currentSagaState === 'AwaitingPick'
+        && !justConfirmed && (
+        <section
+          data-testid="order-detail-pick-actions"
+          aria-label={t('Tác vụ Picker', 'Picker actions')}
+          style={{
+            display: 'flex',
+            gap: 'var(--s-2)',
+            flexWrap: 'wrap',
+          }}
+        >
+          <button
+            type="button"
+            className="btn primary"
+            data-testid="confirm-pick-button"
+            disabled={confirmPick.isPending}
+            aria-busy={confirmPick.isPending ? true : undefined}
+            onClick={() =>
+              confirmPick.mutate(orderId, {
+                onSuccess: () => setJustConfirmed(true),
+              })
+            }
+          >
+            {confirmPick.isPending
+              ? t('Đang xác nhận…', 'Confirming…')
+              : t('Xác nhận lấy hàng', 'Confirm Pick')}
+          </button>
+          <button
+            type="button"
+            className="btn danger"
+            data-testid="mark-pick-failed-button"
+            disabled={markPickFailed.isPending}
+            aria-busy={markPickFailed.isPending ? true : undefined}
+            onClick={() => setMarkFailedOpen(true)}
+          >
+            {markPickFailed.isPending
+              ? t('Đang gửi…', 'Submitting…')
+              : t('Báo lỗi lấy hàng', 'Mark Pick Failed')}
+          </button>
+        </section>
+      )}
+
       <section data-testid="order-detail-lines">
         <div className="lbl" style={{ marginBottom: 'var(--s-2)' }}>
           {t('Dòng đơn', 'Line items')}
@@ -228,6 +295,23 @@ function OrderDetailRouteComponent() {
       </section>
 
       <LedgerDrawer item={drawerItem} onClose={closeDrawer} />
+
+      <MarkPickFailedModal
+        isOpen={markFailedOpen}
+        onClose={() => setMarkFailedOpen(false)}
+        isPending={markPickFailed.isPending}
+        onSubmit={(reason) =>
+          markPickFailed.mutate(
+            { orderId, reason },
+            {
+              onSuccess: () => {
+                setMarkFailedOpen(false);
+                setJustConfirmed(true);
+              },
+            },
+          )
+        }
+      />
     </div>
   );
 }

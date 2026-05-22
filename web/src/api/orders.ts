@@ -202,6 +202,38 @@ export const ordersApi = {
       options,
     );
   },
+
+  /**
+   * Sprint-11 U2 — Picker confirm-pick action.
+   * POST /api/outbound/orders/{id}/confirm-pick. Backend gated by
+   * [Authorize(Policy="outbound.orders.pick-confirm")] (Sprint-10/-11
+   * backend U1). Empty body; Idempotency-Key on retry replays the audit.
+   */
+  confirmPick(orderId: string, options: MutationOptions = {}) {
+    return httpClient.post<OrderResponse>(
+      `${BASE}/${encodeURIComponent(orderId)}/confirm-pick`,
+      {},
+      options,
+    );
+  },
+
+  /**
+   * Sprint-11 U2 — Picker mark-pick-failed action.
+   * POST /api/outbound/orders/{id}/mark-pick-failed with { reason } body.
+   * Backend gated by [Authorize(Policy="outbound.orders.pick-confirm")];
+   * reason is the picker-supplied free-text captured by the modal.
+   */
+  markPickFailed(
+    orderId: string,
+    reason: string,
+    options: MutationOptions = {},
+  ) {
+    return httpClient.post<OrderResponse>(
+      `${BASE}/${encodeURIComponent(orderId)}/mark-pick-failed`,
+      { reason },
+      options,
+    );
+  },
 };
 
 // Named exports for tree-shake-friendly imports at the call site.
@@ -211,3 +243,10 @@ export const fetchOrderDetail = (orderId: string) => ordersApi.detail(orderId);
 export const fetchOrderTransitions = (orderId: string) => ordersApi.transitions(orderId);
 export const seedOrder = (payload?: SeedOrderRequest, options?: MutationOptions) =>
   ordersApi.seed(payload, options);
+export const confirmPickOrder = (orderId: string, options?: MutationOptions) =>
+  ordersApi.confirmPick(orderId, options);
+export const markPickFailedOrder = (
+  orderId: string,
+  reason: string,
+  options?: MutationOptions,
+) => ordersApi.markPickFailed(orderId, reason, options);

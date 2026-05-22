@@ -1,30 +1,32 @@
 /**
- * useOrderMutations — Sprint-7 plan U8.
+ * useOrderMutations — Sprint-7 plan U8 + Sprint-11 U2 extensions.
  *
- * TanStack Query mutation handle for the dev-mode Orders seed endpoint:
- *   - `seedOrder` — POST /api/outbound/orders/seed (dev only; 404 outside Development)
+ * TanStack Query mutation handles for the Orders surface:
+ *   - `seedOrder`       — POST /api/outbound/orders/seed (dev only)
+ *   - `confirmPick`     — POST /api/outbound/orders/{id}/confirm-pick
+ *                         (Sprint-11 U2 — Picker; gated by
+ *                         `outbound.orders.pick-confirm` server-side)
+ *   - `markPickFailed`  — POST /api/outbound/orders/{id}/mark-pick-failed
+ *                         (Sprint-11 U2 — Picker; modal-captured reason)
  *
- * The mutation:
- *   1. Generates a fresh ULID for the `Idempotency-Key` header on every
- *      call. Audit-only dedupe (Sprint-6 trade-off #2 carries forward);
- *      retries get a new ULID by design.
- *   2. On success: invalidates the broad `['orders']` query key so list +
- *      KPI surfaces refetch.
- *   3. On success: pushes a success toast (4 s dwell) carrying the new
- *      order id.
- *   4. On error: pushes an error toast with the idempotency-key + trace-id
- *      extracted from the ApiError body (both camelCase `traceId` and
- *      PascalCase `TraceId` recognised — Sprint-6 trade-off #6).
- *   5. 404 (env-not-dev) is treated like any other ApiError; the toast
- *      title differentiates so operators in non-Dev environments see a
- *      clear message rather than a generic "failed" string.
+ * All three mutations share the same Sprint-7-baseline discipline:
+ *   1. Fresh ULID for the `Idempotency-Key` header on every call. Audit-
+ *      only dedupe (Sprint-6 trade-off #2 carries forward); retries
+ *      always get a new ULID by design.
+ *   2. On success: invalidate the configured query keys so list / KPI /
+ *      detail / transitions surfaces refetch.
+ *   3. On success: push a success toast (4 s dwell).
+ *   4. On error: push an error toast with the idempotency-key + traceId
+ *      extracted from the ApiError body (both camelCase + PascalCase
+ *      recognised — Sprint-6 trade-off #6).
  *
- * Mirrors `useInventoryMutations.ts` line-for-line on the toast + key
- * shape so the two surfaces stay reviewable together.
+ * The Sprint-11 refactor extracts `createIdempotentMutation` so the three
+ * mutations stay one-liner consumers — keeps a future fourth (cancel?
+ * confirm-ship?) at the same shape.
  */
 
 import { useRef } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { ordersApi, type SeedOrderRequest, type OrderResponse } from '../api/orders';
 import { ApiError } from '../api/httpClient';
 import { useToast } from './useToast';
@@ -52,58 +54,168 @@ function isEnvNotDevError(err: unknown): boolean {
   return code === 'environment_not_dev';
 }
 
-export function useSeedOrderMutation() {
-  const qc = useQueryClient();
-  const pushToast = useToast((s) => s.push);
+// ── Shared helper (Sprint-11 U2 refactor) ────────────────────────────────
 
-  // Captures the key the last in-flight request sent so onError can show
-  // it without needing access to the mutationFn's local scope. Forms only
-  // submit one seed at a time — overwriting is safe.
-  const lastKey = useRef('');
-
-  // TVariables is `SeedOrderRequest | void` so call sites can opt into the
-  // server's record-defaults shape with `mutateAsync()` — no args. TanStack
-  // Query v5's conditional `MutateAsyncFunction` makes the variables param
-  // optional whenever `void` is in the TVariables union.
-  return useMutation<OrderResponse, unknown, SeedOrderRequest | void>({
-    mutationFn: (input) => {
-      const key = ulid();
-      lastKey.current = key;
-      return ordersApi.seed((input as SeedOrderRequest | undefined) ?? {}, {
-        idempotencyKey: key,
-      });
-    },
-    onSuccess: (order) => {
-      qc.invalidateQueries({ queryKey: ['orders'] });
-      pushToast({
-        kind: 'success',
-        title: t('Đã tạo đơn mẫu', 'Order seeded'),
-        body: order.channelExternalOrderId,
-      });
-    },
-    onError: (err: unknown) => {
-      const isEnvBlocked = isEnvNotDevError(err);
-      pushToast({
-        kind: 'error',
-        title: isEnvBlocked
-          ? t(
-              'Seed chỉ chạy trong môi trường Dev',
-              'Seed only available in Development',
-            )
-          : t('Lỗi tạo đơn mẫu', 'Order seed failed'),
-        idempotencyKey: lastKey.current,
-        traceId: extractTraceId(err),
-      });
-    },
-  });
+/**
+ * Toast labels for a mutation — varies per call site so each surface can
+ * push its own bilingual copy. The shape stays consistent so call sites
+ * never have to reach into the toast push themselves.
+ */
+export interface IdempotentMutationToasts<TRes> {
+  /** Title for the success toast. */
+  successTitle: string;
+  /** Optional body (e.g. the new order id) — read from the response. */
+  successBody?: (res: TRes) => string | undefined;
+  /** Title for the generic error path. */
+  errorTitle: string;
+  /**
+   * Optional override for a known-shape error — receives the unknown err
+   * and returns a different title when the body matches a sentinel code.
+   * Returning undefined falls back to `errorTitle`.
+   */
+  errorTitleFor?: (err: unknown) => string | undefined;
 }
 
 /**
+ * Factor — builds a TanStack-Query useMutation handle that owns
+ * idempotency-key generation, query-key invalidation, and toast push.
+ *
+ * The mutation `fn` is responsible for the underlying httpClient call;
+ * the helper threads the ULID through as `idempotencyKey` on the second
+ * arg. Each call gets a fresh ULID via the `useRef` "last key" so the
+ * onError handler can surface it in the toast.
+ *
+ * @param fn               The fetch — receives variables + idempotency key.
+ * @param invalidateKeys   Query keys to invalidate on success.
+ * @param toasts           Bilingual labels for the success + error toasts.
+ */
+function createIdempotentMutation<TReq, TRes>(
+  fn: (input: TReq, key: string) => Promise<TRes>,
+  invalidateKeys: QueryKey[],
+  toasts: IdempotentMutationToasts<TRes>,
+) {
+  // Returned function is intentionally a hook — call inside a component.
+  return function useIdempotentMutation() {
+    const qc = useQueryClient();
+    const pushToast = useToast((s) => s.push);
+    const lastKey = useRef('');
+
+    return useMutation<TRes, unknown, TReq>({
+      mutationFn: (input) => {
+        const key = ulid();
+        lastKey.current = key;
+        return fn(input, key);
+      },
+      onSuccess: (res) => {
+        for (const k of invalidateKeys) {
+          qc.invalidateQueries({ queryKey: k });
+        }
+        pushToast({
+          kind: 'success',
+          title: toasts.successTitle,
+          body: toasts.successBody?.(res),
+        });
+      },
+      onError: (err: unknown) => {
+        const title = toasts.errorTitleFor?.(err) ?? toasts.errorTitle;
+        pushToast({
+          kind: 'error',
+          title,
+          idempotencyKey: lastKey.current,
+          traceId: extractTraceId(err),
+        });
+      },
+    });
+  };
+}
+
+// ── seedOrder (Sprint-7 U8 — preserved) ──────────────────────────────────
+
+export const useSeedOrderMutation = createIdempotentMutation<
+  SeedOrderRequest | void,
+  OrderResponse
+>(
+  (input, key) =>
+    ordersApi.seed((input as SeedOrderRequest | undefined) ?? {}, {
+      idempotencyKey: key,
+    }),
+  [['orders']],
+  {
+    successTitle: t('Đã tạo đơn mẫu', 'Order seeded'),
+    successBody: (order) => order.channelExternalOrderId,
+    errorTitle: t('Lỗi tạo đơn mẫu', 'Order seed failed'),
+    errorTitleFor: (err) =>
+      isEnvNotDevError(err)
+        ? t(
+            'Seed chỉ chạy trong môi trường Dev',
+            'Seed only available in Development',
+          )
+        : undefined,
+  },
+);
+
+// ── confirmPick (Sprint-11 U2 — Picker) ──────────────────────────────────
+
+/**
+ * Variables shape for confirmPick — orderId is the route param the
+ * detail-screen button passes in. Wrapped as a record so future per-call
+ * fields (e.g. picker note) can land without breaking the call-site.
+ */
+export interface ConfirmPickVariables {
+  orderId: string;
+}
+
+export const useConfirmPickMutation = createIdempotentMutation<
+  ConfirmPickVariables | string,
+  OrderResponse
+>(
+  (input, key) => {
+    const orderId = typeof input === 'string' ? input : input.orderId;
+    return ordersApi.confirmPick(orderId, { idempotencyKey: key });
+  },
+  [['orders'], ['order-detail'], ['order-transitions']],
+  {
+    successTitle: t('Xác nhận lấy hàng thành công', 'Pick confirmed'),
+    errorTitle: t('Lỗi xác nhận lấy hàng', 'Pick confirm failed'),
+  },
+);
+
+// ── markPickFailed (Sprint-11 U2 — Picker) ───────────────────────────────
+
+/**
+ * Variables shape for markPickFailed — orderId + reason. The reason is
+ * captured by `MarkPickFailedModal` and is mandatory non-empty (modal
+ * disables submit until populated).
+ */
+export interface MarkPickFailedVariables {
+  orderId: string;
+  reason: string;
+}
+
+export const useMarkPickFailedMutation = createIdempotentMutation<
+  MarkPickFailedVariables,
+  OrderResponse
+>(
+  (input, key) =>
+    ordersApi.markPickFailed(input.orderId, input.reason, {
+      idempotencyKey: key,
+    }),
+  [['orders'], ['order-detail'], ['order-transitions']],
+  {
+    successTitle: t('Đã báo lỗi lấy hàng', 'Pick failed reported'),
+    errorTitle: t('Lỗi báo lỗi lấy hàng', 'Mark pick failed errored'),
+  },
+);
+
+// ── Aggregator ───────────────────────────────────────────────────────────
+
+/**
  * Aggregate hook so call sites can match the Sprint-6 `useInventoryMutations`
- * shape (one hook returns the bag of mutation handles). Keeps the import
- * surface symmetrical even though Sprint-7 ships a single mutation.
+ * shape (one hook returns the bag of mutation handles).
  */
 export function useOrderMutations() {
   const seedOrder = useSeedOrderMutation();
-  return { seedOrder };
+  const confirmPick = useConfirmPickMutation();
+  const markPickFailed = useMarkPickFailedMutation();
+  return { seedOrder, confirmPick, markPickFailed };
 }

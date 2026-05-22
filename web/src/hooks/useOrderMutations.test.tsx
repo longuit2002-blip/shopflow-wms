@@ -23,7 +23,12 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useSeedOrderMutation } from './useOrderMutations';
+import {
+  useSeedOrderMutation,
+  useConfirmPickMutation,
+  useMarkPickFailedMutation,
+  useOrderMutations,
+} from './useOrderMutations';
 import { useToast, __resetToastsForTests } from './useToast';
 import { __resetLocaleForTests } from './useLocale';
 import { __resetAuthForTests } from './useAuth';
@@ -264,5 +269,219 @@ describe('useSeedOrderMutation — onError', () => {
     });
 
     expect(caught).not.toBeNull();
+  });
+});
+
+// ── Sprint-11 U2 — confirmPick + markPickFailed ──────────────────────────
+
+describe('useConfirmPickMutation (Sprint-11 U2)', () => {
+  const ORDER_ID = '01HABC1234567890ABCDEFGHIJ';
+
+  it('POSTs to /api/outbound/orders/{id}/confirm-pick with a ULID Idempotency-Key', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeSeededOrder('CP'), 200));
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmPickMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+
+    expect(fetchMock()).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock().mock.calls[0]!;
+    expect(String(url)).toContain(
+      `/api/outbound/orders/${encodeURIComponent(ORDER_ID)}/confirm-pick`,
+    );
+    expect((init as RequestInit).method).toBe('POST');
+    expect(
+      ((init as RequestInit).headers as Headers).get('Idempotency-Key'),
+    ).toMatch(ULID_RE);
+  });
+
+  it('accepts a bare string variable as a convenience (route-id shorthand)', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeSeededOrder('CP2'), 200));
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmPickMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync(ORDER_ID);
+    });
+
+    const [url] = fetchMock().mock.calls[0]!;
+    expect(String(url)).toContain(`/${encodeURIComponent(ORDER_ID)}/confirm-pick`);
+  });
+
+  it('each call generates a different ULID idempotency-key', async () => {
+    // Fresh Response per call — Body can only be read once; reusing one
+    // Response across two calls would trip "Body is unusable" (same root
+    // cause as the Sprint-7 baseline test above this section).
+    fetchMock().mockImplementation(() =>
+      Promise.resolve(jsonResponse(fakeSeededOrder('CP3'), 200)),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmPickMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+
+    const k1 = (
+      (fetchMock().mock.calls[0]![1] as RequestInit).headers as Headers
+    ).get('Idempotency-Key');
+    const k2 = (
+      (fetchMock().mock.calls[1]![1] as RequestInit).headers as Headers
+    ).get('Idempotency-Key');
+    expect(k1).not.toBe(k2);
+  });
+
+  it('on success: invalidates orders + order-detail + order-transitions + pushes success toast', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeSeededOrder('CP4'), 200));
+    const { wrapper, qc } = makeWrapper();
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+    const { result } = renderHook(() => useConfirmPickMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({ orderId: ORDER_ID });
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['orders'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['order-detail'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['order-transitions'] });
+
+    const toast = useToast.getState().toasts[0]!;
+    expect(toast.kind).toBe('success');
+    expect(toast.title).toContain('Xác nhận lấy hàng');
+  });
+
+  it('on 403: pushes an error toast with idempotency-key + traceId', async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse({ traceId: 'trace-pick-403', title: 'Forbidden' }, 403),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmPickMutation(), { wrapper });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ orderId: ORDER_ID });
+      } catch {
+        /* expected */
+      }
+    });
+
+    const sentKey = (
+      (fetchMock().mock.calls[0]![1] as RequestInit).headers as Headers
+    ).get('Idempotency-Key');
+    const toast = useToast.getState().toasts[0]!;
+    expect(toast.kind).toBe('error');
+    expect(toast.idempotencyKey).toBe(sentKey);
+    expect(toast.traceId).toBe('trace-pick-403');
+  });
+
+  it('on 500: pushes an error toast with traceId', async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse({ TraceId: 'trace-pick-500' }, 500),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useConfirmPickMutation(), { wrapper });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ orderId: ORDER_ID });
+      } catch {
+        /* expected */
+      }
+    });
+
+    expect(useToast.getState().toasts[0]!.traceId).toBe('trace-pick-500');
+  });
+});
+
+describe('useMarkPickFailedMutation (Sprint-11 U2)', () => {
+  const ORDER_ID = '01HABC9876543210ZYXWVUTSRQ';
+
+  it('POSTs to /mark-pick-failed with { reason } body + ULID Idempotency-Key', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeSeededOrder('MF'), 200));
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMarkPickFailedMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        orderId: ORDER_ID,
+        reason: 'Out of stock on shelf',
+      });
+    });
+
+    const [url, init] = fetchMock().mock.calls[0]!;
+    expect(String(url)).toContain(
+      `/api/outbound/orders/${encodeURIComponent(ORDER_ID)}/mark-pick-failed`,
+    );
+    expect((init as RequestInit).method).toBe('POST');
+    expect(
+      ((init as RequestInit).headers as Headers).get('Idempotency-Key'),
+    ).toMatch(ULID_RE);
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      reason: 'Out of stock on shelf',
+    });
+  });
+
+  it('on success: invalidates orders + order-detail + order-transitions + pushes success toast', async () => {
+    fetchMock().mockResolvedValueOnce(jsonResponse(fakeSeededOrder('MF2'), 200));
+    const { wrapper, qc } = makeWrapper();
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+    const { result } = renderHook(() => useMarkPickFailedMutation(), { wrapper });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        orderId: ORDER_ID,
+        reason: 'Damaged box',
+      });
+    });
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['orders'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['order-detail'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['order-transitions'] });
+
+    const toast = useToast.getState().toasts[0]!;
+    expect(toast.kind).toBe('success');
+    expect(toast.title).toContain('báo lỗi lấy hàng');
+  });
+
+  it('on 500: error toast carries idempotency-key + traceId', async () => {
+    fetchMock().mockResolvedValueOnce(
+      jsonResponse({ traceId: 'trace-mf-500' }, 500),
+    );
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useMarkPickFailedMutation(), { wrapper });
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({ orderId: ORDER_ID, reason: 'x' });
+      } catch {
+        /* expected */
+      }
+    });
+
+    const sentKey = (
+      (fetchMock().mock.calls[0]![1] as RequestInit).headers as Headers
+    ).get('Idempotency-Key');
+    const toast = useToast.getState().toasts[0]!;
+    expect(toast.kind).toBe('error');
+    expect(toast.idempotencyKey).toBe(sentKey);
+    expect(toast.traceId).toBe('trace-mf-500');
+  });
+});
+
+describe('useOrderMutations aggregator (Sprint-11 U2)', () => {
+  it('exposes seedOrder + confirmPick + markPickFailed handles', () => {
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useOrderMutations(), { wrapper });
+
+    expect(result.current.seedOrder).toBeDefined();
+    expect(result.current.confirmPick).toBeDefined();
+    expect(result.current.markPickFailed).toBeDefined();
+    expect(typeof result.current.confirmPick.mutate).toBe('function');
+    expect(typeof result.current.markPickFailed.mutate).toBe('function');
   });
 });
