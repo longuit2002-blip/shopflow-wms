@@ -22,6 +22,11 @@
          to silence test logging. Explicit pin preserves the test-author
          intent without re-deriving the dependency. -->
     <PackageReference Include="Microsoft.Extensions.Logging" />
+    <!-- Sprint-10.5 U4 — WebApplicationFactory<Program> for the 403
+         wire-shape integration suite under Authorization/. Outbound
+         already booted WAF in Sprint-7 endpoint tests; this entry pins
+         the explicit package floor. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +44,18 @@
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <!-- Sprint-10.5 U4 — NarrowedJwtBuilder is linked as a Compile item
+         from Auth.IntegrationTests/Authorization/. Cross-test-project
+         ProjectReference (the plan's prescribed shape) pulls Auth.Api.dll
+         transitively and collides with this project's WAF target
+         (Outbound.Api Program). Linked-file keeps the helper single-
+         sourced without the transitive cost. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ShopFlow.Auth.IntegrationTests\Authorization\NarrowedJwtBuilder.cs">
+      <Link>Authorization\NarrowedJwtBuilder.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>

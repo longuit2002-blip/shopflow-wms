@@ -40,3 +40,11 @@ app.UseAuthorization();
 app.UseTenantRouting();
 app.MapControllers();
 await app.RunAsync().ConfigureAwait(false);
+
+/// <summary>
+/// Sprint-10.5 U4 — exposed as <c>public partial</c> so
+/// <c>WebApplicationFactory&lt;Program&gt;</c> can boot the Inbound host
+/// in-process for the 403 wire-shape integration suite under
+/// <c>tests/ShopFlow.Inbound.IntegrationTests/Authorization/</c>.
+/// </summary>
+public partial class Program;

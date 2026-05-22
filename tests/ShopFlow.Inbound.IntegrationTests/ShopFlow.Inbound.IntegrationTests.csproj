@@ -13,6 +13,9 @@
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="MassTransit" />
+    <!-- Sprint-10.5 U4 — WebApplicationFactory<Program> for the 403
+         wire-shape integration suite under Authorization/. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -21,8 +24,22 @@
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Application\ShopFlow.Inbound.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Infrastructure\ShopFlow.Inbound.Infrastructure.csproj" />
+    <!-- Sprint-10.5 U4 — booting Inbound.Api in-process for the 403 suite. -->
+    <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Api\ShopFlow.Inbound.Api.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <!-- Sprint-10.5 U4 — NarrowedJwtBuilder is linked as a Compile item
+         from Auth.IntegrationTests/Authorization/. Cross-test-project
+         ProjectReference (the plan's prescribed shape) pulls Auth.Api.dll
+         transitively and collides with this project's WAF target
+         (Inbound.Api Program). Linked-file keeps the helper single-
+         sourced without the transitive cost. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ShopFlow.Auth.IntegrationTests\Authorization\NarrowedJwtBuilder.cs">
+      <Link>Authorization\NarrowedJwtBuilder.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>
