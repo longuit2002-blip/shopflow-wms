@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Polly;
 using Polly.Retry;
@@ -185,5 +186,93 @@ public sealed class MockShippingProviderTests
         Func<Task> act = async () => await provider.CreateLabelAsync(null!, CancellationToken.None);
 
         await act.Should().ThrowAsync<ArgumentNullException>();
+    }
+
+    // ── Sprint-12.5 U4 — injectable random source for tier-3 carrier-retry E2E ─
+
+    [Fact]
+    public void Constructor_With5Args_AcceptsRandomSource()
+    {
+        // Smoke test: the new 5-arg ctor instantiates without throwing
+        // when given a valid Func<double>. The ctor's role-isolation
+        // is covered by the deterministic-flake test below; this fact
+        // pins the lightest contract: the new constructor parameter
+        // surface compiles and constructs.
+        Func<double> rng = () => 0.5;
+        var provider = new MockShippingProvider(
+            BuildPipeline(),
+            flakeRate: 0.3,
+            minDelayMs: 1,
+            maxDelayMsExclusive: 10,
+            randomSource: rng);
+
+        provider.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task CreateLabelAsync_WithDeterministicRandom_FlakesByQueue()
+    {
+        // Pre-seeded ConcurrentQueue<double> drives the flake decision
+        // exactly. The provider's flake test is
+        //   `if (_randomSource() < _flakeRate) throw ...`
+        // so a value BELOW the flake rate causes a throw and a value
+        // AT-OR-ABOVE the flake rate succeeds. With flakeRate=0.5:
+        //   - 0.1 < 0.5 → throw (flake)
+        //   - 0.9 < 0.5 → false → success
+        // ConcurrentQueue (not Queue<T>) because the Polly retry path
+        // resumes the continuation on a ThreadPool worker — a
+        // non-thread-safe queue would race. The test uses a pass-through
+        // (empty) pipeline so we observe the FIRST inner-call throw
+        // without Polly's retry wrapper retrying it; the deterministic
+        // flake-then-succeed assertion lives at the InnerCreateLabelAsync
+        // level, not the full retry-loop level.
+        var seq = new ConcurrentQueue<double>(new[] { 0.1, 0.9 });
+        var provider = new MockShippingProvider(
+            new ResiliencePipelineBuilder().Build(),
+            flakeRate: 0.5,
+            minDelayMs: 1,
+            maxDelayMsExclusive: 3,
+            randomSource: () => seq.TryDequeue(out var v) ? v : 1.0);
+
+        // First attempt: 0.1 < 0.5 → throw.
+        Func<Task> firstAttempt = async () =>
+            await provider.CreateLabelAsync(NewAwaitingShipOrder(), CancellationToken.None);
+        await firstAttempt.Should().ThrowAsync<TransientShippingException>();
+
+        // Second attempt: 0.9 → 0.9 < 0.5 is false → succeed. After
+        // queue exhaustion the fallback 1.0 ≥ 0.5 → success for any
+        // further calls; the test won't crash if Polly retries
+        // unexpectedly.
+        var label = await provider.CreateLabelAsync(NewAwaitingShipOrder(), CancellationToken.None);
+        label.Should().NotBeNull();
+        label.TrackingNumber.Should().StartWith("TRK-").And.HaveLength(20);
+    }
+
+    [Fact]
+    public void Backward_Compat_2_3_4_Arg_Ctors_Still_Work()
+    {
+        // The 5-arg ctor is purely additive — the existing 1-arg + 4-arg
+        // ctors must still resolve to legal constructions. This fact
+        // pins the no-compile-regression contract; the 5-arg-with-null
+        // delegation behavior is observable in the existing tests that
+        // exercise WithFlakeRate / WithFlakeRateAndDelay (which now also
+        // delegate to the 5-arg with randomSource=null).
+        var p = BuildPipeline();
+
+        var oneArg = new MockShippingProvider(p);
+        oneArg.Should().NotBeNull();
+
+        var fourArg = new MockShippingProvider(p, 0.05, 1, 10);
+        fourArg.Should().NotBeNull();
+
+        var viaFlakeBuilder = MockShippingProvider.WithFlakeRate(p, 0.0);
+        viaFlakeBuilder.Should().NotBeNull();
+
+        var viaFlakeDelayBuilder = MockShippingProvider.WithFlakeRateAndDelay(p, 0.0, 1, 10);
+        viaFlakeDelayBuilder.Should().NotBeNull();
+
+        var viaFlakeDelayRandomBuilder = MockShippingProvider.WithFlakeRateDelayAndRandom(
+            p, 0.0, 1, 10, () => 1.0);
+        viaFlakeDelayRandomBuilder.Should().NotBeNull();
     }
 }
