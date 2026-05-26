@@ -49,15 +49,18 @@ public sealed class AdminTsCatalogContractTests
     // Handles both single and double quotes (TypeScript style choice).
     private static readonly Regex PermissionKeyEntryRegex = new(
         pattern: @"key:\s*['""]([^'""]+)['""]",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled
+    );
 
     private static readonly Regex ModuleFieldEntryRegex = new(
         pattern: @"module:\s*['""]([^'""]+)['""]",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled
+    );
 
     private static readonly Regex BareStringLiteralRegex = new(
         pattern: @"['""]([^'""]+)['""]",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled
+    );
 
     [Fact]
     public void PermissionKeys_All_SetEquals_AdminTsCatalog()
@@ -65,7 +68,8 @@ public sealed class AdminTsCatalogContractTests
         var adminTs = ReadAdminTs();
         var permissionKeysBlock = ExtractArrayLiteralBlock(
             adminTs,
-            declarationAnchor: "export const PERMISSION_KEYS:");
+            declarationAnchor: "export const PERMISSION_KEYS:"
+        );
 
         var frontendKeys = PermissionKeyEntryRegex
             .Matches(permissionKeysBlock)
@@ -74,12 +78,15 @@ public sealed class AdminTsCatalogContractTests
 
         // Count guard (adv-2 / F6) — catches the case where the regex
         // partially degrades and returns 3-of-24 instead of failing.
-        frontendKeys.Should().HaveCount(
-            ExpectedPermissionKeyCount,
-            because: "PERMISSION_KEYS in admin.ts must declare exactly "
-                + $"{ExpectedPermissionKeyCount} entries (Sprint-10.5 U1 shape); "
-                + "if this count changed intentionally, update "
-                + "ExpectedPermissionKeyCount AND PermissionKeys.cs together");
+        frontendKeys
+            .Should()
+            .HaveCount(
+                ExpectedPermissionKeyCount,
+                because: "PERMISSION_KEYS in admin.ts must declare exactly "
+                    + $"{ExpectedPermissionKeyCount} entries (Sprint-10.5 U1 shape); "
+                    + "if this count changed intentionally, update "
+                    + "ExpectedPermissionKeyCount AND PermissionKeys.cs together"
+            );
 
         var frontendSet = frontendKeys.ToHashSet(StringComparer.Ordinal);
         var backendSet = PermissionKeys.All.ToHashSet(StringComparer.Ordinal);
@@ -87,12 +94,16 @@ public sealed class AdminTsCatalogContractTests
         var missingFromFrontend = backendSet.Except(frontendSet).OrderBy(x => x).ToList();
         var extraInFrontend = frontendSet.Except(backendSet).OrderBy(x => x).ToList();
 
-        (missingFromFrontend.Count + extraInFrontend.Count).Should().Be(
-            0,
-            because: BuildDriftMessage(
-                surface: "PERMISSION_KEYS",
-                missingFromFrontend: missingFromFrontend,
-                extraInFrontend: extraInFrontend));
+        (missingFromFrontend.Count + extraInFrontend.Count)
+            .Should()
+            .Be(
+                0,
+                because: BuildDriftMessage(
+                    surface: "PERMISSION_KEYS",
+                    missingFromFrontend: missingFromFrontend,
+                    extraInFrontend: extraInFrontend
+                )
+            );
     }
 
     [Fact]
@@ -101,7 +112,8 @@ public sealed class AdminTsCatalogContractTests
         var adminTs = ReadAdminTs();
         var ownerCriticalBlock = ExtractArrayLiteralBlock(
             adminTs,
-            declarationAnchor: "export const OWNER_CRITICAL_KEYS:");
+            declarationAnchor: "export const OWNER_CRITICAL_KEYS:"
+        );
 
         var frontendKeys = BareStringLiteralRegex
             .Matches(ownerCriticalBlock)
@@ -109,12 +121,15 @@ public sealed class AdminTsCatalogContractTests
             .ToList();
 
         // Count guard (adv-2 / F6).
-        frontendKeys.Should().HaveCount(
-            ExpectedOwnerCriticalCount,
-            because: "OWNER_CRITICAL_KEYS in admin.ts must declare exactly "
-                + $"{ExpectedOwnerCriticalCount} entries (Sprint-9 KTD13 shape); "
-                + "if this count changed intentionally, update "
-                + "ExpectedOwnerCriticalCount AND PermissionKeys.OwnerCritical together");
+        frontendKeys
+            .Should()
+            .HaveCount(
+                ExpectedOwnerCriticalCount,
+                because: "OWNER_CRITICAL_KEYS in admin.ts must declare exactly "
+                    + $"{ExpectedOwnerCriticalCount} entries (Sprint-9 KTD13 shape); "
+                    + "if this count changed intentionally, update "
+                    + "ExpectedOwnerCriticalCount AND PermissionKeys.OwnerCritical together"
+            );
 
         var frontendSet = frontendKeys.ToHashSet(StringComparer.Ordinal);
         var backendSet = PermissionKeys.OwnerCritical.ToHashSet(StringComparer.Ordinal);
@@ -122,12 +137,16 @@ public sealed class AdminTsCatalogContractTests
         var missingFromFrontend = backendSet.Except(frontendSet).OrderBy(x => x).ToList();
         var extraInFrontend = frontendSet.Except(backendSet).OrderBy(x => x).ToList();
 
-        (missingFromFrontend.Count + extraInFrontend.Count).Should().Be(
-            0,
-            because: BuildDriftMessage(
-                surface: "OWNER_CRITICAL_KEYS",
-                missingFromFrontend: missingFromFrontend,
-                extraInFrontend: extraInFrontend));
+        (missingFromFrontend.Count + extraInFrontend.Count)
+            .Should()
+            .Be(
+                0,
+                because: BuildDriftMessage(
+                    surface: "OWNER_CRITICAL_KEYS",
+                    missingFromFrontend: missingFromFrontend,
+                    extraInFrontend: extraInFrontend
+                )
+            );
     }
 
     [Fact]
@@ -137,10 +156,12 @@ public sealed class AdminTsCatalogContractTests
 
         var permissionKeysBlock = ExtractArrayLiteralBlock(
             adminTs,
-            declarationAnchor: "export const PERMISSION_KEYS:");
+            declarationAnchor: "export const PERMISSION_KEYS:"
+        );
         var modulesBlock = ExtractArrayLiteralBlock(
             adminTs,
-            declarationAnchor: "export const MODULES:");
+            declarationAnchor: "export const MODULES:"
+        );
 
         var modulesReferencedByKeys = ModuleFieldEntryRegex
             .Matches(permissionKeysBlock)
@@ -161,30 +182,37 @@ public sealed class AdminTsCatalogContractTests
             .OrderBy(x => x)
             .ToList();
 
-        unknownModuleReferences.Should().BeEmpty(
-            because: "every `module:` value used in PERMISSION_KEYS must also "
-                + "appear in the MODULES array, otherwise that key will silently "
-                + "disappear from the RolePermissionsEditor's grouped rendering. "
-                + $"Unknown module references: [{string.Join(", ", unknownModuleReferences)}]");
+        unknownModuleReferences
+            .Should()
+            .BeEmpty(
+                because: "every `module:` value used in PERMISSION_KEYS must also "
+                    + "appear in the MODULES array, otherwise that key will silently "
+                    + "disappear from the RolePermissionsEditor's grouped rendering. "
+                    + $"Unknown module references: [{string.Join(", ", unknownModuleReferences)}]"
+            );
 
-        unreferencedDeclaredModules.Should().BeEmpty(
-            because: "every entry in MODULES must be referenced by at least one "
-                + "PERMISSION_KEYS row, otherwise the editor renders an empty "
-                + "section header. Orphan modules in MODULES: "
-                + $"[{string.Join(", ", unreferencedDeclaredModules)}]");
+        unreferencedDeclaredModules
+            .Should()
+            .BeEmpty(
+                because: "every entry in MODULES must be referenced by at least one "
+                    + "PERMISSION_KEYS row, otherwise the editor renders an empty "
+                    + "section header. Orphan modules in MODULES: "
+                    + $"[{string.Join(", ", unreferencedDeclaredModules)}]"
+            );
     }
 
     private static string BuildDriftMessage(
         string surface,
         IReadOnlyList<string> missingFromFrontend,
-        IReadOnlyList<string> extraInFrontend)
+        IReadOnlyList<string> extraInFrontend
+    )
     {
-        var missingPart = missingFromFrontend.Count == 0
-            ? "<none>"
-            : $"[{string.Join(", ", missingFromFrontend)}]";
-        var extraPart = extraInFrontend.Count == 0
-            ? "<none>"
-            : $"[{string.Join(", ", extraInFrontend)}]";
+        var missingPart =
+            missingFromFrontend.Count == 0
+                ? "<none>"
+                : $"[{string.Join(", ", missingFromFrontend)}]";
+        var extraPart =
+            extraInFrontend.Count == 0 ? "<none>" : $"[{string.Join(", ", extraInFrontend)}]";
         return $"{surface} drift between backend PermissionKeys and admin.ts. "
             + $"Missing from admin.ts (declared backend-side, absent frontend-side): {missingPart}. "
             + $"Extra in admin.ts (declared frontend-side, absent backend-side): {extraPart}. "
@@ -211,7 +239,8 @@ public sealed class AdminTsCatalogContractTests
         {
             throw new InvalidOperationException(
                 $"Anchor not found in admin.ts: '{declarationAnchor}'. "
-                + "Did the U1 declaration shape change?");
+                    + "Did the U1 declaration shape change?"
+            );
         }
 
         // Find the post-equals array literal start.
@@ -220,9 +249,10 @@ public sealed class AdminTsCatalogContractTests
         {
             throw new InvalidOperationException(
                 $"'= [' not found after anchor '{declarationAnchor}'. "
-                + "The declaration is expected to be `export const NAME: <type> = [...]`. "
-                + "If a formatter split the `=` and `[` onto different lines, this "
-                + "regex needs updating.");
+                    + "The declaration is expected to be `export const NAME: <type> = [...]`. "
+                    + "If a formatter split the `=` and `[` onto different lines, this "
+                    + "regex needs updating."
+            );
         }
 
         var arrayStartIdx = equalsBracketIdx + 2; // index of '['
@@ -250,7 +280,8 @@ public sealed class AdminTsCatalogContractTests
 
         throw new InvalidOperationException(
             $"Unbalanced brackets after anchor '{declarationAnchor}'. "
-            + "Could not find the matching ']' for the array literal start.");
+                + "Could not find the matching ']' for the array literal start."
+        );
     }
 
     private static string ReadAdminTs()
@@ -261,8 +292,9 @@ public sealed class AdminTsCatalogContractTests
         {
             throw new FileNotFoundException(
                 $"web/src/api/admin.ts not found at expected path '{adminTsPath}'. "
-                + "Was the file moved? Did Sprint-10.5 U1 land at the wrong path?",
-                adminTsPath);
+                    + "Was the file moved? Did Sprint-10.5 U1 land at the wrong path?",
+                adminTsPath
+            );
         }
         return File.ReadAllText(adminTsPath);
     }
@@ -284,8 +316,10 @@ public sealed class AdminTsCatalogContractTests
         {
             throw new InvalidOperationException(
                 "Repo root not found (looked for ShopFlow.sln walking up from "
-                + AppContext.BaseDirectory + "). This test must run from inside the "
-                + "ShopFlow.sln tree.");
+                    + AppContext.BaseDirectory
+                    + "). This test must run from inside the "
+                    + "ShopFlow.sln tree."
+            );
         }
         return dir.FullName;
     }

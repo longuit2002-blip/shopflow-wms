@@ -16,7 +16,8 @@ public sealed class OpaqueCursorTests
     {
         var original = new OpaqueCursorPayload(
             OccurredAt: new DateTime(2026, 5, 18, 14, 32, 17, 14, DateTimeKind.Utc),
-            Id: Guid.Parse("11111111-2222-3333-4444-555555555555"));
+            Id: Guid.Parse("11111111-2222-3333-4444-555555555555")
+        );
 
         var encoded = OpaqueCursor.Encode(original);
         var decoded = OpaqueCursor.TryDecode(encoded);

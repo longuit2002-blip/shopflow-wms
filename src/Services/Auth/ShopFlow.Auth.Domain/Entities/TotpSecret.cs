@@ -28,12 +28,20 @@ public sealed class TotpSecret
 
     private TotpSecret() { }
 
-    public static TotpSecret Create(Guid userId, byte[] encryptedSecret, int totpKeyId, DateTime now)
+    public static TotpSecret Create(
+        Guid userId,
+        byte[] encryptedSecret,
+        int totpKeyId,
+        DateTime now
+    )
     {
         ArgumentNullException.ThrowIfNull(encryptedSecret);
         if (encryptedSecret.Length == 0)
         {
-            throw new ArgumentException("Encrypted secret blob is required.", nameof(encryptedSecret));
+            throw new ArgumentException(
+                "Encrypted secret blob is required.",
+                nameof(encryptedSecret)
+            );
         }
         return new TotpSecret
         {
@@ -55,7 +63,10 @@ public sealed class TotpSecret
         ArgumentNullException.ThrowIfNull(encryptedSecret);
         if (encryptedSecret.Length == 0)
         {
-            throw new ArgumentException("Encrypted secret blob is required.", nameof(encryptedSecret));
+            throw new ArgumentException(
+                "Encrypted secret blob is required.",
+                nameof(encryptedSecret)
+            );
         }
         EncryptedSecret = encryptedSecret;
         TotpKeyId = totpKeyId;

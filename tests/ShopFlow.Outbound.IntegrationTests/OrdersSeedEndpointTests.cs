@@ -39,8 +39,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class OrdersSeedEndpointTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 19, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 19, 10, 0, 0, TimeSpan.Zero);
 
     private readonly OutboundTenantFixture _fx;
     private ProvisionedOutboundTenant _tenant = default!;
@@ -65,7 +64,8 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         var result = await harness.Controller.SeedAsync(
             request: new SeedOrderRequest(LineCount: 3, ChannelPrefix: "SEED_"),
             idempotencyKey: "ULID-IDEM-1",
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         var created = result.Should().BeOfType<CreatedAtActionResult>().Subject;
         created.ActionName.Should().Be(nameof(OrdersController.GetByIdAsync));
@@ -74,27 +74,25 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         body.ChannelExternalOrderId.Should().StartWith("SEED_");
         body.Status.Should().Be("Created");
         body.Lines.Should().HaveCount(3);
-        body.Lines.Select(l => l.Sku).Should().BeEquivalentTo(new[]
-        {
-            "SEED-SKU-1", "SEED-SKU-2", "SEED-SKU-3",
-        });
-        body.Lines.Should().AllSatisfy(l =>
-        {
-            l.Qty.Should().Be(1);
-            l.ExpectedWeight.Should().Be(100);
-        });
+        body.Lines.Select(l => l.Sku)
+            .Should()
+            .BeEquivalentTo(new[] { "SEED-SKU-1", "SEED-SKU-2", "SEED-SKU-3" });
+        body.Lines.Should()
+            .AllSatisfy(l =>
+            {
+                l.Qty.Should().Be(1);
+                l.ExpectedWeight.Should().Be(100);
+            });
         body.ExpectedWeightTotal.Should().Be(300);
 
         // Verify the OrderPlacedV1 outbox row landed alongside the order
         // in the same physical DB transaction.
         await using var verify = new OutboundDbContext(_tenant.Options);
-        var orderRow = await verify.Orders
-            .Include(o => o.Lines)
-            .SingleAsync(o => o.Id == body.Id);
+        var orderRow = await verify.Orders.Include(o => o.Lines).SingleAsync(o => o.Id == body.Id);
         orderRow.Lines.Should().HaveCount(3);
 
-        var outboxRows = await verify.OutboxMessages
-            .AsNoTracking()
+        var outboxRows = await verify
+            .OutboxMessages.AsNoTracking()
             .Where(o => o.EventType.StartsWith("ShopFlow.Contracts.Outbound.OrderPlacedV1"))
             .ToListAsync();
         outboxRows.Should().HaveCount(1);
@@ -115,11 +113,15 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         var result = await harness.Controller.SeedAsync(
             request: null,
             idempotencyKey: null,
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         var body = result
-            .Should().BeOfType<CreatedAtActionResult>()
-            .Subject.Value.Should().BeOfType<OrderResponse>().Subject;
+            .Should()
+            .BeOfType<CreatedAtActionResult>()
+            .Subject.Value.Should()
+            .BeOfType<OrderResponse>()
+            .Subject;
         body.Lines.Should().HaveCount(3);
         body.ChannelExternalOrderId.Should().StartWith("SEED_");
     }
@@ -132,11 +134,15 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         var result = await harness.Controller.SeedAsync(
             request: new SeedOrderRequest(LineCount: 999),
             idempotencyKey: null,
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         var body = result
-            .Should().BeOfType<CreatedAtActionResult>()
-            .Subject.Value.Should().BeOfType<OrderResponse>().Subject;
+            .Should()
+            .BeOfType<CreatedAtActionResult>()
+            .Subject.Value.Should()
+            .BeOfType<OrderResponse>()
+            .Subject;
         body.Lines.Should().HaveCount(50);
     }
 
@@ -151,7 +157,8 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         var result = await harness.Controller.SeedAsync(
             request: new SeedOrderRequest(),
             idempotencyKey: null,
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         var problem = result.Should().BeOfType<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(404);
@@ -172,23 +179,37 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         // Each seed builds a fresh channel ref so the
         // UNIQUE(channel_external_order_id) index does not block repeat
         // seeds. The clock advances per call so the suffix changes.
-        await using var harness1 = BuildHarness(environmentName: "Development", advanceClock: TimeSpan.Zero);
+        await using var harness1 = BuildHarness(
+            environmentName: "Development",
+            advanceClock: TimeSpan.Zero
+        );
         var firstResult = await harness1.Controller.SeedAsync(
             new SeedOrderRequest(LineCount: 2),
             idempotencyKey: null,
-            CancellationToken.None);
+            CancellationToken.None
+        );
         var firstBody = firstResult
-            .Should().BeOfType<CreatedAtActionResult>()
-            .Subject.Value.Should().BeOfType<OrderResponse>().Subject;
+            .Should()
+            .BeOfType<CreatedAtActionResult>()
+            .Subject.Value.Should()
+            .BeOfType<OrderResponse>()
+            .Subject;
 
-        await using var harness2 = BuildHarness(environmentName: "Development", advanceClock: TimeSpan.FromSeconds(1));
+        await using var harness2 = BuildHarness(
+            environmentName: "Development",
+            advanceClock: TimeSpan.FromSeconds(1)
+        );
         var secondResult = await harness2.Controller.SeedAsync(
             new SeedOrderRequest(LineCount: 2),
             idempotencyKey: null,
-            CancellationToken.None);
+            CancellationToken.None
+        );
         var secondBody = secondResult
-            .Should().BeOfType<CreatedAtActionResult>()
-            .Subject.Value.Should().BeOfType<OrderResponse>().Subject;
+            .Should()
+            .BeOfType<CreatedAtActionResult>()
+            .Subject.Value.Should()
+            .BeOfType<OrderResponse>()
+            .Subject;
 
         firstBody.Id.Should().NotBe(secondBody.Id);
         firstBody.ChannelExternalOrderId.Should().NotBe(secondBody.ChannelExternalOrderId);
@@ -209,8 +230,9 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         services.AddScoped<IUnitOfWork, OutboundUnitOfWork>();
         services.AddScoped<IOutboundOutbox, OutboundOutbox>();
 
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(
-            typeof(ListOrdersQuery).Assembly));
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(ListOrdersQuery).Assembly)
+        );
 
         var sp = services.BuildServiceProvider();
         var scope = sp.CreateScope();
@@ -223,13 +245,15 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
             outbox: new OutboundOutbox(
                 scope.ServiceProvider.GetRequiredService<OutboundDbContext>(),
                 rc,
-                clock),
+                clock
+            ),
             requestContext: rc,
             clock: clock,
             publishEndpoint: new NoopPublishEndpoint(),
             shippingProvider: new UnusedMockShippingProvider(),
             mediator: scope.ServiceProvider.GetRequiredService<IMediator>(),
-            env: new TestHostEnvironment(environmentName));
+            env: new TestHostEnvironment(environmentName)
+        );
 
         return new ControllerHarness(controller, sp, scope);
     }
@@ -240,7 +264,11 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
         private readonly ServiceProvider _sp;
         private readonly IServiceScope _scope;
 
-        public ControllerHarness(OrdersController controller, ServiceProvider sp, IServiceScope scope)
+        public ControllerHarness(
+            OrdersController controller,
+            ServiceProvider sp,
+            IServiceScope scope
+        )
         {
             Controller = controller;
             _sp = sp;
@@ -257,44 +285,87 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
     private sealed class FakeClock : TimeProvider
     {
         private readonly DateTimeOffset _now;
-        public FakeClock(DateTimeOffset now) { _now = now; }
+
+        public FakeClock(DateTimeOffset now)
+        {
+            _now = now;
+        }
+
         public override DateTimeOffset GetUtcNow() => _now;
     }
 
     private sealed class TestHostEnvironment : IHostEnvironment
     {
-        public TestHostEnvironment(string environmentName) { EnvironmentName = environmentName; }
+        public TestHostEnvironment(string environmentName)
+        {
+            EnvironmentName = environmentName;
+        }
+
         public string EnvironmentName { get; set; }
         public string ApplicationName { get; set; } = "ShopFlow.Outbound.Api";
         public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
-        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider
-        {
-            get; set;
-        } = new Microsoft.Extensions.FileProviders.NullFileProvider();
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } =
+            new Microsoft.Extensions.FileProviders.NullFileProvider();
     }
 
     private sealed class NoopPublishEndpoint : IPublishEndpoint
     {
         public Task Publish<T>(T message, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
-        public Task Publish<T>(T message, IPipe<PublishContext<T>> publishPipe, CancellationToken cancellationToken = default)
+
+        public Task Publish<T>(
+            T message,
+            IPipe<PublishContext<T>> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
-        public Task Publish<T>(T message, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default)
+
+        public Task Publish<T>(
+            T message,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
+
         public Task Publish(object message, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
-        public Task Publish(object message, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-        public Task Publish(object message, Type messageType, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
-        public Task Publish(object message, Type messageType, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+
+        public Task Publish(
+            object message,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task Publish(
+            object message,
+            Type messageType,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
+        public Task Publish(
+            object message,
+            Type messageType,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
+
         public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
-        public Task Publish<T>(object values, IPipe<PublishContext<T>> publishPipe, CancellationToken cancellationToken = default)
+
+        public Task Publish<T>(
+            object values,
+            IPipe<PublishContext<T>> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
-        public Task Publish<T>(object values, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default)
+
+        public Task Publish<T>(
+            object values,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
+
         public ConnectHandle ConnectPublishObserver(IPublishObserver observer) =>
             throw new NotSupportedException();
     }
@@ -302,6 +373,8 @@ public sealed class OrdersSeedEndpointTests : IAsyncLifetime
     private sealed class UnusedMockShippingProvider : IMockShippingProvider
     {
         public Task<ShippingLabel> CreateLabelAsync(Order order, CancellationToken ct) =>
-            throw new InvalidOperationException("Seed endpoint should not call the shipping provider.");
+            throw new InvalidOperationException(
+                "Seed endpoint should not call the shipping provider."
+            );
     }
 }

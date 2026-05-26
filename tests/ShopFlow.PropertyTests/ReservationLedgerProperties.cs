@@ -71,7 +71,10 @@ public sealed class ReservationLedgerProperties
             Gen.Choose(1, 10).ToArbitrary(),
             n =>
             {
-                _fixture.ResetForPropertyAsync("SKU-HAPPY", available: 100).GetAwaiter().GetResult();
+                _fixture
+                    .ResetForPropertyAsync("SKU-HAPPY", available: 100)
+                    .GetAwaiter()
+                    .GetResult();
                 var repo = new NotImplementedReservationRepository();
 
                 var sku = Sku.Create("SKU-HAPPY");
@@ -117,7 +120,10 @@ public sealed class ReservationLedgerProperties
             qtyArb,
             (total, qty) =>
             {
-                _fixture.ResetForPropertyAsync("SKU-CAP", available: total).GetAwaiter().GetResult();
+                _fixture
+                    .ResetForPropertyAsync("SKU-CAP", available: total)
+                    .GetAwaiter()
+                    .GetResult();
                 var expectedSuccessesAtMost = total / qty;
                 var n = expectedSuccessesAtMost * 2 + 5;
 
@@ -227,8 +233,7 @@ public sealed class ReservationLedgerProperties
                     .ToArray();
                 foreach (var oid in orderIds)
                 {
-                    var reserveResult = repo
-                        .TryReserveAsync(
+                    var reserveResult = repo.TryReserveAsync(
                             sku,
                             oid,
                             Quantity.From(1),
@@ -241,8 +246,7 @@ public sealed class ReservationLedgerProperties
                 }
                 Thread.Sleep(50);
 
-                var released = repo
-                    .ReleaseExpiredAsync(
+                var released = repo.ReleaseExpiredAsync(
                         DateTime.UtcNow,
                         batchSize: 1000,
                         CancellationToken.None
@@ -299,8 +303,7 @@ public sealed class ReservationLedgerProperties
                     switch (op)
                     {
                         case 0:
-                            var reserve = repo
-                                .TryReserveAsync(
+                            var reserve = repo.TryReserveAsync(
                                     sku,
                                     oid,
                                     Quantity.From(1),

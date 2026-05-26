@@ -60,17 +60,21 @@ public sealed class AddUsersMigrationSmokeTests : IAsyncLifetime
             columns.Add(reader.GetString(0));
         }
 
-        columns.Should().BeEquivalentTo(new[]
-        {
-            "id",
-            "email",
-            "password_hash",
-            "role",
-            "is_active",
-            "last_login_at",
-            "created_at",
-            "updated_at",
-        });
+        columns
+            .Should()
+            .BeEquivalentTo(
+                new[]
+                {
+                    "id",
+                    "email",
+                    "password_hash",
+                    "role",
+                    "is_active",
+                    "last_login_at",
+                    "created_at",
+                    "updated_at",
+                }
+            );
     }
 
     [Fact]

@@ -68,7 +68,10 @@ public sealed class MultiTenantOutboundScaleGateTests
     private readonly MultiTenantOutboundFixture _fx;
     private readonly ITestOutputHelper _output;
 
-    public MultiTenantOutboundScaleGateTests(MultiTenantOutboundFixture fx, ITestOutputHelper output)
+    public MultiTenantOutboundScaleGateTests(
+        MultiTenantOutboundFixture fx,
+        ITestOutputHelper output
+    )
     {
         _fx = fx;
         _output = output;
@@ -103,22 +106,27 @@ public sealed class MultiTenantOutboundScaleGateTests
         //  • Fairness floor min(p99) / max(p99) ≥ 0.85.
         foreach (var run in runs)
         {
-            (run.ShippedCount + run.CancelledCount + run.ErrorCount).Should().Be(
-                OrdersPerTenant,
-                because: "every issued order must resolve to a definite outcome (shipped, cancelled, or pipeline error)"
-            );
-            run.CancelledCount.Should().Be(
-                0,
-                because: "happy path injects no pick failures — no order should reach Cancelled"
-            );
-            run.ErrorCount.Should().Be(
-                0,
-                because: $"every order should drive through to Shipped; first failures: [{string.Join(" | ", run.FailureSamples)}]"
-            );
-            run.ShippedCount.Should().Be(
-                OrdersPerTenant,
-                because: "the gate's headline assertion: all 6000 orders reach Shipped"
-            );
+            (run.ShippedCount + run.CancelledCount + run.ErrorCount)
+                .Should()
+                .Be(
+                    OrdersPerTenant,
+                    because: "every issued order must resolve to a definite outcome (shipped, cancelled, or pipeline error)"
+                );
+            run.CancelledCount.Should()
+                .Be(
+                    0,
+                    because: "happy path injects no pick failures — no order should reach Cancelled"
+                );
+            run.ErrorCount.Should()
+                .Be(
+                    0,
+                    because: $"every order should drive through to Shipped; first failures: [{string.Join(" | ", run.FailureSamples)}]"
+                );
+            run.ShippedCount.Should()
+                .Be(
+                    OrdersPerTenant,
+                    because: "the gate's headline assertion: all 6000 orders reach Shipped"
+                );
         }
 
         // Fairness floor — W5 noisy-neighbor gate. The absolute p99 numbers
@@ -128,10 +136,12 @@ public sealed class MultiTenantOutboundScaleGateTests
         var p99ByTenant = runs.ToDictionary(r => r.TenantSlug, r => r.ShippedLatencyP99);
         var fairness = FairnessCalculator.FairnessFloor(p99ByTenant);
         _output.WriteLine($"fairness floor (shipped p99) = {fairness:F3}");
-        fairness.Should().BeGreaterThanOrEqualTo(
-            FairnessFloor,
-            because: "the W5 noisy-neighbor gate requires min(p99) / max(p99) ≥ 0.85 across tenants"
-        );
+        fairness
+            .Should()
+            .BeGreaterThanOrEqualTo(
+                FairnessFloor,
+                because: "the W5 noisy-neighbor gate requires min(p99) / max(p99) ≥ 0.85 across tenants"
+            );
 
         // Per-tenant 5-min p99 target — log + soft-warn (assertion follows
         // the Sprint-1-redux W3 documented-as-hardware-bound posture):
@@ -151,10 +161,11 @@ public sealed class MultiTenantOutboundScaleGateTests
             // samples, which would be a test bug). The Sprint-1-redux
             // posture: "production hardware re-validates the absolute
             // numbers" — we record + log but do not hard-fail.
-            run.ShippedLatencyP99.Should().BeGreaterThan(
-                0,
-                because: "p99 derives from observed wall-time samples; zero means no order completed"
-            );
+            run.ShippedLatencyP99.Should()
+                .BeGreaterThan(
+                    0,
+                    because: "p99 derives from observed wall-time samples; zero means no order completed"
+                );
         }
     }
 
@@ -186,35 +197,39 @@ public sealed class MultiTenantOutboundScaleGateTests
         foreach (var run in runs)
         {
             // No oversell / no pipeline error — every order must resolve.
-            (run.ShippedCount + run.CancelledCount + run.ErrorCount).Should().Be(
-                OrdersPerTenant,
-                because: "every issued order resolves to a definite outcome (shipped, cancelled, or pipeline error)"
-            );
-            run.ErrorCount.Should().Be(
-                0,
-                because: $"both Shipped and Cancelled are valid happy-shape outcomes; first failures: [{string.Join(" | ", run.FailureSamples)}]"
-            );
+            (run.ShippedCount + run.CancelledCount + run.ErrorCount)
+                .Should()
+                .Be(
+                    OrdersPerTenant,
+                    because: "every issued order resolves to a definite outcome (shipped, cancelled, or pipeline error)"
+                );
+            run.ErrorCount.Should()
+                .Be(
+                    0,
+                    because: $"both Shipped and Cancelled are valid happy-shape outcomes; first failures: [{string.Join(" | ", run.FailureSamples)}]"
+                );
 
             // Cancellation rate ≈ 5% — wide bounds (3-8%) to absorb random
             // sampling noise on a 2000-order budget. K6's "5% pick-failure"
             // is the seeded mean, not a tight per-tenant invariant.
             var cancelledPct = (double)run.CancelledCount / OrdersPerTenant * 100;
-            cancelledPct.Should().BeInRange(
-                3.0,
-                8.0,
-                because: $"pickFailureRate=0.05 should land cancelled fraction in 3-8% (got {cancelledPct:F2}%)"
-            );
+            cancelledPct
+                .Should()
+                .BeInRange(
+                    3.0,
+                    8.0,
+                    because: $"pickFailureRate=0.05 should land cancelled fraction in 3-8% (got {cancelledPct:F2}%)"
+                );
 
             // 95% success subset reaches Shipped; observed counts should
             // sum cleanly with cancelled.
-            run.ShippedCount.Should().BeGreaterThan(
-                0,
-                because: "the 95% success subset must reach Shipped"
-            );
-            run.CancelledCount.Should().BeGreaterThan(
-                0,
-                because: "the 5%-variant must produce at least some Cancelled orders"
-            );
+            run.ShippedCount.Should()
+                .BeGreaterThan(0, because: "the 95% success subset must reach Shipped");
+            run.CancelledCount.Should()
+                .BeGreaterThan(
+                    0,
+                    because: "the 5%-variant must produce at least some Cancelled orders"
+                );
         }
 
         // Fairness floor on the Shipped p99 — same noisy-neighbor invariant
@@ -222,10 +237,12 @@ public sealed class MultiTenantOutboundScaleGateTests
         var shippedP99 = runs.ToDictionary(r => r.TenantSlug, r => r.ShippedLatencyP99);
         var shippedFairness = FairnessCalculator.FairnessFloor(shippedP99);
         _output.WriteLine($"variant fairness floor (shipped p99) = {shippedFairness:F3}");
-        shippedFairness.Should().BeGreaterThanOrEqualTo(
-            FairnessFloor,
-            because: "5%-variant Shipped subset must still satisfy fairness floor ≥ 0.85"
-        );
+        shippedFairness
+            .Should()
+            .BeGreaterThanOrEqualTo(
+                FairnessFloor,
+                because: "5%-variant Shipped subset must still satisfy fairness floor ≥ 0.85"
+            );
 
         // Fairness floor on the Cancelled (compensation) p99 — the
         // 5%-variant's gate. Compensation latency must be fair across
@@ -233,10 +250,12 @@ public sealed class MultiTenantOutboundScaleGateTests
         var cancelledP99 = runs.ToDictionary(r => r.TenantSlug, r => r.CancelledLatencyP99);
         var cancelledFairness = FairnessCalculator.FairnessFloor(cancelledP99);
         _output.WriteLine($"variant fairness floor (cancelled p99) = {cancelledFairness:F3}");
-        cancelledFairness.Should().BeGreaterThanOrEqualTo(
-            FairnessFloor,
-            because: "5%-variant Cancelled subset must satisfy fairness floor ≥ 0.85 for the compensation tail"
-        );
+        cancelledFairness
+            .Should()
+            .BeGreaterThanOrEqualTo(
+                FairnessFloor,
+                because: "5%-variant Cancelled subset must satisfy fairness floor ≥ 0.85 for the compensation tail"
+            );
 
         // Per-tenant 60-s compensation p99 — documented + soft-validated
         // per the Sprint-1-redux W3 posture. The hard assertion is the
@@ -247,10 +266,11 @@ public sealed class MultiTenantOutboundScaleGateTests
             _output.WriteLine(
                 $"tenant={run.TenantSlug} cancelled p99 = {p99.TotalSeconds:F2}s (target {CancelledP99Target.TotalSeconds:F0}s, dev-hardware-bound)"
             );
-            run.CancelledLatencyP99.Should().BeGreaterThan(
-                0,
-                because: "cancelled p99 derives from observed wall-time samples; zero means no compensation completed"
-            );
+            run.CancelledLatencyP99.Should()
+                .BeGreaterThan(
+                    0,
+                    because: "cancelled p99 derives from observed wall-time samples; zero means no compensation completed"
+                );
         }
     }
 
@@ -302,7 +322,9 @@ public sealed class MultiTenantOutboundScaleGateTests
             );
             if (run.FailureSamples.Length > 0)
             {
-                _output.WriteLine($"  · failure samples: {string.Join(" || ", run.FailureSamples)}");
+                _output.WriteLine(
+                    $"  · failure samples: {string.Join(" || ", run.FailureSamples)}"
+                );
             }
         }
     }

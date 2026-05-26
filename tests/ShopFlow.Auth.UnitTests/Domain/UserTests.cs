@@ -44,8 +44,7 @@ public sealed class UserTests
     public void Create_RejectsEmptyEmail(string? email)
     {
         var act = () => User.Create(email!, ValidHash, UserRole.Owner);
-        act.Should().Throw<ArgumentException>()
-            .Where(e => e.ParamName == "email");
+        act.Should().Throw<ArgumentException>().Where(e => e.ParamName == "email");
     }
 
     [Theory]
@@ -57,8 +56,7 @@ public sealed class UserTests
     public void Create_RejectsMalformedEmail(string email)
     {
         var act = () => User.Create(email, ValidHash, UserRole.Owner);
-        act.Should().Throw<ArgumentException>()
-            .Where(e => e.ParamName == "email");
+        act.Should().Throw<ArgumentException>().Where(e => e.ParamName == "email");
     }
 
     [Fact]
@@ -77,16 +75,14 @@ public sealed class UserTests
     public void Create_RejectsEmptyPasswordHash(string? hash)
     {
         var act = () => User.Create("user@example.com", hash!, UserRole.Owner);
-        act.Should().Throw<ArgumentException>()
-            .Where(e => e.ParamName == "passwordHash");
+        act.Should().Throw<ArgumentException>().Where(e => e.ParamName == "passwordHash");
     }
 
     [Fact]
     public void Create_RejectsUndefinedRoleEnumValue()
     {
         var act = () => User.Create("user@example.com", ValidHash, (UserRole)999);
-        act.Should().Throw<ArgumentException>()
-            .Where(e => e.ParamName == "role");
+        act.Should().Throw<ArgumentException>().Where(e => e.ParamName == "role");
     }
 
     [Theory]
@@ -123,8 +119,7 @@ public sealed class UserTests
     {
         var user = User.Create("user@example.com", ValidHash, UserRole.Owner);
         var act = () => user.UpdatePassword(hash!);
-        act.Should().Throw<ArgumentException>()
-            .Where(e => e.ParamName == "newPasswordHash");
+        act.Should().Throw<ArgumentException>().Where(e => e.ParamName == "newPasswordHash");
     }
 
     [Fact]
@@ -269,7 +264,9 @@ public sealed class UserTests
             clock.Advance(TimeSpan.FromSeconds(30));
         }
 
-        triggered.Should().BeTrue("the 5th attempt within the sliding window must trip the lockout boundary");
+        triggered
+            .Should()
+            .BeTrue("the 5th attempt within the sliding window must trip the lockout boundary");
         user.FailedLoginCount.Should().Be(5);
         user.LockedUntil.Should().NotBeNull();
         user.DomainEvents.Should().ContainSingle(e => e is UserLockedEvent);
@@ -320,7 +317,11 @@ public sealed class UserTests
         var triggered = user.RegisterFailedLogin(clock, Five, FifteenMin, FifteenMin);
 
         triggered.Should().BeFalse();
-        user.LockedUntil.Should().Be(originalLockedUntil, "lockout window must not be extended by attempts while locked");
+        user.LockedUntil.Should()
+            .Be(
+                originalLockedUntil,
+                "lockout window must not be extended by attempts while locked"
+            );
         user.DomainEvents.Should().BeEmpty("no second UserLockedEvent");
     }
 
@@ -331,13 +332,17 @@ public sealed class UserTests
         var user = User.Create("user@example.com", ValidHash, UserRole.Picker);
 
         ((Action)(() => user.RegisterFailedLogin(null!, Five, FifteenMin, FifteenMin)))
-            .Should().Throw<ArgumentNullException>();
+            .Should()
+            .Throw<ArgumentNullException>();
         ((Action)(() => user.RegisterFailedLogin(clock, 0, FifteenMin, FifteenMin)))
-            .Should().Throw<ArgumentOutOfRangeException>();
+            .Should()
+            .Throw<ArgumentOutOfRangeException>();
         ((Action)(() => user.RegisterFailedLogin(clock, Five, TimeSpan.Zero, FifteenMin)))
-            .Should().Throw<ArgumentOutOfRangeException>();
+            .Should()
+            .Throw<ArgumentOutOfRangeException>();
         ((Action)(() => user.RegisterFailedLogin(clock, Five, FifteenMin, TimeSpan.Zero)))
-            .Should().Throw<ArgumentOutOfRangeException>();
+            .Should()
+            .Throw<ArgumentOutOfRangeException>();
     }
 
     [Fact]

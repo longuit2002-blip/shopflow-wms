@@ -19,10 +19,7 @@ internal sealed class AuthAuditLogEntryConfiguration : IEntityTypeConfiguration<
 
         builder.HasKey(e => e.Id).HasName("pk_auth_audit_log");
 
-        builder
-            .Property(e => e.Id)
-            .HasColumnName("id")
-            .UseIdentityByDefaultColumn();
+        builder.Property(e => e.Id).HasColumnName("id").UseIdentityByDefaultColumn();
 
         builder
             .Property(e => e.EventType)
@@ -30,15 +27,9 @@ internal sealed class AuthAuditLogEntryConfiguration : IEntityTypeConfiguration<
             .HasMaxLength(64)
             .IsRequired();
 
-        builder
-            .Property(e => e.UserId)
-            .HasColumnName("user_id");
+        builder.Property(e => e.UserId).HasColumnName("user_id");
 
-        builder
-            .Property(e => e.SourceIp)
-            .HasColumnName("source_ip")
-            .HasMaxLength(64)
-            .IsRequired();
+        builder.Property(e => e.SourceIp).HasColumnName("source_ip").HasMaxLength(64).IsRequired();
 
         builder
             .Property(e => e.UserAgent)
@@ -52,15 +43,9 @@ internal sealed class AuthAuditLogEntryConfiguration : IEntityTypeConfiguration<
             .HasColumnType("jsonb")
             .IsRequired();
 
-        builder
-            .Property(e => e.CorrelationId)
-            .HasColumnName("correlation_id")
-            .IsRequired();
+        builder.Property(e => e.CorrelationId).HasColumnName("correlation_id").IsRequired();
 
-        builder
-            .Property(e => e.OccurredAt)
-            .HasColumnName("occurred_at")
-            .IsRequired();
+        builder.Property(e => e.OccurredAt).HasColumnName("occurred_at").IsRequired();
 
         builder
             .HasIndex(e => new { e.EventType, e.OccurredAt })

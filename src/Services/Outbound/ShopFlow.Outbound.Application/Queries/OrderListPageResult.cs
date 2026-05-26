@@ -4,9 +4,7 @@ namespace ShopFlow.Outbound.Application.Queries;
 /// Paged result for <see cref="ListOrdersQuery"/>. Carries the page rows +
 /// the total row count (for the pager footer) returned as a single read.
 /// </summary>
-public sealed record OrderListPageResult(
-    IReadOnlyList<OrderListRow> Items,
-    int TotalCount);
+public sealed record OrderListPageResult(IReadOnlyList<OrderListRow> Items, int TotalCount);
 
 /// <summary>
 /// One row of the Sprint-7 Orders list. Wire shape stays PascalCase per
@@ -37,4 +35,5 @@ public sealed record OrderListRow(
     int LineCount,
     string? CurrentSagaState,
     DateTime CreatedAt,
-    DateTime? LastTransitionAt);
+    DateTime? LastTransitionAt
+);

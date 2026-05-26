@@ -62,9 +62,7 @@ public sealed class ApplyCommand : ICommand
 
         if (_modules.All.Count == 0)
         {
-            _logger.LogInformation(
-                "No tenant-DB modules registered; nothing to apply."
-            );
+            _logger.LogInformation("No tenant-DB modules registered; nothing to apply.");
             return 0;
         }
 
@@ -111,10 +109,7 @@ public sealed class ApplyCommand : ICommand
 
         if (failures.Count == 0)
         {
-            _logger.LogInformation(
-                "Applied migrations to {Count} tenants.",
-                tenants.Count
-            );
+            _logger.LogInformation("Applied migrations to {Count} tenants.", tenants.Count);
             return 0;
         }
 
@@ -159,9 +154,7 @@ public sealed class ApplyCommand : ICommand
         }
         if (!int.TryParse(raw, out var parsed) || parsed <= 0)
         {
-            throw new ArgumentException(
-                $"--concurrency must be a positive integer; got '{raw}'."
-            );
+            throw new ArgumentException($"--concurrency must be a positive integer; got '{raw}'.");
         }
         return parsed;
     }

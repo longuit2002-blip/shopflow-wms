@@ -39,7 +39,8 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         ILogger<ForgotPasswordCommandHandler> logger,
         IRequestContext requestContext,
         TimeProvider clock,
-        IOptions<AuthPasswordResetOptions> options)
+        IOptions<AuthPasswordResetOptions> options
+    )
     {
         _users = users;
         _resetTokens = resetTokens;
@@ -69,10 +70,14 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
             return Result.Success();
         }
 
-        var lastIssuedAt = await _resetTokens.GetLastIssuedAtAsync(user.Id, ct).ConfigureAwait(false);
+        var lastIssuedAt = await _resetTokens
+            .GetLastIssuedAtAsync(user.Id, ct)
+            .ConfigureAwait(false);
         var now = _clock.GetUtcNow().UtcDateTime;
-        if (lastIssuedAt is not null
-            && now - lastIssuedAt.Value < TimeSpan.FromMinutes(_options.CooldownMinutes))
+        if (
+            lastIssuedAt is not null
+            && now - lastIssuedAt.Value < TimeSpan.FromMinutes(_options.CooldownMinutes)
+        )
         {
             // R32 — silent skip on cooldown active.
             _ = _hasher.Verify(request.Email!, _options.SyntheticHash);
@@ -83,49 +88,61 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         // local scope only; we persist SHA-256(plaintext) + emit the
         // composed URL to the outbox, then plaintext goes out of scope.
         var rawToken = RandomNumberGenerator.GetBytes(32);
-        var plaintext = Convert.ToBase64String(rawToken)
-            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
+        var plaintext = Convert
+            .ToBase64String(rawToken)
+            .TrimEnd('=')
+            .Replace('+', '-')
+            .Replace('/', '_');
         var tokenHash = SHA256.HashData(Encoding.UTF8.GetBytes(plaintext));
         var expiresAt = now.AddMinutes(_options.TokenTtlMinutes);
 
-        var addResult = await _resetTokens.AddAsync(tokenHash, user.Id, expiresAt, ct).ConfigureAwait(false);
+        var addResult = await _resetTokens
+            .AddAsync(tokenHash, user.Id, expiresAt, ct)
+            .ConfigureAwait(false);
         if (!addResult.IsSuccess)
         {
             // Astronomically unlikely 23505 — silent success per R6.
             return Result.Success();
         }
 
-        var resetUrl = _options.WorkspaceUrlTemplate
-            .Replace("{slug}", request.TenantSlug)
+        var resetUrl =
+            _options.WorkspaceUrlTemplate.Replace("{slug}", request.TenantSlug)
             + $"/reset-password?token={plaintext}";
 
-        await _outbox.AppendAsync(
-            typeof(PasswordResetRequestedV1).FullName!,
-            new PasswordResetRequestedV1(
-                _requestContext.TenantId,
-                user.Id,
-                user.Email,
-                request.TenantSlug,
-                resetUrl,
-                expiresAt,
-                now,
-                request.CorrelationId),
-            ct).ConfigureAwait(false);
+        await _outbox
+            .AppendAsync(
+                typeof(PasswordResetRequestedV1).FullName!,
+                new PasswordResetRequestedV1(
+                    _requestContext.TenantId,
+                    user.Id,
+                    user.Email,
+                    request.TenantSlug,
+                    resetUrl,
+                    expiresAt,
+                    now,
+                    request.CorrelationId
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         // Sprint-12.5 U1 — audit only on the path that actually emitted
         // a reset token. The R6 silent-skip / unknown-email paths above
         // return success without ever issuing a token, so they do NOT
         // emit auth.password.reset.requested (audit captures real actions).
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.PasswordResetRequested,
-            user.Id,
-            request.SourceIp,
-            request.UserAgent,
-            metadata: null,
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.PasswordResetRequested,
+                user.Id,
+                request.SourceIp,
+                request.UserAgent,
+                metadata: null,
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

@@ -127,8 +127,8 @@ public sealed class HandoffFixture : IAsyncLifetime
     public string PickerEmail => $"picker@{TenantSlug}.test";
     public string DispatcherEmail => $"dispatcher@{TenantSlug}.test";
 
-    public WebApplicationFactory<Program> Factory => _factory
-        ?? throw new InvalidOperationException("Fixture not initialized.");
+    public WebApplicationFactory<Program> Factory =>
+        _factory ?? throw new InvalidOperationException("Fixture not initialized.");
 
     public HttpClient HttpClient => Factory.CreateClient();
 
@@ -191,7 +191,10 @@ public sealed class HandoffFixture : IAsyncLifetime
             b.UseSetting("ControlPlane:ConnectionString", ControlPlaneConnectionString);
             b.UseSetting(
                 "ControlPlane:TenantTemplate",
-                new NpgsqlConnectionStringBuilder(admin) { Database = "{Database}" }.ConnectionString
+                new NpgsqlConnectionStringBuilder(admin)
+                {
+                    Database = "{Database}",
+                }.ConnectionString
             );
 
             // ── KTD5 — Zero-flake MockShippingProvider override ──────
@@ -229,7 +232,9 @@ public sealed class HandoffFixture : IAsyncLifetime
                     services.AddSingleton<IMockShippingProvider>(sp =>
                         MockShippingProvider.WithFlakeRate(
                             sp.GetRequiredService<ResiliencePipeline>(),
-                            0.0));
+                            0.0
+                        )
+                    );
                 }
             });
         });
@@ -266,7 +271,8 @@ public sealed class HandoffFixture : IAsyncLifetime
             userId: OwnerUserId,
             includeKeys: ShopFlow.SharedKernel.Authorization.PermissionKeys.All,
             email: OwnerEmail,
-            role: "Owner");
+            role: "Owner"
+        );
 
     /// <summary>
     /// Mint a Picker JWT carrying exactly the 4-key
@@ -281,7 +287,8 @@ public sealed class HandoffFixture : IAsyncLifetime
             userId: PickerUserId,
             includeKeys: ShopFlow.Migrate.Provisioning.RolePermissionsSeed.PickerBaseline,
             email: PickerEmail,
-            role: "Picker");
+            role: "Picker"
+        );
 
     /// <summary>
     /// Mint a Dispatcher JWT carrying exactly the 3-key
@@ -296,7 +303,8 @@ public sealed class HandoffFixture : IAsyncLifetime
             userId: DispatcherUserId,
             includeKeys: ShopFlow.Migrate.Provisioning.RolePermissionsSeed.DispatcherBaseline,
             email: DispatcherEmail,
-            role: "Dispatcher");
+            role: "Dispatcher"
+        );
 
     /// <summary>
     /// Mint a Picker JWT with an EXTRA <c>outbound.orders.ship-confirm</c>
@@ -310,7 +318,8 @@ public sealed class HandoffFixture : IAsyncLifetime
     public string BuildPickerWithExtraShipConfirmJwt()
     {
         var keys = new List<string>(
-            ShopFlow.Migrate.Provisioning.RolePermissionsSeed.PickerBaseline)
+            ShopFlow.Migrate.Provisioning.RolePermissionsSeed.PickerBaseline
+        )
         {
             ShopFlow.SharedKernel.Authorization.PermissionKeys.OutboundOrdersShipConfirm,
         };
@@ -319,7 +328,8 @@ public sealed class HandoffFixture : IAsyncLifetime
             userId: PickerUserId,
             includeKeys: keys,
             email: PickerEmail,
-            role: "Picker");
+            role: "Picker"
+        );
     }
 
     public async Task DisposeAsync()
@@ -349,7 +359,8 @@ public static class HandoffWatch
     public static async Task<TimeSpan> MeasureAsync(
         string label,
         Func<Task> body,
-        Xunit.Abstractions.ITestOutputHelper? output = null)
+        Xunit.Abstractions.ITestOutputHelper? output = null
+    )
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         await body();

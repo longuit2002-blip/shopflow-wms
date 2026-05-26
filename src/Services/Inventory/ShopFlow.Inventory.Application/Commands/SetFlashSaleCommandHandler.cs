@@ -22,12 +22,15 @@ namespace ShopFlow.Inventory.Application.Commands;
 /// shape matches <see cref="SetThresholdCommandHandler"/> +
 /// <see cref="AdjustStockCommandHandler"/> + <see cref="CreateSkuCommandHandler"/>.</para>
 /// </remarks>
-public sealed class SetFlashSaleCommandHandler(
-    ISkuRepository skuRepository) : IRequestHandler<SetFlashSaleCommand, Result>
+public sealed class SetFlashSaleCommandHandler(ISkuRepository skuRepository)
+    : IRequestHandler<SetFlashSaleCommand, Result>
 {
     private readonly ISkuRepository skuRepository = skuRepository;
 
-    public async Task<Result> Handle(SetFlashSaleCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(
+        SetFlashSaleCommand request,
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -46,8 +49,8 @@ public sealed class SetFlashSaleCommandHandler(
             return Result.Failure(ex.Message, "stock.sku_invalid");
         }
 
-        var result = await this.skuRepository
-            .UpdateFlashSaleAsync(code, request.Active, cancellationToken)
+        var result = await this
+            .skuRepository.UpdateFlashSaleAsync(code, request.Active, cancellationToken)
             .ConfigureAwait(false);
 
         // U3 leaves the outbox-emit seam unwired — U5 will hook

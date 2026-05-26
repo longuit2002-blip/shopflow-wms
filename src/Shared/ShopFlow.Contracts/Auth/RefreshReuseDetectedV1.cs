@@ -16,4 +16,5 @@ public sealed record RefreshReuseDetectedV1(
     string PresentingIp,
     string UserAgent,
     DateTime OccurredAtUtc,
-    Guid CorrelationId);
+    Guid CorrelationId
+);

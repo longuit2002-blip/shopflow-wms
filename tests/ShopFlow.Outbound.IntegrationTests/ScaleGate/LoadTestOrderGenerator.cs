@@ -64,8 +64,7 @@ internal static class LoadTestOrderGenerator
     /// Shipping profiles drivers randomly select per K6. Wave generator's
     /// per-profile fan-out is exercised by mixing these.
     /// </summary>
-    public static IReadOnlyList<string> ShippingProfiles { get; } =
-        new[] { "standard", "express" };
+    public static IReadOnlyList<string> ShippingProfiles { get; } = new[] { "standard", "express" };
 
     /// <summary>
     /// Run the load against ONE tenant. Emits <paramref name="orderCount"/>
@@ -202,10 +201,7 @@ internal static class LoadTestOrderGenerator
     /// 38ms to under 15ms, which keeps the fairness floor comfortably
     /// above 0.85 across repeated runs.
     /// </remarks>
-    private static async Task WarmUpAsync(
-        ProvisionedOutboundTenant tenant,
-        CancellationToken ct
-    )
+    private static async Task WarmUpAsync(ProvisionedOutboundTenant tenant, CancellationToken ct)
     {
         const int warmupOrders = 60;
         var warmupTasks = new Task[warmupOrders];
@@ -295,7 +291,8 @@ internal static class LoadTestOrderGenerator
         // 2. Bypass the reservation hop — direct-progress the Order row to
         //    AwaitingPick. The scale gate measures the operator-facing
         //    pipeline; saga reservation correctness is U4's gate.
-        await SetOrderStatusAsync(tenant, orderId, OrderStatus.AwaitingPick, ct).ConfigureAwait(false);
+        await SetOrderStatusAsync(tenant, orderId, OrderStatus.AwaitingPick, ct)
+            .ConfigureAwait(false);
 
         // 3. Branch on pick-failure dice.
         if (Random.Shared.NextDouble() < pickFailureRate)
@@ -318,7 +315,8 @@ internal static class LoadTestOrderGenerator
                     return DriverOutcome.PickFailedRejected;
                 }
             }
-            await SetOrderStatusAsync(tenant, orderId, OrderStatus.Cancelled, ct).ConfigureAwait(false);
+            await SetOrderStatusAsync(tenant, orderId, OrderStatus.Cancelled, ct)
+                .ConfigureAwait(false);
             return DriverOutcome.Cancelled;
         }
 
@@ -339,11 +337,7 @@ internal static class LoadTestOrderGenerator
             // (qty=1, expected_weight=100 ⇒ expected_total=100*lineCount).
             var expected = 100 * lineCount;
             var pp = await harness
-                .Controller.ConfirmPackAsync(
-                    orderId,
-                    new ConfirmPackRequest(expected),
-                    ct
-                )
+                .Controller.ConfirmPackAsync(orderId, new ConfirmPackRequest(expected), ct)
                 .ConfigureAwait(false);
             if (pp is not OkObjectResult)
             {
@@ -490,10 +484,7 @@ internal static class LoadTestOrderGenerator
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
 
-        public Task Publish<T>(
-            object values,
-            CancellationToken cancellationToken = default
-        )
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
         public Task Publish<T>(

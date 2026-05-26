@@ -45,7 +45,8 @@ public sealed class JwtTokenIssuer : ITokenIssuer
 
     public JwtTokenIssuer(
         IOptions<JwtIssuerOptions> options,
-        IRolePermissionRepository rolePermissions)
+        IRolePermissionRepository rolePermissions
+    )
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(rolePermissions);
@@ -57,8 +58,9 @@ public sealed class JwtTokenIssuer : ITokenIssuer
         {
             throw new InvalidOperationException(
                 "Auth:DevSecret must be at least 32 bytes (UTF-8) for HS256 signing. "
-                + "The kernel JwtBearer validator enforces the same minimum at startup; "
-                + "an undersize key here would silently produce tokens the validator rejects.");
+                    + "The kernel JwtBearer validator enforces the same minimum at startup; "
+                    + "an undersize key here would silently produce tokens the validator rejects."
+            );
         }
         _signingKey = new SymmetricSecurityKey(keyBytes);
     }
@@ -66,7 +68,8 @@ public sealed class JwtTokenIssuer : ITokenIssuer
     public async Task<AccessToken> IssueAccessTokenAsync(
         User user,
         string tenantSlug,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(user);
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
@@ -101,9 +104,7 @@ public sealed class JwtTokenIssuer : ITokenIssuer
             NotBefore = issuedAt,
             Expires = expiresAt,
             Subject = new ClaimsIdentity(claims),
-            SigningCredentials = new SigningCredentials(
-                _signingKey,
-                SecurityAlgorithms.HmacSha256),
+            SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256),
         };
 
         var jwt = _handler.CreateToken(descriptor);

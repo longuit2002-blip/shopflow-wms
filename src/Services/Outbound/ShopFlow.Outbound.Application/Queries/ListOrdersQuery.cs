@@ -19,10 +19,8 @@ namespace ShopFlow.Outbound.Application.Queries;
 /// <para>Per Sprint-6 KTD4 the wire shape stays PascalCase (.NET default
 /// serializer); the U4 controller does not need additional shaping.</para>
 /// </remarks>
-public sealed record ListOrdersQuery(
-    OrderListFilter Filter,
-    int Skip,
-    int Take) : IRequest<OrderListPageResult>;
+public sealed record ListOrdersQuery(OrderListFilter Filter, int Skip, int Take)
+    : IRequest<OrderListPageResult>;
 
 /// <summary>
 /// Filter knobs for <see cref="ListOrdersQuery"/>. All optional; the handler
@@ -38,4 +36,5 @@ public sealed record OrderListFilter(
     string? ChannelPrefix = null,
     string? Search = null,
     DateTime? Since = null,
-    DateTime? Until = null);
+    DateTime? Until = null
+);

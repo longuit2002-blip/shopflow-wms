@@ -45,7 +45,8 @@ public sealed class AuthOutbox : IAuthOutbox
                     TraceId = traceId,
                     CreatedAt = _clock.GetUtcNow().UtcDateTime,
                 },
-                ct)
+                ct
+            )
             .ConfigureAwait(false);
     }
 }

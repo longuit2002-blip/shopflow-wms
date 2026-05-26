@@ -46,7 +46,10 @@ public sealed class WebhookOrchestratorTests
         IWebhookEventRepository Repo,
         IChannelOutbox Outbox,
         IUnitOfWork Uow
-    ) NewSut(ExternalOrderDraft? draft, params (string ExternalSku, string? InternalSku)[] resolutions)
+    ) NewSut(
+        ExternalOrderDraft? draft,
+        params (string ExternalSku, string? InternalSku)[] resolutions
+    )
     {
         var adapter = Substitute.For<IChannelAdapter>();
         adapter.ChannelType.Returns(ChannelType);
@@ -73,9 +76,11 @@ public sealed class WebhookOrchestratorTests
 
         var repo = Substitute.For<IWebhookEventRepository>();
         repo.TryInsertAsync(Arg.Any<WebhookEvent>(), Arg.Any<CancellationToken>())
-            .Returns(Result<TryInsertWebhookResult>.Success(
-                new TryInsertWebhookResult(Guid.NewGuid(), IsDuplicate: false)
-            ));
+            .Returns(
+                Result<TryInsertWebhookResult>.Success(
+                    new TryInsertWebhookResult(Guid.NewGuid(), IsDuplicate: false)
+                )
+            );
 
         var outbox = Substitute.For<IChannelOutbox>();
         var uow = Substitute.For<IUnitOfWork>();
@@ -95,11 +100,7 @@ public sealed class WebhookOrchestratorTests
     {
         var (sut, _, _, _, outbox, _) = NewSut(
             draft: NewDraft(("SP-001", 2), ("SP-002", 3)),
-            resolutions: new[]
-            {
-                ("SP-001", (string?)"INV-001"),
-                ("SP-002", (string?)"INV-002"),
-            }
+            resolutions: new[] { ("SP-001", (string?)"INV-001"), ("SP-002", (string?)"INV-002") }
         );
 
         var result = await sut.ProcessAsync(NewEnvelope(), ChannelType, TenantId, ct: default);
@@ -108,21 +109,23 @@ public sealed class WebhookOrchestratorTests
         result.Value!.Status.Should().Be(WebhookProcessStatus.OrderImported);
         result.Value.UnmappedSkus.Should().BeNull();
 
-        await outbox.Received(1).AppendAsync(
-            typeof(OrderImportedV1).AssemblyQualifiedName!,
-            Arg.Is<OrderImportedV1>(o =>
-                o.TenantId == TenantId
-                && o.ChannelId == ChannelId
-                && o.ChannelExternalOrderId == "ORDER-SP-001"
-                && o.ShippingProfile == "GHN"
-                && o.Lines.Count == 2
-                && o.Lines[0].Sku == "INV-001"
-                && o.Lines[0].Qty == 2
-                && o.Lines[1].Sku == "INV-002"
-                && o.Lines[1].Qty == 3
-            ),
-            Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .Received(1)
+            .AppendAsync(
+                typeof(OrderImportedV1).AssemblyQualifiedName!,
+                Arg.Is<OrderImportedV1>(o =>
+                    o.TenantId == TenantId
+                    && o.ChannelId == ChannelId
+                    && o.ChannelExternalOrderId == "ORDER-SP-001"
+                    && o.ShippingProfile == "GHN"
+                    && o.Lines.Count == 2
+                    && o.Lines[0].Sku == "INV-001"
+                    && o.Lines[0].Qty == 2
+                    && o.Lines[1].Sku == "INV-002"
+                    && o.Lines[1].Qty == 3
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -130,11 +133,7 @@ public sealed class WebhookOrchestratorTests
     {
         var (sut, _, _, _, outbox, _) = NewSut(
             draft: NewDraft(("SP-001", 2), ("SP-XYZ", 1)),
-            resolutions: new[]
-            {
-                ("SP-001", (string?)"INV-001"),
-                ("SP-XYZ", (string?)null),
-            }
+            resolutions: new[] { ("SP-001", (string?)"INV-001"), ("SP-XYZ", (string?)null) }
         );
 
         var result = await sut.ProcessAsync(NewEnvelope(), ChannelType, TenantId, ct: default);
@@ -145,11 +144,9 @@ public sealed class WebhookOrchestratorTests
         result.Value.UnmappedSkus!.Single().Should().Be("SP-XYZ");
 
         // NO outbox append on a failed import.
-        await outbox.DidNotReceive().AppendAsync(
-            Arg.Any<string>(),
-            Arg.Any<object>(),
-            Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -193,19 +190,19 @@ public sealed class WebhookOrchestratorTests
         adapter.DidNotReceive().ParseOrderCreated(Arg.Any<WebhookEnvelope>());
 
         // Mapping service NOT called.
-        await mapping.DidNotReceive().ResolveAsync(
-            Arg.Any<Guid>(),
-            Arg.Any<string>(),
-            Arg.Any<CancellationToken>()
-        );
+        await mapping
+            .DidNotReceive()
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
 
         // Outbox still receives the sentinel skip-event (Sprint-4.5 trade-off
         // documented in WebhookOrchestrator.cs — Sprint-6+ refines).
-        await outbox.Received(1).AppendAsync(
-            Arg.Is<string>(s => s.Contains("Skipped", StringComparison.Ordinal)),
-            Arg.Any<object>(),
-            Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .Received(1)
+            .AppendAsync(
+                Arg.Is<string>(s => s.Contains("Skipped", StringComparison.Ordinal)),
+                Arg.Any<object>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -215,10 +212,12 @@ public sealed class WebhookOrchestratorTests
         adapter.ChannelType.Returns(ChannelType);
         adapter
             .ParseOrderCreated(Arg.Any<WebhookEnvelope>())
-            .Returns(Result<ExternalOrderDraft>.Failure(
-                "shopee.order: items_empty",
-                "shopee.order.items_empty"
-            ));
+            .Returns(
+                Result<ExternalOrderDraft>.Failure(
+                    "shopee.order: items_empty",
+                    "shopee.order.items_empty"
+                )
+            );
 
         var factory = Substitute.For<IChannelAdapterFactory>();
         factory.TryResolve(ChannelType).Returns(adapter);
@@ -283,16 +282,18 @@ public sealed class WebhookOrchestratorTests
 
         await sut.ProcessAsync(NewEnvelope(), ChannelType, TenantId, ct: default);
 
-        await outbox.Received(1).AppendAsync(
-            Arg.Any<string>(),
-            Arg.Is<OrderImportedV1>(o =>
-                o.Lines.Count == 4
-                && o.Lines[0].Sku == "INV-A"
-                && o.Lines[1].Sku == "INV-B"
-                && o.Lines[2].Sku == "INV-C"
-                && o.Lines[3].Sku == "INV-D"
-            ),
-            Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .Received(1)
+            .AppendAsync(
+                Arg.Any<string>(),
+                Arg.Is<OrderImportedV1>(o =>
+                    o.Lines.Count == 4
+                    && o.Lines[0].Sku == "INV-A"
+                    && o.Lines[1].Sku == "INV-B"
+                    && o.Lines[2].Sku == "INV-C"
+                    && o.Lines[3].Sku == "INV-D"
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

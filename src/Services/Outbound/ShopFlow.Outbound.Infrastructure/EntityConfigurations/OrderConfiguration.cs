@@ -45,10 +45,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.ExpectedWeightTotal).HasColumnName("expected_weight_total");
         builder.Property(o => o.ActualWeightTotal).HasColumnName("actual_weight_total");
         builder.Property(o => o.LabelUrl).HasColumnName("label_url").HasMaxLength(512);
-        builder
-            .Property(o => o.TrackingNumber)
-            .HasColumnName("tracking_number")
-            .HasMaxLength(128);
+        builder.Property(o => o.TrackingNumber).HasColumnName("tracking_number").HasMaxLength(128);
         builder.Property(o => o.PickWaveId).HasColumnName("pick_wave_id");
 
         builder.Property(o => o.CreatedAt).HasColumnName("created_at").IsRequired();

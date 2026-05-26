@@ -32,18 +32,26 @@ var app = builder.Build();
 var seedRegistry = app.Services.GetRequiredService<SecretRegistry>();
 foreach (var section in builder.Configuration.GetSection("Channels").GetChildren())
 {
-    if (Guid.TryParse(section["ChannelId"], out var channelId)
-        && section["Secret"] is { Length: > 0 } secret)
+    if (
+        Guid.TryParse(section["ChannelId"], out var channelId)
+        && section["Secret"] is { Length: > 0 } secret
+    )
     {
         seedRegistry.Register(channelId, Encoding.UTF8.GetBytes(secret));
     }
 }
 
-app.MapGet("/", () => Results.Ok(new
-{
-    service = "shopflow-shopee-mock",
-    purpose = "Sprint-4 U7 — dev/test webhook source. NOT for production.",
-}));
+app.MapGet(
+    "/",
+    () =>
+        Results.Ok(
+            new
+            {
+                service = "shopflow-shopee-mock",
+                purpose = "Sprint-4 U7 — dev/test webhook source. NOT for production.",
+            }
+        )
+);
 
 app.MapPost(
     "/__chaos",
@@ -95,17 +103,16 @@ app.MapPost(
         }
         if (Random.Shared.NextDouble() < chaos.Rate429)
         {
-            var headers = new Dictionary<string, string>
-            {
-                { "Retry-After", "1" },
-            };
+            var headers = new Dictionary<string, string> { { "Retry-After", "1" } };
             return Results.Json(new { error = "rate limited" }, statusCode: 429);
         }
 
         var secret = registry.Get(body.ChannelId);
         if (secret is null)
         {
-            return Results.NotFound(new { error = $"no secret seeded for channel {body.ChannelId}" });
+            return Results.NotFound(
+                new { error = $"no secret seeded for channel {body.ChannelId}" }
+            );
         }
 
         var envelope = new
@@ -120,9 +127,7 @@ app.MapPost(
         var signature = ShopeeSigner.Sign(bodyBytes, secret);
 
         var receiverBase =
-            body.ReceiverBaseUrl
-            ?? config["Channel:ReceiverBaseUrl"]
-            ?? "http://localhost:5181";
+            body.ReceiverBaseUrl ?? config["Channel:ReceiverBaseUrl"] ?? "http://localhost:5181";
         var url =
             $"{receiverBase.TrimEnd('/')}/api/channel/webhooks/{body.ChannelType}/{body.ChannelId}";
 

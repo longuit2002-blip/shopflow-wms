@@ -21,8 +21,8 @@ public sealed class LogoutCommandHandlerTests
     private readonly IRefreshTokenStore _refreshStore = Substitute.For<IRefreshTokenStore>();
     private readonly IAuthAuditLogRepository _auditLog = Substitute.For<IAuthAuditLogRepository>();
 
-    private LogoutCommandHandler BuildHandler() => new(
-        _refreshStore, _auditLog, NullLogger<LogoutCommandHandler>.Instance);
+    private LogoutCommandHandler BuildHandler() =>
+        new(_refreshStore, _auditLog, NullLogger<LogoutCommandHandler>.Instance);
 
     private static LogoutCommand Cmd(string token, bool allDevices, Guid userId) =>
         new(token, allDevices, userId, "t1", "203.0.113.10", "test-ua/1.0", Guid.NewGuid());
@@ -32,16 +32,31 @@ public sealed class LogoutCommandHandlerTests
     {
         var userId = Guid.NewGuid();
 
-        var result = await BuildHandler().Handle(Cmd("refresh-token", false, userId), CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("refresh-token", false, userId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        await _refreshStore.Received(1).RevokeAsync("t1", userId, "refresh-token", Arg.Any<CancellationToken>());
-        await _refreshStore.DidNotReceive().RevokeAllForUserAsync(
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        await _auditLog.Received(1).AppendAsync(
-            AuthAuditEventTypes.Logout,
-            userId, Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _refreshStore
+            .Received(1)
+            .RevokeAsync("t1", userId, "refresh-token", Arg.Any<CancellationToken>());
+        await _refreshStore
+            .DidNotReceive()
+            .RevokeAllForUserAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _auditLog
+            .Received(1)
+            .AppendAsync(
+                AuthAuditEventTypes.Logout,
+                userId,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -49,16 +64,32 @@ public sealed class LogoutCommandHandlerTests
     {
         var userId = Guid.NewGuid();
 
-        var result = await BuildHandler().Handle(Cmd("refresh-token", true, userId), CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("refresh-token", true, userId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        await _refreshStore.Received(1).RevokeAllForUserAsync("t1", userId, Arg.Any<CancellationToken>());
-        await _refreshStore.DidNotReceive().RevokeAsync(
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _auditLog.Received(1).AppendAsync(
-            AuthAuditEventTypes.Logout,
-            userId, Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _refreshStore
+            .Received(1)
+            .RevokeAllForUserAsync("t1", userId, Arg.Any<CancellationToken>());
+        await _refreshStore
+            .DidNotReceive()
+            .RevokeAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _auditLog
+            .Received(1)
+            .AppendAsync(
+                AuthAuditEventTypes.Logout,
+                userId,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -67,14 +98,28 @@ public sealed class LogoutCommandHandlerTests
         // Defensive: the controller validates input, but the handler
         // collapses empty to success so logout doesn't 500 on a
         // double-tap. No audit row — there's no logout to record.
-        var result = await BuildHandler().Handle(Cmd("", false, Guid.NewGuid()), CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("", false, Guid.NewGuid()), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        await _refreshStore.DidNotReceive().RevokeAsync(
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
-        await _auditLog.DidNotReceive().AppendAsync(
-            Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid>(),
-            Arg.Any<CancellationToken>());
+        await _refreshStore
+            .DidNotReceive()
+            .RevokeAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _auditLog
+            .DidNotReceive()
+            .AppendAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

@@ -41,14 +41,12 @@ public sealed class StatusCommand : ICommand
             return 0;
         }
 
-        Console.Out.WriteLine(
-            $"{"slug",-24} {"status",-20} {"db_name",-36} provisioned_at"
-        );
+        Console.Out.WriteLine($"{"slug", -24} {"status", -20} {"db_name", -36} provisioned_at");
         Console.Out.WriteLine(new string('-', 100));
         foreach (var t in tenants)
         {
             var stamp = t.ProvisionedAt?.ToString("O") ?? "—";
-            Console.Out.WriteLine($"{t.Slug,-24} {t.Status,-20} {t.DbName,-36} {stamp}");
+            Console.Out.WriteLine($"{t.Slug, -24} {t.Status, -20} {t.DbName, -36} {stamp}");
         }
         return 0;
     }

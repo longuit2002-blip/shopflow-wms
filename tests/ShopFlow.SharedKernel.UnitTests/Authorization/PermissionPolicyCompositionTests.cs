@@ -29,7 +29,9 @@ public sealed class PermissionPolicyCompositionTests
         foreach (var key in PermissionKeys.All)
         {
             var policy = await provider.GetPolicyAsync(key);
-            policy.Should().NotBeNull($"AddShopFlowPermissionPolicies must register a policy named '{key}'");
+            policy
+                .Should()
+                .NotBeNull($"AddShopFlowPermissionPolicies must register a policy named '{key}'");
         }
     }
 
@@ -41,8 +43,10 @@ public sealed class PermissionPolicyCompositionTests
 
         var policy = await provider.GetPolicyAsync(key);
 
-        policy!.Requirements.OfType<DenyAnonymousAuthorizationRequirement>()
-            .Should().HaveCount(1, "RequireAuthenticatedUser must be present");
+        policy!
+            .Requirements.OfType<DenyAnonymousAuthorizationRequirement>()
+            .Should()
+            .HaveCount(1, "RequireAuthenticatedUser must be present");
     }
 
     [Fact]
@@ -53,7 +57,9 @@ public sealed class PermissionPolicyCompositionTests
 
         var policy = await provider.GetPolicyAsync(key);
 
-        var claimReq = policy!.Requirements.OfType<ClaimsAuthorizationRequirement>().SingleOrDefault();
+        var claimReq = policy!
+            .Requirements.OfType<ClaimsAuthorizationRequirement>()
+            .SingleOrDefault();
         claimReq.Should().NotBeNull("RequireClaim must be present");
         claimReq!.ClaimType.Should().Be("perm");
         claimReq.AllowedValues.Should().Contain(key);

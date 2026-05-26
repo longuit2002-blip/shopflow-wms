@@ -111,10 +111,7 @@ public sealed record OrderListItemDto(
 /// <summary>
 /// Sprint-7 U4 — paginated response for <c>GET /api/outbound/orders</c>.
 /// </summary>
-public sealed record OrderListResponse(
-    IReadOnlyList<OrderListItemDto> Items,
-    int TotalCount
-);
+public sealed record OrderListResponse(IReadOnlyList<OrderListItemDto> Items, int TotalCount);
 
 /// <summary>
 /// Sprint-7 U4 — full detail for <c>GET /api/outbound/orders/{id}</c>.

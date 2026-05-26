@@ -25,7 +25,8 @@ public sealed class BeginEnrollMfaCommandHandler
         IUserRepository users,
         ITotpProvider totp,
         IEnrollmentSecretStore enrollmentStore,
-        TimeProvider clock)
+        TimeProvider clock
+    )
     {
         _users = users;
         _totp = totp;
@@ -33,20 +34,24 @@ public sealed class BeginEnrollMfaCommandHandler
         _clock = clock;
     }
 
-    public async Task<Result<BeginEnrollMfaResponse>> Handle(BeginEnrollMfaCommand request, CancellationToken ct)
+    public async Task<Result<BeginEnrollMfaResponse>> Handle(
+        BeginEnrollMfaCommand request,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var user = await _users.GetByIdAsync(request.UserId, ct).ConfigureAwait(false);
         if (user is null || !user.IsActive)
         {
-            return Result<BeginEnrollMfaResponse>.Failure("Invalid credentials.", InvalidCredentials);
+            return Result<BeginEnrollMfaResponse>.Failure(
+                "Invalid credentials.",
+                InvalidCredentials
+            );
         }
         if (user.MfaEnrolled)
         {
-            return Result<BeginEnrollMfaResponse>.Failure(
-                "MFA already enrolled.",
-                AlreadyEnrolled);
+            return Result<BeginEnrollMfaResponse>.Failure("MFA already enrolled.", AlreadyEnrolled);
         }
 
         var secret = _totp.GenerateSecret();
@@ -58,6 +63,7 @@ public sealed class BeginEnrollMfaCommandHandler
 
         var expiresAt = _clock.GetUtcNow().UtcDateTime.AddMinutes(10);
         return Result<BeginEnrollMfaResponse>.Success(
-            new BeginEnrollMfaResponse(enrollmentId, provisioningUri, secretBase32, expiresAt));
+            new BeginEnrollMfaResponse(enrollmentId, provisioningUri, secretBase32, expiresAt)
+        );
     }
 }

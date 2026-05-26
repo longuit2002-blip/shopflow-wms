@@ -18,7 +18,9 @@ public sealed class SmtpResponseCodeMapperTests
         var (code, message) = mapper.Map(ex);
 
         code.Should().Be("mailer.transient.smtp_4xx");
-        message.Should().Contain("Service not available", "the mailer message should pass through unchanged");
+        message
+            .Should()
+            .Contain("Service not available", "the mailer message should pass through unchanged");
     }
 
     [Fact]
@@ -39,10 +41,7 @@ public sealed class SmtpResponseCodeMapperTests
     [Fact]
     public void Map_PerProviderOverride_TakesPrecedenceOver4xxDefault()
     {
-        var overrides = new Dictionary<int, string>
-        {
-            [552] = "mailer.transient.quota_exceeded",
-        };
+        var overrides = new Dictionary<int, string> { [552] = "mailer.transient.quota_exceeded" };
         var mapper = new SmtpResponseCodeMapper(overrides);
         var ex = new SmtpCommandException(
             SmtpErrorCode.UnexpectedStatusCode,

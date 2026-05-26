@@ -42,9 +42,7 @@ public class ModuleMigrationRegistryTests
                 new ModuleMigrationDescriptor("FakeAgain", typeof(FakeDbContext), "FakeAssembly")
             );
 
-        act.Should()
-            .Throw<InvalidOperationException>()
-            .WithMessage("*already registered*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*already registered*");
     }
 
     [Fact]
@@ -65,8 +63,7 @@ public class ModuleMigrationRegistryTests
     [Fact]
     public void Descriptor_rejects_non_dbcontext_type()
     {
-        var act = () =>
-            new ModuleMigrationDescriptor("Fake", typeof(string), "FakeAssembly");
+        var act = () => new ModuleMigrationDescriptor("Fake", typeof(string), "FakeAssembly");
 
         act.Should().Throw<ArgumentException>().WithMessage("*not a DbContext*");
     }
@@ -74,8 +71,7 @@ public class ModuleMigrationRegistryTests
     [Fact]
     public void Descriptor_rejects_blank_assembly()
     {
-        var act = () =>
-            new ModuleMigrationDescriptor("Fake", typeof(FakeDbContext), "   ");
+        var act = () => new ModuleMigrationDescriptor("Fake", typeof(FakeDbContext), "   ");
 
         act.Should().Throw<ArgumentException>();
     }

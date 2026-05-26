@@ -45,10 +45,11 @@ public sealed partial class InventoryIndexAudit : Migration
         ArgumentNullException.ThrowIfNull(mb);
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_stock_adjustments_created_at "
-            + "ON stock_adjustments (created_at DESC);");
+                + "ON stock_adjustments (created_at DESC);"
+        );
         mb.Sql(
-            "CREATE INDEX IF NOT EXISTS ix_stock_item_bins_bin_id "
-            + "ON stock_item_bins (bin_id);");
+            "CREATE INDEX IF NOT EXISTS ix_stock_item_bins_bin_id " + "ON stock_item_bins (bin_id);"
+        );
     }
 
     protected override void Down(MigrationBuilder mb)

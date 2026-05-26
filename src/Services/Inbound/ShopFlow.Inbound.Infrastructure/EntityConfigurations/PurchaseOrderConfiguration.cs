@@ -24,7 +24,10 @@ internal sealed class PurchaseOrderConfiguration : IEntityTypeConfiguration<Purc
             .HasMaxLength(128)
             .IsRequired();
 
-        builder.Property(p => p.ExpectedDeliveryAt).HasColumnName("expected_delivery_at").IsRequired();
+        builder
+            .Property(p => p.ExpectedDeliveryAt)
+            .HasColumnName("expected_delivery_at")
+            .IsRequired();
 
         builder
             .Property(p => p.Status)

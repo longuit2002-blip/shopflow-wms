@@ -133,8 +133,7 @@ public sealed class SagaTransitionsEndToEndSignalRTests : IAsyncLifetime
 
         services.AddMassTransitTestHarness(cfg =>
         {
-            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .InMemoryRepository();
+            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>().InMemoryRepository();
 
             // The U6 relay consumer registered alongside the saga so a
             // single in-memory bus carries both the saga's events and the

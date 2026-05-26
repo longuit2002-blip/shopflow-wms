@@ -23,17 +23,23 @@ public sealed class CoalescingBufferTests
 
         for (var i = 0; i < 10; i++)
         {
-            buffer.Upsert(key, new CoalesceEntry(
-                AvailableToSell: 10 - i,
-                ObservedAt: BaseTime.AddMilliseconds(i),
-                IsFlashSale: false));
+            buffer.Upsert(
+                key,
+                new CoalesceEntry(
+                    AvailableToSell: 10 - i,
+                    ObservedAt: BaseTime.AddMilliseconds(i),
+                    IsFlashSale: false
+                )
+            );
         }
 
         var snapshot = buffer.SnapshotAndClear();
 
         snapshot.Should().HaveCount(1);
         snapshot[0].Key.Should().Be(key);
-        snapshot[0].Value.AvailableToSell.Should().Be(1, "the 10th write had the latest ObservedAt and lowest stock");
+        snapshot[0]
+            .Value.AvailableToSell.Should()
+            .Be(1, "the 10th write had the latest ObservedAt and lowest stock");
         buffer.Count.Should().Be(0);
     }
 
@@ -49,9 +55,12 @@ public sealed class CoalescingBufferTests
         var snapshot = buffer.SnapshotAndClear();
 
         snapshot.Should().HaveCount(1);
-        snapshot[0].Value.AvailableToSell.Should().Be(
-            5,
-            "last-by-write loses to last-by-ObservedAt — the older event arriving second must not regress published stock");
+        snapshot[0]
+            .Value.AvailableToSell.Should()
+            .Be(
+                5,
+                "last-by-write loses to last-by-ObservedAt — the older event arriving second must not regress published stock"
+            );
         snapshot[0].Value.ObservedAt.Should().Be(BaseTime.AddSeconds(5));
     }
 
@@ -89,20 +98,26 @@ public sealed class CoalescingBufferTests
         const int writesPerTask = 100;
         const int uniqueSkus = 5;
 
-        var tasks = Enumerable.Range(0, taskCount).Select(taskIdx => Task.Run(() =>
-        {
-            for (var i = 0; i < writesPerTask; i++)
-            {
-                var key = new CoalesceKey(
-                    TenantA,
-                    $"SKU-{i % uniqueSkus}",
-                    "shopee");
-                buffer.Upsert(key, new CoalesceEntry(
-                    AvailableToSell: taskIdx * writesPerTask + i,
-                    ObservedAt: BaseTime.AddMilliseconds(taskIdx * writesPerTask + i),
-                    IsFlashSale: false));
-            }
-        })).ToArray();
+        var tasks = Enumerable
+            .Range(0, taskCount)
+            .Select(taskIdx =>
+                Task.Run(() =>
+                {
+                    for (var i = 0; i < writesPerTask; i++)
+                    {
+                        var key = new CoalesceKey(TenantA, $"SKU-{i % uniqueSkus}", "shopee");
+                        buffer.Upsert(
+                            key,
+                            new CoalesceEntry(
+                                AvailableToSell: taskIdx * writesPerTask + i,
+                                ObservedAt: BaseTime.AddMilliseconds(taskIdx * writesPerTask + i),
+                                IsFlashSale: false
+                            )
+                        );
+                    }
+                })
+            )
+            .ToArray();
 
         await Task.WhenAll(tasks);
 
@@ -126,10 +141,14 @@ public sealed class CoalescingBufferTests
     public void SnapshotAndClear_RemovesAllEntries()
     {
         var buffer = new CoalescingBuffer();
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-X", "shopee"),
-            new CoalesceEntry(1, BaseTime, false));
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-Y", "shopee"),
-            new CoalesceEntry(2, BaseTime, false));
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-X", "shopee"),
+            new CoalesceEntry(1, BaseTime, false)
+        );
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-Y", "shopee"),
+            new CoalesceEntry(2, BaseTime, false)
+        );
 
         buffer.SnapshotAndClear();
 

@@ -24,7 +24,8 @@ public sealed partial class AddBinsAndZonesAndInboundDedup : Migration
             name: "zones",
             columns: table => new
             {
-                zone_id = table.Column<long>(nullable: false)
+                zone_id = table
+                    .Column<long>(nullable: false)
                     .Annotation(
                         "Npgsql:ValueGenerationStrategy",
                         NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
@@ -39,7 +40,8 @@ public sealed partial class AddBinsAndZonesAndInboundDedup : Migration
             name: "bins",
             columns: table => new
             {
-                bin_id = table.Column<long>(nullable: false)
+                bin_id = table
+                    .Column<long>(nullable: false)
                     .Annotation(
                         "Npgsql:ValueGenerationStrategy",
                         NpgsqlValueGenerationStrategy.IdentityByDefaultColumn
@@ -64,11 +66,7 @@ public sealed partial class AddBinsAndZonesAndInboundDedup : Migration
 
         mb.CreateIndex(name: "ix_bins_zone_id", table: "bins", column: "zone_id");
 
-        mb.AddColumn<long>(
-            name: "home_zone_id",
-            table: "stock_items",
-            nullable: true
-        );
+        mb.AddColumn<long>(name: "home_zone_id", table: "stock_items", nullable: true);
 
         mb.AddForeignKey(
             name: "fk_stock_items_zones",

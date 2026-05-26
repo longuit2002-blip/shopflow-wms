@@ -33,8 +33,7 @@ public static class PermissionPolicyExtensions
         var builder = services.AddAuthorizationBuilder();
         foreach (var key in PermissionKeys.All)
         {
-            builder.AddPolicy(key, p =>
-                p.RequireAuthenticatedUser().RequireClaim("perm", key));
+            builder.AddPolicy(key, p => p.RequireAuthenticatedUser().RequireClaim("perm", key));
         }
         return services;
     }

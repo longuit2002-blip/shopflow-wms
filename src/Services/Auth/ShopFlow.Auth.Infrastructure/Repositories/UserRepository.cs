@@ -41,8 +41,7 @@ public sealed class UserRepository : IUserRepository
         ArgumentException.ThrowIfNullOrWhiteSpace(email);
         var normalized = email.Trim().ToLowerInvariant();
         return await _db
-            .Users
-            .AsTracking()
+            .Users.AsTracking()
             .FirstOrDefaultAsync(u => u.Email == normalized, ct)
             .ConfigureAwait(false);
     }
@@ -50,8 +49,7 @@ public sealed class UserRepository : IUserRepository
     public async Task<User?> GetByIdAsync(Guid userId, CancellationToken ct)
     {
         return await _db
-            .Users
-            .AsTracking()
+            .Users.AsTracking()
             .FirstOrDefaultAsync(u => u.Id == userId, ct)
             .ConfigureAwait(false);
     }
@@ -68,7 +66,8 @@ public sealed class UserRepository : IUserRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pg
-                && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
         {
             // Detach the conflicting entity so the DbContext stays
             // usable for the caller's follow-up path (e.g., the admin
@@ -77,7 +76,8 @@ public sealed class UserRepository : IUserRepository
             _db.Entry(user).State = EntityState.Detached;
             return Result<User>.Failure(
                 $"A user with email '{user.Email}' already exists in this tenant.",
-                "auth.email_in_use");
+                "auth.email_in_use"
+            );
         }
     }
 
@@ -102,8 +102,7 @@ public sealed class UserRepository : IUserRepository
             throw new ArgumentOutOfRangeException(nameof(pageSize), "pageSize must be positive.");
         }
         return await _db
-            .Users
-            .AsNoTracking()
+            .Users.AsNoTracking()
             .OrderByDescending(u => u.CreatedAt)
             .ThenByDescending(u => u.Id)
             .Skip((page - 1) * pageSize)
@@ -120,8 +119,7 @@ public sealed class UserRepository : IUserRepository
         // is intentional — Sprint-9 Notification consumers don't mutate
         // the row but other call sites may (e.g. fan-out audit emit).
         return await _db
-            .Users
-            .AsNoTracking()
+            .Users.AsNoTracking()
             .Where(u => u.Role == role && u.IsActive)
             .OrderBy(u => u.CreatedAt)
             .ToListAsync(ct)

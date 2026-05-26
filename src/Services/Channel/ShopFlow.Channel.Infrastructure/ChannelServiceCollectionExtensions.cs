@@ -79,14 +79,18 @@ public static class ChannelServiceCollectionExtensions
         // Sprint-3-redux MockShippingProvider pattern. The Shopee adapter
         // body lands in Sprint-5; the pipeline is registered now so the
         // Sprint-5 swap is a one-method change.
-        services.AddSingleton(sp => new ResiliencePipelineBuilder()
-            .AddRetry(new RetryStrategyOptions
-            {
-                MaxRetryAttempts = 3,
-                Delay = TimeSpan.FromMilliseconds(200),
-                BackoffType = DelayBackoffType.Constant,
-            })
-            .Build());
+        services.AddSingleton(sp =>
+            new ResiliencePipelineBuilder()
+                .AddRetry(
+                    new RetryStrategyOptions
+                    {
+                        MaxRetryAttempts = 3,
+                        Delay = TimeSpan.FromMilliseconds(200),
+                        BackoffType = DelayBackoffType.Constant,
+                    }
+                )
+                .Build()
+        );
 
         services.AddHttpClient<ShopeeAdapter>(client =>
         {

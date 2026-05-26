@@ -13,7 +13,8 @@ public sealed record UpdateUserCommand(
     Guid UserId,
     UpdateUserOperation Operation,
     string? NewRole,
-    string TenantSlug) : IRequest<Result<UpdateUserResult>>;
+    string TenantSlug
+) : IRequest<Result<UpdateUserResult>>;
 
 /// <summary>
 /// Operation tag for <see cref="UpdateUserCommand"/>. The handler
@@ -33,6 +34,4 @@ public enum UpdateUserOperation
 /// temporary password (same one-time-display + OTel redaction
 /// discipline as <see cref="CreateUserResponse"/>).
 /// </summary>
-public sealed record UpdateUserResult(
-    Guid UserId,
-    ResetPasswordResponse? ResetPassword);
+public sealed record UpdateUserResult(Guid UserId, ResetPasswordResponse? ResetPassword);

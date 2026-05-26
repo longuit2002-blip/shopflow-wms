@@ -116,7 +116,10 @@ public sealed class InventoryTenantCollection : ICollectionFixture<InventoryTena
 /// One provisioned tenant: the catalog metadata plus the DbContext options
 /// already bound to that tenant's database.
 /// </summary>
-public sealed record ProvisionedTenant(TenantInfo Info, DbContextOptions<InventoryDbContext> Options)
+public sealed record ProvisionedTenant(
+    TenantInfo Info,
+    DbContextOptions<InventoryDbContext> Options
+)
 {
     public string ConnectionString => Info.DbConnectionString;
 

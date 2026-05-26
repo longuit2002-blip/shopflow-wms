@@ -13,8 +13,7 @@ namespace ShopFlow.Auth.UnitTests.Mfa;
 /// </summary>
 public sealed class OtpNetTotpProviderTests
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
 
     private static FakeTimeProvider Clock() => new(FixedNow);
 

@@ -55,7 +55,8 @@ public interface IOrderRepository
         OrderListFilter filter,
         int skip,
         int take,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Read the saga's <c>CurrentState</c> for one order. Returns

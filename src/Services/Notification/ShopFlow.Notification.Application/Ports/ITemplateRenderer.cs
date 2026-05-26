@@ -49,7 +49,9 @@ public sealed class TemplateRenderException : Exception
     public string MissingKey { get; }
 
     public TemplateRenderException(string missingKey)
-        : base($"template placeholder '{{{missingKey}}}' has no matching value in the render dictionary.")
+        : base(
+            $"template placeholder '{{{missingKey}}}' has no matching value in the render dictionary."
+        )
     {
         MissingKey = missingKey;
     }

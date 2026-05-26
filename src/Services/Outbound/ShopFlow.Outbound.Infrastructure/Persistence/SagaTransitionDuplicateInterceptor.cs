@@ -60,14 +60,11 @@ public sealed class SagaTransitionDuplicateInterceptor : SaveChangesInterceptor
     /// <see cref="SaveChangesFailedAsync"/> branch can match against the
     /// exact name Postgres reports.
     /// </summary>
-    public const string UniqueConstraintName =
-        "uq_outbound_saga_transitions_order_occurred_state";
+    public const string UniqueConstraintName = "uq_outbound_saga_transitions_order_occurred_state";
 
     private readonly ILogger<SagaTransitionDuplicateInterceptor> _logger;
 
-    public SagaTransitionDuplicateInterceptor(
-        ILogger<SagaTransitionDuplicateInterceptor> logger
-    )
+    public SagaTransitionDuplicateInterceptor(ILogger<SagaTransitionDuplicateInterceptor> logger)
     {
         _logger = logger;
     }

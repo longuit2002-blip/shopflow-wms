@@ -23,10 +23,7 @@ public sealed class NotificationLogRepository : INotificationLogRepository
         _db = db;
     }
 
-    public async Task<bool> TryInsertSuccessAsync(
-        NotificationLogEntry entry,
-        CancellationToken ct
-    )
+    public async Task<bool> TryInsertSuccessAsync(NotificationLogEntry entry, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(entry);
 
@@ -45,11 +42,8 @@ public sealed class NotificationLogRepository : INotificationLogRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pex
-                && string.Equals(
-                    pex.SqlState,
-                    PostgresUniqueViolation,
-                    StringComparison.Ordinal
-                ))
+                && string.Equals(pex.SqlState, PostgresUniqueViolation, StringComparison.Ordinal)
+            )
         {
             // Detach the failed row from the change tracker so future
             // SaveChanges on the same DbContext don't replay the
@@ -59,10 +53,7 @@ public sealed class NotificationLogRepository : INotificationLogRepository
         }
     }
 
-    public async Task InsertDeadLetterAsync(
-        NotificationDeadLetterEntry entry,
-        CancellationToken ct
-    )
+    public async Task InsertDeadLetterAsync(NotificationDeadLetterEntry entry, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(entry);
 

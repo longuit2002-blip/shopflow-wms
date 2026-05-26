@@ -40,11 +40,9 @@ public sealed class OwnerSeedHappyPathTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private OwnerSeed BuildSeed() =>
-        new(new PasswordGenerator(), NullLogger<OwnerSeed>.Instance);
+    private OwnerSeed BuildSeed() => new(new PasswordGenerator(), NullLogger<OwnerSeed>.Instance);
 
-    private static Argon2idPasswordHasher BuildHasher() =>
-        new(Options.Create(new Argon2Options()));
+    private static Argon2idPasswordHasher BuildHasher() => new(Options.Create(new Argon2Options()));
 
     [Fact]
     public async Task SeedAsync_FreshTenant_InsertsOwnerRow_VerifiesViaArgon2()
@@ -53,7 +51,11 @@ public sealed class OwnerSeedHappyPathTests : IAsyncLifetime
         const string email = "owner@happy.local";
 
         var result = await seed.SeedAsync(
-            _tenant.ConnectionString, email, explicitPassword: null, CancellationToken.None);
+            _tenant.ConnectionString,
+            email,
+            explicitPassword: null,
+            CancellationToken.None
+        );
 
         // Outcome shape.
         result.Outcome.Should().Be(OwnerSeedOutcome.Seeded);
@@ -67,8 +69,7 @@ public sealed class OwnerSeedHappyPathTests : IAsyncLifetime
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText =
-            "SELECT email, role, is_active, password_hash "
-            + "FROM users WHERE email = @e;";
+            "SELECT email, role, is_active, password_hash " + "FROM users WHERE email = @e;";
         cmd.Parameters.AddWithValue("e", email);
 
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -77,17 +78,24 @@ public sealed class OwnerSeedHappyPathTests : IAsyncLifetime
         reader.GetString(1).Should().Be("Owner");
         reader.GetBoolean(2).Should().BeTrue();
         var phcHash = reader.GetString(3);
-        phcHash.Should().StartWith("$argon2id$v=19$", because: "OwnerSeed delegates to Argon2idPasswordHasher");
+        phcHash
+            .Should()
+            .StartWith("$argon2id$v=19$", because: "OwnerSeed delegates to Argon2idPasswordHasher");
 
         // Argon2 round-trip — the PHC stored in the DB verifies against
         // the plaintext the seed echoed via OwnerSeedResult.
         var hasher = BuildHasher();
-        hasher.Verify(result.GeneratedPassword, phcHash)
+        hasher
+            .Verify(result.GeneratedPassword, phcHash)
             .Should()
-            .BeTrue(because: "the seeded user must be able to log in with the echoed temp password");
+            .BeTrue(
+                because: "the seeded user must be able to log in with the echoed temp password"
+            );
 
         // Single-row check.
-        (await reader.ReadAsync()).Should().BeFalse(because: "exactly one row");
+        (await reader.ReadAsync())
+            .Should()
+            .BeFalse(because: "exactly one row");
     }
 
     [Fact]
@@ -97,13 +105,23 @@ public sealed class OwnerSeedHappyPathTests : IAsyncLifetime
         const string email = "owner@idempotent.local";
 
         var first = await seed.SeedAsync(
-            _tenant.ConnectionString, email, explicitPassword: null, CancellationToken.None);
+            _tenant.ConnectionString,
+            email,
+            explicitPassword: null,
+            CancellationToken.None
+        );
         first.Outcome.Should().Be(OwnerSeedOutcome.Seeded);
 
         var second = await seed.SeedAsync(
-            _tenant.ConnectionString, email, explicitPassword: null, CancellationToken.None);
+            _tenant.ConnectionString,
+            email,
+            explicitPassword: null,
+            CancellationToken.None
+        );
         second.Outcome.Should().Be(OwnerSeedOutcome.AlreadySeeded);
-        second.GeneratedPassword.Should().BeNull(because: "no new password generated on idempotent skip");
+        second
+            .GeneratedPassword.Should()
+            .BeNull(because: "no new password generated on idempotent skip");
 
         // Single-row count — no duplicate INSERTed.
         await using var conn = new NpgsqlConnection(_tenant.ConnectionString);
@@ -123,11 +141,18 @@ public sealed class OwnerSeedHappyPathTests : IAsyncLifetime
         const string explicitPwd = "MyExplicitPassword123!";
 
         var result = await seed.SeedAsync(
-            _tenant.ConnectionString, email, explicitPassword: explicitPwd, CancellationToken.None);
+            _tenant.ConnectionString,
+            email,
+            explicitPassword: explicitPwd,
+            CancellationToken.None
+        );
 
         result.Outcome.Should().Be(OwnerSeedOutcome.Seeded);
-        result.GeneratedPassword.Should().BeNull(
-            because: "caller-supplied password must NOT echo via OwnerSeedResult.GeneratedPassword");
+        result
+            .GeneratedPassword.Should()
+            .BeNull(
+                because: "caller-supplied password must NOT echo via OwnerSeedResult.GeneratedPassword"
+            );
 
         await using var conn = new NpgsqlConnection(_tenant.ConnectionString);
         await conn.OpenAsync();
@@ -137,10 +162,12 @@ public sealed class OwnerSeedHappyPathTests : IAsyncLifetime
         var phcHash = (string)(await cmd.ExecuteScalarAsync())!;
 
         var hasher = BuildHasher();
-        hasher.Verify(explicitPwd, phcHash)
+        hasher
+            .Verify(explicitPwd, phcHash)
             .Should()
             .BeTrue(because: "the explicit password the caller passed must round-trip");
-        hasher.Verify("wrong-password", phcHash)
+        hasher
+            .Verify("wrong-password", phcHash)
             .Should()
             .BeFalse(because: "the hash is bound to the explicit password, not the wrong one");
     }

@@ -33,16 +33,17 @@ public sealed class CreateSkuCommandHandler(IStockItemRepository repository)
         {
             return Result.Failure(
                 "initialAvailable must be ≥ 0.",
-                "stock.initial_available_negative");
+                "stock.initial_available_negative"
+            );
         }
 
         var sku = Sku.Create(request.Sku);
-        var existing = await this.repository.FindBySkuAsync(sku, cancellationToken).ConfigureAwait(false);
+        var existing = await this
+            .repository.FindBySkuAsync(sku, cancellationToken)
+            .ConfigureAwait(false);
         if (existing is not null)
         {
-            return Result.Failure(
-                $"sku '{sku.Value}' already exists.",
-                "stock.sku_already_exists");
+            return Result.Failure($"sku '{sku.Value}' already exists.", "stock.sku_already_exists");
         }
 
         var item = StockItem.Create(sku, Quantity.From(request.InitialAvailable));

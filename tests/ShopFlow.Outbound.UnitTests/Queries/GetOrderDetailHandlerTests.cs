@@ -14,11 +14,13 @@ public sealed class GetOrderDetailHandlerTests
 {
     private static Order BuildOrder(
         string externalId = "SHOPEE_001",
-        params (string Sku, int Qty, int? Weight)[] lines)
+        params (string Sku, int Qty, int? Weight)[] lines
+    )
     {
-        var lineList = lines.Length == 0
-            ? new[] { ("SKU-1", 2, (int?)null) }
-            : lines.Select(l => (l.Sku, l.Qty, l.Weight)).ToArray();
+        var lineList =
+            lines.Length == 0
+                ? new[] { ("SKU-1", 2, (int?)null) }
+                : lines.Select(l => (l.Sku, l.Qty, l.Weight)).ToArray();
         var result = Order.Create(externalId, "STANDARD", lineList);
         result.IsSuccess.Should().BeTrue();
         return result.Value!;
@@ -27,14 +29,12 @@ public sealed class GetOrderDetailHandlerTests
     [Fact]
     public async Task Handle_ExistingOrder_ReturnsDetail_WithLinesAndSagaState()
     {
-        var order = BuildOrder("SHOPEE_42",
-            ("SKU-1", 1, 100),
-            ("SKU-2", 3, 200),
-            ("SKU-3", 2, 50));
+        var order = BuildOrder("SHOPEE_42", ("SKU-1", 1, 100), ("SKU-2", 3, 200), ("SKU-3", 2, 50));
 
         var repo = Substitute.For<IOrderRepository>();
         repo.FindByIdAsync(order.Id, Arg.Any<CancellationToken>()).Returns(order);
-        repo.GetCurrentSagaStateAsync(order.Id, Arg.Any<CancellationToken>()).Returns("AwaitingPick");
+        repo.GetCurrentSagaStateAsync(order.Id, Arg.Any<CancellationToken>())
+            .Returns("AwaitingPick");
 
         var sut = new GetOrderDetailHandler(repo);
 
@@ -49,7 +49,10 @@ public sealed class GetOrderDetailHandlerTests
         detail.Status.Should().Be("Created");
         detail.CurrentSagaState.Should().Be("AwaitingPick");
         detail.Lines.Should().HaveCount(3);
-        detail.Lines.Select(l => l.Sku).Should().BeEquivalentTo(new[] { "SKU-1", "SKU-2", "SKU-3" });
+        detail
+            .Lines.Select(l => l.Sku)
+            .Should()
+            .BeEquivalentTo(new[] { "SKU-1", "SKU-2", "SKU-3" });
         detail.Lines.Single(l => l.Sku == "SKU-2").Qty.Should().Be(3);
         detail.Lines.Single(l => l.Sku == "SKU-2").ExpectedWeight.Should().Be(200);
     }
@@ -68,7 +71,8 @@ public sealed class GetOrderDetailHandlerTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("order.not_found");
         result.Error.Should().Contain(missingId.ToString());
-        await repo.DidNotReceive().GetCurrentSagaStateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await repo.DidNotReceive()
+            .GetCurrentSagaStateAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -77,7 +81,8 @@ public sealed class GetOrderDetailHandlerTests
         var order = BuildOrder("LAZADA_77");
         var repo = Substitute.For<IOrderRepository>();
         repo.FindByIdAsync(order.Id, Arg.Any<CancellationToken>()).Returns(order);
-        repo.GetCurrentSagaStateAsync(order.Id, Arg.Any<CancellationToken>()).Returns((string?)null);
+        repo.GetCurrentSagaStateAsync(order.Id, Arg.Any<CancellationToken>())
+            .Returns((string?)null);
 
         var sut = new GetOrderDetailHandler(repo);
 

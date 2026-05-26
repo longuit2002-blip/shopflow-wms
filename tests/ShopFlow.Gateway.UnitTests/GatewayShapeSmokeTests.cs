@@ -16,13 +16,7 @@ public sealed class GatewayShapeSmokeTests
         // three or four levels up depending on test runner cwd, so the
         // walk-up keeps the assertion location-stable.
         var root = ResolveRepoRoot();
-        var path = Path.Combine(
-            root,
-            "src",
-            "ApiGateway",
-            "ShopFlow.Gateway",
-            "appsettings.json"
-        );
+        var path = Path.Combine(root, "src", "ApiGateway", "ShopFlow.Gateway", "appsettings.json");
         File.Exists(path).Should().BeTrue($"expected {path} to exist");
 
         var json = File.ReadAllText(path);

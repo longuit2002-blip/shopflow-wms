@@ -64,7 +64,11 @@ public sealed class ConfirmStockConsumerTests : IAsyncLifetime
     private async Task SeedMultiLineReservationAsync(Guid orderId)
     {
         await using var db = new InventoryDbContext(_tenant.Options);
-        var repo = new ReservationRepository(db, TimeProvider.System, _tenant.BuildRequestContext());
+        var repo = new ReservationRepository(
+            db,
+            TimeProvider.System,
+            _tenant.BuildRequestContext()
+        );
         var lines = new[]
         {
             new LineReservation(Sku.Create("SKU-A"), "L1", Quantity.From(8)),
@@ -93,7 +97,8 @@ public sealed class ConfirmStockConsumerTests : IAsyncLifetime
         await harness.GetConsumerHarness<ConfirmStockConsumer>().Consumed.Any<ConfirmStockV1>();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var ledger = await verify.Reservations.AsNoTracking()
+        var ledger = await verify
+            .Reservations.AsNoTracking()
             .Where(r => r.OrderId == orderId.ToString())
             .ToListAsync();
         ledger.Should().HaveCount(2);

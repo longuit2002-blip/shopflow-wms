@@ -20,10 +20,7 @@ internal sealed class TotpSecretConfiguration : IEntityTypeConfiguration<TotpSec
 
         builder.HasKey(s => s.UserId).HasName("pk_user_totp_secrets");
 
-        builder
-            .Property(s => s.UserId)
-            .HasColumnName("user_id")
-            .IsRequired();
+        builder.Property(s => s.UserId).HasColumnName("user_id").IsRequired();
 
         builder
             .Property(s => s.EncryptedSecret)
@@ -37,17 +34,10 @@ internal sealed class TotpSecretConfiguration : IEntityTypeConfiguration<TotpSec
             .HasColumnType("smallint")
             .IsRequired();
 
-        builder
-            .Property(s => s.LastUsedTimeStep)
-            .HasColumnName("last_used_step");
+        builder.Property(s => s.LastUsedTimeStep).HasColumnName("last_used_step");
 
-        builder
-            .Property(s => s.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
+        builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
 
-        builder
-            .Property(s => s.UpdatedAt)
-            .HasColumnName("updated_at");
+        builder.Property(s => s.UpdatedAt).HasColumnName("updated_at");
     }
 }

@@ -18,4 +18,5 @@ public sealed record UserLockedEvent(
     Guid UserId,
     int FailedLoginCount,
     DateTime LockedUntil,
-    DateTime OccurredAt) : IDomainEvent;
+    DateTime OccurredAt
+) : IDomainEvent;

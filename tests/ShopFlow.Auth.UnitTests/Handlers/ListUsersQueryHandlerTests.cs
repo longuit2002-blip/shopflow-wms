@@ -21,11 +21,11 @@ public sealed class ListUsersQueryHandlerTests
     {
         var u1 = User.Create("alice@example.com", ValidHash, UserRole.Owner);
         var u2 = User.Create("bob@example.com", ValidHash, UserRole.Picker);
-        _users.ListAsync(1, 25, Arg.Any<CancellationToken>())
+        _users
+            .ListAsync(1, 25, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<User>>(new[] { u1, u2 }));
 
-        var result = await BuildHandler().Handle(
-            new ListUsersQuery(1, 25), CancellationToken.None);
+        var result = await BuildHandler().Handle(new ListUsersQuery(1, 25), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Users.Should().HaveCount(2);
@@ -40,11 +40,11 @@ public sealed class ListUsersQueryHandlerTests
     [Fact]
     public async Task EmptyResult_ReturnsEmptyUsersList()
     {
-        _users.ListAsync(1, 25, Arg.Any<CancellationToken>())
+        _users
+            .ListAsync(1, 25, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<User>>(Array.Empty<User>()));
 
-        var result = await BuildHandler().Handle(
-            new ListUsersQuery(1, 25), CancellationToken.None);
+        var result = await BuildHandler().Handle(new ListUsersQuery(1, 25), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Users.Should().BeEmpty();
@@ -53,11 +53,11 @@ public sealed class ListUsersQueryHandlerTests
     [Fact]
     public async Task NonPositivePage_ClampsToOne()
     {
-        _users.ListAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _users
+            .ListAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<User>>(Array.Empty<User>()));
 
-        var result = await BuildHandler().Handle(
-            new ListUsersQuery(0, 25), CancellationToken.None);
+        var result = await BuildHandler().Handle(new ListUsersQuery(0, 25), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Page.Should().Be(1);
@@ -67,11 +67,12 @@ public sealed class ListUsersQueryHandlerTests
     [Fact]
     public async Task OversizePageSize_ClampsToMax()
     {
-        _users.ListAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+        _users
+            .ListAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<IReadOnlyList<User>>(Array.Empty<User>()));
 
-        var result = await BuildHandler().Handle(
-            new ListUsersQuery(1, 500), CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(new ListUsersQuery(1, 500), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.PageSize.Should().Be(100);

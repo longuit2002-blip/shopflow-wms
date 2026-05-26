@@ -74,7 +74,12 @@ public sealed class PutAwaySuggestionTests : IAsyncLifetime
         await using var db = new InventoryDbContext(_tenant.Options);
         var svc = new PutAwaySuggestionService(db);
 
-        var top = await svc.GetTopCandidatesAsync("SKU-A", requestedQty: 10, topK: 3, ct: CancellationToken.None);
+        var top = await svc.GetTopCandidatesAsync(
+            "SKU-A",
+            requestedQty: 10,
+            topK: 3,
+            ct: CancellationToken.None
+        );
 
         top.Should().HaveCount(3);
         top[0].BinName.Should().Be("B-B"); // avail 80

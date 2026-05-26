@@ -30,10 +30,7 @@ public sealed class ShopeeWebhookParser
     {
         if (body.IsEmpty)
         {
-            return Result<WebhookEnvelope>.Failure(
-                "webhook body is empty.",
-                "shopee.body_empty"
-            );
+            return Result<WebhookEnvelope>.Failure("webhook body is empty.", "shopee.body_empty");
         }
 
         try

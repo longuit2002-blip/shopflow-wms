@@ -152,7 +152,11 @@ public sealed class MultiplexedOutboxDispatcher<TContext> : BackgroundService
                     );
 
                 var payload =
-                    JsonSerializer.Deserialize(message.Payload, eventType, OutboxJsonOptions.Default)
+                    JsonSerializer.Deserialize(
+                        message.Payload,
+                        eventType,
+                        OutboxJsonOptions.Default
+                    )
                     ?? throw new InvalidOperationException(
                         $"Outbox row {message.Id} payload deserialised to null for type '{eventType}'."
                     );
@@ -233,7 +237,11 @@ public sealed class MultiplexedOutboxDispatcher<TContext> : BackgroundService
         for (var i = 0; i < name.Length; i++)
         {
             var c = name[i];
-            if (i > 0 && char.IsUpper(c) && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1])))
+            if (
+                i > 0
+                && char.IsUpper(c)
+                && (char.IsLower(name[i - 1]) || char.IsDigit(name[i - 1]))
+            )
             {
                 sb.Append('-');
             }

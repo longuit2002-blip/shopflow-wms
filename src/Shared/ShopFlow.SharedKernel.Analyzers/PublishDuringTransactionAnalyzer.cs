@@ -98,12 +98,7 @@ public sealed class PublishDuringTransactionAnalyzer : DiagnosticAnalyzer
 
         var firstArgument = invocation.ArgumentList.Arguments.FirstOrDefault()?.ToString() ?? "?";
         context.ReportDiagnostic(
-            Diagnostic.Create(
-                Rule,
-                invocation.GetLocation(),
-                firstArgument,
-                enclosingTypeName
-            )
+            Diagnostic.Create(Rule, invocation.GetLocation(), firstArgument, enclosingTypeName)
         );
     }
 
@@ -127,7 +122,10 @@ public sealed class PublishDuringTransactionAnalyzer : DiagnosticAnalyzer
         return false;
     }
 
-    private static bool IsInForbiddenLayer(SyntaxNodeAnalysisContext context, out string enclosingTypeName)
+    private static bool IsInForbiddenLayer(
+        SyntaxNodeAnalysisContext context,
+        out string enclosingTypeName
+    )
     {
         enclosingTypeName = string.Empty;
 

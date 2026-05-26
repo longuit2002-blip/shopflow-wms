@@ -83,11 +83,7 @@ public sealed class Inventory403Tests
     public async Task UpdateSku_RejectsJwtMissingInventorySkusWrite_With403()
     {
         using var client = BuildClientNarrowedFor(PermissionKeys.InventorySkusWrite);
-        var body = new
-        {
-            name = "Test SKU",
-            isFlashSale = false,
-        };
+        var body = new { name = "Test SKU", isFlashSale = false };
         var response = await client.PutAsJsonAsync("/api/v1/inventory/skus/SKU-A", body);
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -150,8 +146,8 @@ public sealed class Inventory403Tests
     /// </summary>
     private HttpClient BuildClientNarrowedFor(string omittedKey)
     {
-        var includeKeys = PermissionKeys.All
-            .Where(k => !string.Equals(k, omittedKey, StringComparison.Ordinal))
+        var includeKeys = PermissionKeys
+            .All.Where(k => !string.Equals(k, omittedKey, StringComparison.Ordinal))
             .ToArray();
         var jwt = _fixture.JwtBuilder.Build(
             tenantSlug: InventoryAuthorizationFixture.TenantSlug,

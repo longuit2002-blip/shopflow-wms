@@ -8,10 +8,10 @@ using ShopFlow.Auth.Infrastructure;
 using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
 using ShopFlow.Migrate;
-using ShopFlow.Notification.Infrastructure;
 using ShopFlow.Migrate.Commands;
 using ShopFlow.Migrate.Modules;
 using ShopFlow.Migrate.Provisioning;
+using ShopFlow.Notification.Infrastructure;
 using ShopFlow.SharedKernel.Application.Ports;
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -78,7 +78,8 @@ static IHost BuildHost(string[] args)
 {
     var builder = Host.CreateApplicationBuilder(args);
 
-    var optionsRoot = builder.Configuration.Get<MigrateOptionsRoot>()
+    var optionsRoot =
+        builder.Configuration.Get<MigrateOptionsRoot>()
         ?? throw new InvalidOperationException(
             "appsettings.json is missing or malformed; expected Postgres, ControlPlane, Migrate sections."
         );
@@ -87,19 +88,23 @@ static IHost BuildHost(string[] args)
     builder.Services.AddSingleton(options);
     builder.Services.AddSingleton<IModuleMigrationRegistry>(_ =>
         new ModuleMigrationRegistry()
-            .Register(new ModuleMigrationDescriptor(
-                moduleName: "Inventory",
-                dbContextType: typeof(InventoryDbContext),
-                migrationsAssemblyName: typeof(InventoryDbContext).Assembly.GetName().Name!
-            ))
+            .Register(
+                new ModuleMigrationDescriptor(
+                    moduleName: "Inventory",
+                    dbContextType: typeof(InventoryDbContext),
+                    migrationsAssemblyName: typeof(InventoryDbContext).Assembly.GetName().Name!
+                )
+            )
             // Sprint-8 U10 — Auth migrations apply to every tenant DB
             // alongside Inventory. The AddUsers migration creates the
             // users table + lower(email) UNIQUE + chk_users_role.
-            .Register(new ModuleMigrationDescriptor(
-                moduleName: "Auth",
-                dbContextType: typeof(AuthDbContext),
-                migrationsAssemblyName: typeof(AuthDbContext).Assembly.GetName().Name!
-            ))
+            .Register(
+                new ModuleMigrationDescriptor(
+                    moduleName: "Auth",
+                    dbContextType: typeof(AuthDbContext),
+                    migrationsAssemblyName: typeof(AuthDbContext).Assembly.GetName().Name!
+                )
+            )
             // Sprint-9.5 U1 — Notification migrations apply to every
             // tenant DB alongside Inventory + Auth. The
             // InitialNotificationSchema migration creates the three
@@ -107,11 +112,13 @@ static IHost BuildHost(string[] args)
             // notification_dead_letter) + the KTD3 UNIQUE on
             // notification_log(source_event_id, recipient_email).
             // Closes Sprint-9 U12 deferral.
-            .Register(new ModuleMigrationDescriptor(
-                moduleName: "Notification",
-                dbContextType: typeof(NotificationDbContext),
-                migrationsAssemblyName: typeof(NotificationDbContext).Assembly.GetName().Name!
-            ))
+            .Register(
+                new ModuleMigrationDescriptor(
+                    moduleName: "Notification",
+                    dbContextType: typeof(NotificationDbContext),
+                    migrationsAssemblyName: typeof(NotificationDbContext).Assembly.GetName().Name!
+                )
+            )
     );
 
     builder.Services.AddDbContext<ControlPlaneDbContext>(o =>
@@ -140,11 +147,13 @@ static IHost BuildHost(string[] args)
     builder.Services.AddSingleton<RolePermissionsSeed>();
     builder.Services.AddMemoryCache(o => o.SizeLimit = 1000);
     var tenantTemplate = options.ControlPlane.TenantTemplate;
-    builder.Services.AddScoped<ITenantCatalog>(sp =>
-        new ShopFlow.ControlPlane.Infrastructure.Repositories.TenantCatalog(
+    builder.Services.AddScoped<ITenantCatalog>(
+        sp => new ShopFlow.ControlPlane.Infrastructure.Repositories.TenantCatalog(
             sp.GetRequiredService<ControlPlaneDbContext>(),
             sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
-            tenant => tenantTemplate.Replace("{db}", tenant.DbName, StringComparison.Ordinal)));
+            tenant => tenantTemplate.Replace("{db}", tenant.DbName, StringComparison.Ordinal)
+        )
+    );
 
     builder.Services.AddScoped<ICommand, ProvisionCommand>();
     builder.Services.AddScoped<ICommand, ApplyCommand>();

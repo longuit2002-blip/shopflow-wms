@@ -37,5 +37,6 @@ public interface IAuthAuditLogRepository
         string userAgent,
         string metadataJson,
         Guid correlationId,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 }

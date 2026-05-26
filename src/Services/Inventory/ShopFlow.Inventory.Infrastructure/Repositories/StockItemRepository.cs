@@ -35,8 +35,8 @@ public sealed class StockItemRepository : IStockItemRepository
     public async Task<StockItem?> FindBySkuAsync(Sku sku, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(sku);
-        return await _db.StockItems
-            .AsTracking()
+        return await _db
+            .StockItems.AsTracking()
             .FirstOrDefaultAsync(s => s.Sku == sku, ct)
             .ConfigureAwait(false);
     }
@@ -71,17 +71,14 @@ public sealed class StockItemRepository : IStockItemRepository
             return Result.Failure("delta must be non-zero.", "stock.adjustment_zero");
         }
 
-        var item = await _db.StockItems
-            .AsTracking()
+        var item = await _db
+            .StockItems.AsTracking()
             .FirstOrDefaultAsync(s => s.Sku == sku, ct)
             .ConfigureAwait(false);
 
         if (item is null)
         {
-            return Result.Failure(
-                $"sku not found: {sku.Value}",
-                "stock.sku_not_found"
-            );
+            return Result.Failure($"sku not found: {sku.Value}", "stock.sku_not_found");
         }
 
         var domainResult = item.Adjust(delta, reason);
@@ -91,9 +88,7 @@ public sealed class StockItemRepository : IStockItemRepository
         }
 
         var nowUtc = DateTime.UtcNow;
-        _db.StockAdjustments.Add(
-            StockAdjustment.Record(sku, delta, reason, note)
-        );
+        _db.StockAdjustments.Add(StockAdjustment.Record(sku, delta, reason, note));
 
         AppendOutbox(
             new StockLevelChangedV1(

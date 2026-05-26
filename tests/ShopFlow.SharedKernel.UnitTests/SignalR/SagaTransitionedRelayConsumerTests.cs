@@ -22,12 +22,8 @@ namespace ShopFlow.SharedKernel.UnitTests.SignalR;
 public sealed class SagaTransitionedRelayConsumerTests
 {
     private const string Slug = "yensaokhanhhoa";
-    private static readonly Guid TenantId = Guid.Parse(
-        "22222222-2222-2222-2222-222222222222"
-    );
-    private static readonly Guid OrderId = Guid.Parse(
-        "33333333-3333-3333-3333-333333333333"
-    );
+    private static readonly Guid TenantId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+    private static readonly Guid OrderId = Guid.Parse("33333333-3333-3333-3333-333333333333");
     private static readonly DateTime OccurredAt = new(2026, 5, 19, 11, 0, 0, DateTimeKind.Utc);
     private const string CorrelationId = "abc-correlation-from-saga";
 
@@ -74,9 +70,7 @@ public sealed class SagaTransitionedRelayConsumerTests
         var msg = NewEvent();
 
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupByIdAsync(TenantId, Arg.Any<CancellationToken>())
-            .Returns(SampleTenant());
+        catalog.LookupByIdAsync(TenantId, Arg.Any<CancellationToken>()).Returns(SampleTenant());
 
         var (hub, clients, groupProxy) = BuildHubContext();
 
@@ -84,9 +78,7 @@ public sealed class SagaTransitionedRelayConsumerTests
         services.AddSingleton(hub);
         services.AddSingleton(catalog);
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
-        services.AddMassTransitTestHarness(cfg =>
-            cfg.AddConsumer<SagaTransitionedRelayConsumer>()
-        );
+        services.AddMassTransitTestHarness(cfg => cfg.AddConsumer<SagaTransitionedRelayConsumer>());
 
         await using var sp = services.BuildServiceProvider(true);
         var harness = sp.GetRequiredService<ITestHarness>();
@@ -138,9 +130,7 @@ public sealed class SagaTransitionedRelayConsumerTests
         var msg = NewEvent();
 
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupByIdAsync(TenantId, Arg.Any<CancellationToken>())
-            .Returns((TenantInfo?)null);
+        catalog.LookupByIdAsync(TenantId, Arg.Any<CancellationToken>()).Returns((TenantInfo?)null);
 
         var (hub, clients, groupProxy) = BuildHubContext();
 
@@ -148,9 +138,7 @@ public sealed class SagaTransitionedRelayConsumerTests
         services.AddSingleton(hub);
         services.AddSingleton(catalog);
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
-        services.AddMassTransitTestHarness(cfg =>
-            cfg.AddConsumer<SagaTransitionedRelayConsumer>()
-        );
+        services.AddMassTransitTestHarness(cfg => cfg.AddConsumer<SagaTransitionedRelayConsumer>());
 
         await using var sp = services.BuildServiceProvider(true);
         var harness = sp.GetRequiredService<ITestHarness>();
@@ -166,11 +154,7 @@ public sealed class SagaTransitionedRelayConsumerTests
         clients.DidNotReceive().Group(Arg.Any<string>());
         await groupProxy
             .DidNotReceive()
-            .SendCoreAsync(
-                Arg.Any<string>(),
-                Arg.Any<object?[]>(),
-                Arg.Any<CancellationToken>()
-            );
+            .SendCoreAsync(Arg.Any<string>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>());
 
         await harness.Stop();
     }
@@ -182,9 +166,7 @@ public sealed class SagaTransitionedRelayConsumerTests
         var msg = NewEvent();
 
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupByIdAsync(TenantId, Arg.Any<CancellationToken>())
-            .Returns(SampleTenant());
+        catalog.LookupByIdAsync(TenantId, Arg.Any<CancellationToken>()).Returns(SampleTenant());
 
         var hub = Substitute.For<IHubContext<TenantHub>>();
         var clients = Substitute.For<IHubClients>();
@@ -192,11 +174,7 @@ public sealed class SagaTransitionedRelayConsumerTests
         hub.Clients.Returns(clients);
         clients.Group(Arg.Any<string>()).Returns(groupProxy);
         groupProxy
-            .SendCoreAsync(
-                Arg.Any<string>(),
-                Arg.Any<object?[]>(),
-                Arg.Any<CancellationToken>()
-            )
+            .SendCoreAsync(Arg.Any<string>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("hub transport down"));
 
         var consumer = new SagaTransitionedRelayConsumer(
@@ -213,7 +191,8 @@ public sealed class SagaTransitionedRelayConsumerTests
         Func<Task> act = () => consumer.Consume(ctx);
 
         // Assert
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        await act.Should()
+            .ThrowAsync<InvalidOperationException>()
             .WithMessage("hub transport down");
     }
 }

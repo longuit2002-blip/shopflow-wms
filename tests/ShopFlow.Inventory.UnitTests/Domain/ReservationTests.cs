@@ -123,9 +123,7 @@ public sealed class ReservationTests
     public void Expire_OnExpiredPendingReservation_FlipsToExpired()
     {
         var ttl = TimeSpan.FromMinutes(15);
-        var reservation = Reservation
-            .Create(TestSku, "ORDER-1", Quantity.From(1), ttl, Now)
-            .Value!;
+        var reservation = Reservation.Create(TestSku, "ORDER-1", Quantity.From(1), ttl, Now).Value!;
         var afterTtl = Now + ttl + TimeSpan.FromSeconds(1);
 
         var result = reservation.Expire(afterTtl);

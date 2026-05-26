@@ -32,10 +32,7 @@ internal sealed class WebhookEventConfiguration : IEntityTypeConfiguration<Webho
         builder
             .Property(e => e.ProviderEventId)
             .HasColumnName("provider_event_id")
-            .HasConversion(
-                vo => vo.Value,
-                str => ProviderEventId.Create(str).Value!
-            )
+            .HasConversion(vo => vo.Value, str => ProviderEventId.Create(str).Value!)
             .HasMaxLength(ProviderEventId.MaxLength)
             .IsRequired();
 
@@ -45,10 +42,7 @@ internal sealed class WebhookEventConfiguration : IEntityTypeConfiguration<Webho
             .HasColumnType("jsonb")
             .IsRequired();
 
-        builder
-            .Property(e => e.SignatureVerified)
-            .HasColumnName("signature_verified")
-            .IsRequired();
+        builder.Property(e => e.SignatureVerified).HasColumnName("signature_verified").IsRequired();
 
         builder
             .Property(e => e.Status)
@@ -58,10 +52,7 @@ internal sealed class WebhookEventConfiguration : IEntityTypeConfiguration<Webho
             .IsRequired();
 
         builder.Property(e => e.ProcessedAt).HasColumnName("processed_at");
-        builder
-            .Property(e => e.FailureReason)
-            .HasColumnName("failure_reason")
-            .HasMaxLength(512);
+        builder.Property(e => e.FailureReason).HasColumnName("failure_reason").HasMaxLength(512);
         builder.Property(e => e.CreatedAt).HasColumnName("received_at").IsRequired();
         builder.Property(e => e.UpdatedAt).HasColumnName("updated_at");
 

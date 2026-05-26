@@ -85,8 +85,7 @@ public sealed class SagaTransitionsAuditFlowTests : IAsyncLifetime
 
         services.AddMassTransitTestHarness(cfg =>
         {
-            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .InMemoryRepository();
+            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>().InMemoryRepository();
         });
 
         var sp = services.BuildServiceProvider(true);
@@ -166,7 +165,10 @@ public sealed class SagaTransitionsAuditFlowTests : IAsyncLifetime
             new StockReservedV1(
                 OrderId: orderId,
                 TenantId: tenantId,
-                LineOutcomes: new[] { new LineOutcomeV1("L1", "SKU-A", Guid.NewGuid(), "Reserved") },
+                LineOutcomes: new[]
+                {
+                    new LineOutcomeV1("L1", "SKU-A", Guid.NewGuid(), "Reserved"),
+                },
                 OccurredAt: DateTime.UtcNow
             )
         );

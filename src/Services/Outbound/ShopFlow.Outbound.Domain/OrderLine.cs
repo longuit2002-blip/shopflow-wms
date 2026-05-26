@@ -28,26 +28,15 @@ public sealed class OrderLine : BaseEntity
 
     private OrderLine() { }
 
-    internal static Result<OrderLine> Create(
-        Guid orderId,
-        string sku,
-        int qty,
-        int? expectedWeight
-    )
+    internal static Result<OrderLine> Create(Guid orderId, string sku, int qty, int? expectedWeight)
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
-            return Result<OrderLine>.Failure(
-                "sku is required.",
-                "order_line.sku_required"
-            );
+            return Result<OrderLine>.Failure("sku is required.", "order_line.sku_required");
         }
         if (qty <= 0)
         {
-            return Result<OrderLine>.Failure(
-                "qty must be > 0.",
-                "order_line.qty_non_positive"
-            );
+            return Result<OrderLine>.Failure("qty must be > 0.", "order_line.qty_non_positive");
         }
         if (expectedWeight is < 0)
         {

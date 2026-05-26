@@ -28,9 +28,7 @@ namespace ShopFlow.SharedKernel.UnitTests.SignalR;
 public sealed class StockChangedRelayConsumerTests
 {
     private const string Slug = "yensaokhanhhoa";
-    private static readonly Guid TenantId = Guid.Parse(
-        "11111111-1111-1111-1111-111111111111"
-    );
+    private static readonly Guid TenantId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly DateTime OccurredAt = new(2026, 5, 19, 10, 0, 0, DateTimeKind.Utc);
 
     private static TenantInfo SampleTenant(
@@ -73,9 +71,7 @@ public sealed class StockChangedRelayConsumerTests
         );
 
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupByIdAsync(TenantId, Arg.Any<CancellationToken>())
-            .Returns(SampleTenant());
+        catalog.LookupByIdAsync(TenantId, Arg.Any<CancellationToken>()).Returns(SampleTenant());
 
         var (hub, clients, groupProxy) = BuildHubContext();
 
@@ -83,9 +79,7 @@ public sealed class StockChangedRelayConsumerTests
         services.AddSingleton(hub);
         services.AddSingleton(catalog);
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
-        services.AddMassTransitTestHarness(cfg =>
-            cfg.AddConsumer<StockChangedRelayConsumer>()
-        );
+        services.AddMassTransitTestHarness(cfg => cfg.AddConsumer<StockChangedRelayConsumer>());
 
         await using var sp = services.BuildServiceProvider(true);
         var harness = sp.GetRequiredService<ITestHarness>();
@@ -130,9 +124,7 @@ public sealed class StockChangedRelayConsumerTests
         );
 
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupByIdAsync(TenantId, Arg.Any<CancellationToken>())
-            .Returns((TenantInfo?)null);
+        catalog.LookupByIdAsync(TenantId, Arg.Any<CancellationToken>()).Returns((TenantInfo?)null);
 
         var (hub, clients, groupProxy) = BuildHubContext();
 
@@ -140,9 +132,7 @@ public sealed class StockChangedRelayConsumerTests
         services.AddSingleton(hub);
         services.AddSingleton(catalog);
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
-        services.AddMassTransitTestHarness(cfg =>
-            cfg.AddConsumer<StockChangedRelayConsumer>()
-        );
+        services.AddMassTransitTestHarness(cfg => cfg.AddConsumer<StockChangedRelayConsumer>());
 
         await using var sp = services.BuildServiceProvider(true);
         var harness = sp.GetRequiredService<ITestHarness>();
@@ -153,17 +143,15 @@ public sealed class StockChangedRelayConsumerTests
 
         var consumerHarness = harness.GetConsumerHarness<StockChangedRelayConsumer>();
         // Consumed cleanly = no exception = no MT retry = harness treats it as Consumed.
-        (await consumerHarness.Consumed.Any<StockLevelChangedV1>()).Should().BeTrue();
+        (await consumerHarness.Consumed.Any<StockLevelChangedV1>())
+            .Should()
+            .BeTrue();
 
         // Assert — catalog miss short-circuits; no SignalR send happens, no DLQ.
         clients.DidNotReceive().Group(Arg.Any<string>());
         await groupProxy
             .DidNotReceive()
-            .SendCoreAsync(
-                Arg.Any<string>(),
-                Arg.Any<object?[]>(),
-                Arg.Any<CancellationToken>()
-            );
+            .SendCoreAsync(Arg.Any<string>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>());
 
         await harness.Stop();
     }
@@ -180,9 +168,7 @@ public sealed class StockChangedRelayConsumerTests
         );
 
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupByIdAsync(TenantId, Arg.Any<CancellationToken>())
-            .Returns(SampleTenant());
+        catalog.LookupByIdAsync(TenantId, Arg.Any<CancellationToken>()).Returns(SampleTenant());
 
         var hub = Substitute.For<IHubContext<TenantHub>>();
         var clients = Substitute.For<IHubClients>();
@@ -190,11 +176,7 @@ public sealed class StockChangedRelayConsumerTests
         hub.Clients.Returns(clients);
         clients.Group(Arg.Any<string>()).Returns(groupProxy);
         groupProxy
-            .SendCoreAsync(
-                Arg.Any<string>(),
-                Arg.Any<object?[]>(),
-                Arg.Any<CancellationToken>()
-            )
+            .SendCoreAsync(Arg.Any<string>(), Arg.Any<object?[]>(), Arg.Any<CancellationToken>())
             .Throws(new InvalidOperationException("hub transport down"));
 
         // Direct-call mode: instantiate the consumer + a substituted
@@ -215,7 +197,8 @@ public sealed class StockChangedRelayConsumerTests
         Func<Task> act = () => consumer.Consume(ctx);
 
         // Assert — the throw bubbles, letting MT's pipeline apply retry.
-        await act.Should().ThrowAsync<InvalidOperationException>()
+        await act.Should()
+            .ThrowAsync<InvalidOperationException>()
             .WithMessage("hub transport down");
     }
 }

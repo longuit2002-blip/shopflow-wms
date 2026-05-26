@@ -21,7 +21,8 @@ public sealed class GetOrderTransitionsHandlerTests
         string toState,
         int offsetSeconds,
         string eventType = "StockReservedV1",
-        string? correlationId = null)
+        string? correlationId = null
+    )
     {
         return OrderTransition.Create(
             orderId: orderId,
@@ -29,7 +30,8 @@ public sealed class GetOrderTransitionsHandlerTests
             toState: toState,
             occurredAt: BaseTime.AddSeconds(offsetSeconds),
             eventType: eventType,
-            correlationId: correlationId ?? Guid.NewGuid().ToString("N"));
+            correlationId: correlationId ?? Guid.NewGuid().ToString("N")
+        );
     }
 
     [Fact]
@@ -52,12 +54,24 @@ public sealed class GetOrderTransitionsHandlerTests
 
         var sut = new GetOrderTransitionsHandler(repo);
 
-        var result = await sut.Handle(new GetOrderTransitionsQuery(orderId), CancellationToken.None);
+        var result = await sut.Handle(
+            new GetOrderTransitionsQuery(orderId),
+            CancellationToken.None
+        );
 
         result.Should().HaveCount(7);
-        result.Select(t => t.ToState).Should().Equal(
-            "AwaitingReservation", "Reserved", "AwaitingPick", "Picked",
-            "AwaitingPack", "Packed", "Shipped");
+        result
+            .Select(t => t.ToState)
+            .Should()
+            .Equal(
+                "AwaitingReservation",
+                "Reserved",
+                "AwaitingPick",
+                "Picked",
+                "AwaitingPack",
+                "Packed",
+                "Shipped"
+            );
 
         // OccurredAt preserved + ASC ordering retained.
         result.Select(t => t.OccurredAt).Should().BeInAscendingOrder();
@@ -83,7 +97,10 @@ public sealed class GetOrderTransitionsHandlerTests
 
         var sut = new GetOrderTransitionsHandler(repo);
 
-        var result = await sut.Handle(new GetOrderTransitionsQuery(orderId), CancellationToken.None);
+        var result = await sut.Handle(
+            new GetOrderTransitionsQuery(orderId),
+            CancellationToken.None
+        );
 
         result.Should().NotBeNull();
         result.Should().BeEmpty();

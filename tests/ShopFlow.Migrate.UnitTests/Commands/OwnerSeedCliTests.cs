@@ -27,10 +27,10 @@ public sealed class OwnerSeedCliTests
     [Fact]
     public void ResolveOwnerEmail_HonorsExplicitFlag()
     {
-        var args = new ParsedArgs("provision", new Dictionary<string, string?>
-        {
-            ["owner-email"] = "admin@example.com",
-        });
+        var args = new ParsedArgs(
+            "provision",
+            new Dictionary<string, string?> { ["owner-email"] = "admin@example.com" }
+        );
 
         var email = ProvisionCommand.ResolveOwnerEmail(args, "newtenant");
 
@@ -50,11 +50,14 @@ public sealed class OwnerSeedCliTests
     [Fact]
     public void ResolveExplicitPassword_PrefersExplicitFlag_OverEnvVar()
     {
-        var args = new ParsedArgs("provision", new Dictionary<string, string?>
-        {
-            ["owner-password"] = "explicit-from-flag",
-            ["owner-password-from-env"] = "SOME_VAR",
-        });
+        var args = new ParsedArgs(
+            "provision",
+            new Dictionary<string, string?>
+            {
+                ["owner-password"] = "explicit-from-flag",
+                ["owner-password-from-env"] = "SOME_VAR",
+            }
+        );
 
         var result = ProvisionCommand.ResolveExplicitPassword(args);
 
@@ -68,10 +71,10 @@ public sealed class OwnerSeedCliTests
         Environment.SetEnvironmentVariable(envVar, "from-env");
         try
         {
-            var args = new ParsedArgs("provision", new Dictionary<string, string?>
-            {
-                ["owner-password-from-env"] = envVar,
-            });
+            var args = new ParsedArgs(
+                "provision",
+                new Dictionary<string, string?> { ["owner-password-from-env"] = envVar }
+            );
 
             var result = ProvisionCommand.ResolveExplicitPassword(args);
 
@@ -90,15 +93,14 @@ public sealed class OwnerSeedCliTests
         Environment.SetEnvironmentVariable(envVar, "");
         try
         {
-            var args = new ParsedArgs("provision", new Dictionary<string, string?>
-            {
-                ["owner-password-from-env"] = envVar,
-            });
+            var args = new ParsedArgs(
+                "provision",
+                new Dictionary<string, string?> { ["owner-password-from-env"] = envVar }
+            );
 
             var act = () => ProvisionCommand.ResolveExplicitPassword(args);
 
-            act.Should().Throw<InvalidOperationException>()
-                .WithMessage($"*{envVar}*");
+            act.Should().Throw<InvalidOperationException>().WithMessage($"*{envVar}*");
         }
         finally
         {
@@ -117,7 +119,8 @@ public sealed class OwnerSeedCliTests
         {
             ProvisionCommand.EchoOwnerSeed(
                 new OwnerSeedResult(OwnerSeedOutcome.Seeded, "owner@t.local", "GENPWD123!@#xyzAB"),
-                passwordWasExplicit: false);
+                passwordWasExplicit: false
+            );
         }
         finally
         {
@@ -139,7 +142,8 @@ public sealed class OwnerSeedCliTests
         {
             ProvisionCommand.EchoOwnerSeed(
                 new OwnerSeedResult(OwnerSeedOutcome.Seeded, "owner@t.local", null),
-                passwordWasExplicit: true);
+                passwordWasExplicit: true
+            );
         }
         finally
         {
@@ -161,7 +165,8 @@ public sealed class OwnerSeedCliTests
         {
             ProvisionCommand.EchoOwnerSeed(
                 new OwnerSeedResult(OwnerSeedOutcome.AlreadySeeded, "owner@t.local", null),
-                passwordWasExplicit: false);
+                passwordWasExplicit: false
+            );
         }
         finally
         {

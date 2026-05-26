@@ -10,6 +10,5 @@ namespace ShopFlow.Auth.Application.Commands;
 /// password — admins do NOT set passwords on behalf of users; the
 /// new user changes it on first login.
 /// </summary>
-public sealed record CreateUserCommand(
-    string Email,
-    string Role) : IRequest<Result<CreateUserResponse>>;
+public sealed record CreateUserCommand(string Email, string Role)
+    : IRequest<Result<CreateUserResponse>>;

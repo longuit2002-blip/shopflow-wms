@@ -28,7 +28,8 @@ internal sealed record RefreshTokenRecord(
     [property: JsonPropertyName("iat")] DateTime IssuedAt,
     [property: JsonPropertyName("exp")] DateTime ExpiresAt,
     [property: JsonPropertyName("rm")] bool RememberMe,
-    [property: JsonPropertyName("cid")] Guid ChainId);
+    [property: JsonPropertyName("cid")] Guid ChainId
+);
 
 /// <summary>
 /// Tombstone value stored at <c>refresh:rotated:{tenant}:{user}:{oldHashHex}</c>
@@ -43,4 +44,5 @@ internal sealed record RefreshTokenTombstone(
     [property: JsonPropertyName("nh")] string NextTokenHash,
     [property: JsonPropertyName("nt")] string NextTokenPlaintext,
     [property: JsonPropertyName("cid")] Guid ChainId,
-    [property: JsonPropertyName("rot")] DateTime RotatedAt);
+    [property: JsonPropertyName("rot")] DateTime RotatedAt
+);

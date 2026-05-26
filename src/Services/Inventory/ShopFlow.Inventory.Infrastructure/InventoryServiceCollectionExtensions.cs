@@ -79,7 +79,8 @@ public static class InventoryServiceCollectionExtensions
         // so consumers across modules can subscribe (today: StockSync;
         // tomorrow: Analytics).
         services.AddOutboxRoute<ShopFlow.Contracts.Inventory.SkuFlashSaleChangedV1>(
-            ShopFlow.SharedKernel.Infrastructure.SendKind.Publish);
+            ShopFlow.SharedKernel.Infrastructure.SendKind.Publish
+        );
 
         services
             .AddOptions<InventoryOptions>()

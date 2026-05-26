@@ -33,10 +33,12 @@ public sealed partial class ChannelIndexAudit : Migration
         ArgumentNullException.ThrowIfNull(mb);
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_webhook_events_received_at "
-            + "ON webhook_events (received_at DESC);");
+                + "ON webhook_events (received_at DESC);"
+        );
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_product_mappings_channel_id_external_sku "
-            + "ON product_mappings (channel_id, external_sku);");
+                + "ON product_mappings (channel_id, external_sku);"
+        );
     }
 
     protected override void Down(MigrationBuilder mb)

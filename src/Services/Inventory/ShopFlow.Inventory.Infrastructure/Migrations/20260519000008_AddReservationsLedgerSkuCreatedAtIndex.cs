@@ -35,7 +35,8 @@ public sealed partial class AddReservationsLedgerSkuCreatedAtIndex : Migration
         // directly via row-value comparison.
         mb.Sql(
             "CREATE INDEX ix_reservations_ledger_sku_created_at_id "
-            + "ON reservations_ledger (sku, created_at DESC, id DESC);");
+                + "ON reservations_ledger (sku, created_at DESC, id DESC);"
+        );
     }
 
     protected override void Down(MigrationBuilder mb)

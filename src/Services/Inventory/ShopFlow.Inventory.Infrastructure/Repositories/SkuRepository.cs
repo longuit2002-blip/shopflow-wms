@@ -42,8 +42,7 @@ public sealed class SkuRepository : ISkuRepository
     public async Task<Sku?> GetByIdAsync(SkuCode code, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(code);
-        return await _db
-            .Set<Sku>()
+        return await _db.Set<Sku>()
             .AsTracking()
             .FirstOrDefaultAsync(s => s.Code == code, ct)
             .ConfigureAwait(false);
@@ -53,8 +52,7 @@ public sealed class SkuRepository : ISkuRepository
     {
         ArgumentNullException.ThrowIfNull(sku);
 
-        var existing = await _db
-            .Set<Sku>()
+        var existing = await _db.Set<Sku>()
             .AsTracking()
             .FirstOrDefaultAsync(s => s.Code == sku.Code, ct)
             .ConfigureAwait(false);
@@ -127,13 +125,13 @@ public sealed class SkuRepository : ISkuRepository
             var s = search.Trim();
             q = q.Where(it =>
                 EF.Functions.ILike(((string)(object)it.Code), $"%{s}%")
-                || EF.Functions.ILike(it.Name, $"%{s}%"));
+                || EF.Functions.ILike(it.Name, $"%{s}%")
+            );
         }
 
         var total = await q.CountAsync(ct).ConfigureAwait(false);
 
-        var items = await q
-            .OrderBy(it => it.Code)
+        var items = await q.OrderBy(it => it.Code)
             .Skip(skip)
             .Take(size)
             .ToListAsync(ct)
@@ -150,8 +148,7 @@ public sealed class SkuRepository : ISkuRepository
     {
         ArgumentNullException.ThrowIfNull(code);
 
-        var existing = await _db
-            .Set<Sku>()
+        var existing = await _db.Set<Sku>()
             .AsTracking()
             .FirstOrDefaultAsync(s => s.Code == code, ct)
             .ConfigureAwait(false);
@@ -165,11 +162,7 @@ public sealed class SkuRepository : ISkuRepository
             // logical no-op from the caller's perspective; the row
             // shows up in the catalog at <c>is_flash_sale = false</c>,
             // which matches the default state.
-            var createResult = Sku.Create(
-                code: code,
-                name: code.Value,
-                isFlashSale: active
-            );
+            var createResult = Sku.Create(code: code, name: code.Value, isFlashSale: active);
             if (!createResult.IsSuccess)
             {
                 return Result<SkuMutationResult>.Failure(
@@ -197,7 +190,8 @@ public sealed class SkuRepository : ISkuRepository
                     IsFlashSale: active,
                     OccurredAt: DateTime.UtcNow
                 ),
-                DateTime.UtcNow);
+                DateTime.UtcNow
+            );
             await _db.SaveChangesAsync(ct).ConfigureAwait(false);
         }
 
@@ -212,7 +206,8 @@ public sealed class SkuRepository : ISkuRepository
     /// captured at write time, payload written in the same transaction
     /// as the row that triggered it.
     /// </summary>
-    private void AppendOutbox<T>(T integrationEvent, DateTime occurredAt) where T : class
+    private void AppendOutbox<T>(T integrationEvent, DateTime occurredAt)
+        where T : class
     {
         var traceId = Activity.Current?.TraceId.ToString();
         _db.OutboxMessages.Add(
@@ -221,7 +216,11 @@ public sealed class SkuRepository : ISkuRepository
                 Id = Guid.NewGuid(),
                 TenantId = _requestContext.TenantId,
                 EventType = typeof(T).AssemblyQualifiedName!,
-                Payload = JsonSerializer.Serialize(integrationEvent, typeof(T), OutboxJsonOptions.Default),
+                Payload = JsonSerializer.Serialize(
+                    integrationEvent,
+                    typeof(T),
+                    OutboxJsonOptions.Default
+                ),
                 TraceId = traceId,
                 CreatedAt = occurredAt,
             }
@@ -243,8 +242,7 @@ public sealed class SkuRepository : ISkuRepository
             );
         }
 
-        var existing = await _db
-            .Set<Sku>()
+        var existing = await _db.Set<Sku>()
             .AsTracking()
             .FirstOrDefaultAsync(s => s.Code == code, ct)
             .ConfigureAwait(false);
@@ -253,11 +251,7 @@ public sealed class SkuRepository : ISkuRepository
         {
             // Minimal-row create so the inline threshold-edit path does
             // not have to ALSO go through the Create SKU modal.
-            var createResult = Sku.Create(
-                code: code,
-                name: code.Value,
-                threshold: threshold
-            );
+            var createResult = Sku.Create(code: code, name: code.Value, threshold: threshold);
             if (!createResult.IsSuccess)
             {
                 return Result<SkuMutationResult>.Failure(
@@ -275,10 +269,7 @@ public sealed class SkuRepository : ISkuRepository
         var updateResult = existing.UpdateThreshold(threshold);
         if (!updateResult.IsSuccess)
         {
-            return Result<SkuMutationResult>.Failure(
-                updateResult.Error!,
-                updateResult.ErrorCode
-            );
+            return Result<SkuMutationResult>.Failure(updateResult.Error!, updateResult.ErrorCode);
         }
 
         var entry = _db.Entry(existing);
@@ -294,8 +285,7 @@ public sealed class SkuRepository : ISkuRepository
     public async Task<int?> GetThresholdAsync(SkuCode code, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(code);
-        return await _db
-            .Set<Sku>()
+        return await _db.Set<Sku>()
             .AsNoTracking()
             .Where(s => s.Code == code)
             .Select(s => s.Threshold)
@@ -306,8 +296,7 @@ public sealed class SkuRepository : ISkuRepository
     public async Task<bool> IsFlashSaleAsync(SkuCode code, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(code);
-        return await _db
-            .Set<Sku>()
+        return await _db.Set<Sku>()
             .AsNoTracking()
             .Where(s => s.Code == code)
             .Select(s => s.IsFlashSale)
@@ -331,12 +320,9 @@ public sealed class SkuRepository : ISkuRepository
         // SkuCode instances so EF's Contains translation applies the
         // converter to each element naturally (yields SQL IN against
         // the converted [sku] text column).
-        var codes = skuCodes
-            .Select(SkuCode.Create)
-            .ToList();
+        var codes = skuCodes.Select(SkuCode.Create).ToList();
 
-        var rows = await _db
-            .Set<Sku>()
+        var rows = await _db.Set<Sku>()
             .AsNoTracking()
             .Where(s => codes.Contains(s.Code))
             .ToListAsync(ct)
@@ -349,7 +335,9 @@ public sealed class SkuRepository : ISkuRepository
                 Name: r.Name,
                 Category: r.Category,
                 Threshold: r.Threshold,
-                IsFlashSale: r.IsFlashSale));
+                IsFlashSale: r.IsFlashSale
+            )
+        );
     }
 
     public async Task<IReadOnlyDictionary<string, int>> GetAllThresholdsAsync(CancellationToken ct)
@@ -357,8 +345,7 @@ public sealed class SkuRepository : ISkuRepository
         // Two-step projection: read minimal columns to memory first
         // (avoids translator complaints about the value-converter
         // SkuCode field) then build the dictionary client-side.
-        var rows = await _db
-            .Set<Sku>()
+        var rows = await _db.Set<Sku>()
             .AsNoTracking()
             .Where(s => s.Threshold != null)
             .Select(s => new { s.Code, s.Threshold })

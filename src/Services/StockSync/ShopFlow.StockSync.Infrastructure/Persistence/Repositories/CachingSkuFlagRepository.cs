@@ -68,8 +68,7 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
             clock,
             logger,
             innerResolver: static sp => sp.GetRequiredService<SkuFlagRepository>()
-        )
-    { }
+        ) { }
 
     /// <summary>
     /// Test seam — lets unit tests supply a stub inner repo instead of the
@@ -114,10 +113,11 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
         }
 
         var fresh = await WithTenantScopeAsync(
-            tenantId,
-            ct,
-            (inner, scopeCt) => inner.IsFlashSaleAsync(tenantId, sku, scopeCt)
-        ).ConfigureAwait(false);
+                tenantId,
+                ct,
+                (inner, scopeCt) => inner.IsFlashSaleAsync(tenantId, sku, scopeCt)
+            )
+            .ConfigureAwait(false);
 
         StoreInCache(key, fresh, now);
         return fresh;
@@ -133,15 +133,17 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
         ArgumentException.ThrowIfNullOrWhiteSpace(sku);
 
         await WithTenantScopeAsync(
-            tenantId,
-            ct,
-            async (inner, scopeCt) =>
-            {
-                await inner.SetFlashSaleAsync(tenantId, sku, isFlashSale, scopeCt)
-                    .ConfigureAwait(false);
-                return true;
-            }
-        ).ConfigureAwait(false);
+                tenantId,
+                ct,
+                async (inner, scopeCt) =>
+                {
+                    await inner
+                        .SetFlashSaleAsync(tenantId, sku, isFlashSale, scopeCt)
+                        .ConfigureAwait(false);
+                    return true;
+                }
+            )
+            .ConfigureAwait(false);
 
         // Eviction-on-write: the next read for this (tenant, sku) takes
         // the DB path and re-populates the cache with the new value.
@@ -153,15 +155,18 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
         string sku,
         bool isFlashSale,
         DateTime occurredAt,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(sku);
 
         var applied = await WithTenantScopeAsync(
-            tenantId,
-            ct,
-            (inner, scopeCt) => inner.ApplyEventAsync(tenantId, sku, isFlashSale, occurredAt, scopeCt)
-        ).ConfigureAwait(false);
+                tenantId,
+                ct,
+                (inner, scopeCt) =>
+                    inner.ApplyEventAsync(tenantId, sku, isFlashSale, occurredAt, scopeCt)
+            )
+            .ConfigureAwait(false);
 
         // Only evict the cache when the inner write actually landed —
         // stale events (older OccurredAt than stored) leave the cache
@@ -179,12 +184,11 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
         Func<ISkuFlagRepository, CancellationToken, Task<T>> work
     )
     {
-        var tenant = await _tenantCatalog
-            .LookupByIdAsync(tenantId, ct)
-            .ConfigureAwait(false)
+        var tenant =
+            await _tenantCatalog.LookupByIdAsync(tenantId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(
                 $"CachingSkuFlagRepository: tenant {tenantId} not found in catalog. "
-                + "The flush + consumer paths must only ask for tenants the catalog knows about."
+                    + "The flush + consumer paths must only ask for tenants the catalog knows about."
             );
 
         await using var scope = _scopeFactory.CreateAsyncScope();

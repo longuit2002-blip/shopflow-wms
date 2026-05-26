@@ -48,10 +48,7 @@ public sealed class OrderRepository : IOrderRepository
         return _db.Orders.Include(o => o.Lines).FirstOrDefaultAsync(o => o.Id == id, ct);
     }
 
-    public Task<Order?> FindByExternalIdAsync(
-        string channelExternalOrderId,
-        CancellationToken ct
-    )
+    public Task<Order?> FindByExternalIdAsync(string channelExternalOrderId, CancellationToken ct)
     {
         return _db
             .Orders.Include(o => o.Lines)
@@ -62,7 +59,8 @@ public sealed class OrderRepository : IOrderRepository
         OrderListFilter filter,
         int skip,
         int take,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(filter);
 
@@ -114,8 +112,7 @@ public sealed class OrderRepository : IOrderRepository
         // alongside the order row + line count.
         var transitions = _db.OrderTransitions.AsNoTracking();
 
-        var rows = await q
-            .OrderByDescending(o => o.CreatedAt)
+        var rows = await q.OrderByDescending(o => o.CreatedAt)
             .Skip(skip)
             .Take(take)
             .Select(o => new
@@ -143,8 +140,7 @@ public sealed class OrderRepository : IOrderRepository
         }
         else
         {
-            sagaStateMap = await _db
-                .Set<FulfillmentSagaState>()
+            sagaStateMap = await _db.Set<FulfillmentSagaState>()
                 .AsNoTracking()
                 .Where(s => orderIds.Contains(s.CorrelationId))
                 .Select(s => new { s.CorrelationId, s.CurrentState })
@@ -152,8 +148,7 @@ public sealed class OrderRepository : IOrderRepository
                 .ConfigureAwait(false);
         }
 
-        var items = rows
-            .Select(r => new OrderListRow(
+        var items = rows.Select(r => new OrderListRow(
                 Id: r.Id,
                 ChannelExternalOrderId: r.ChannelExternalOrderId,
                 // Channel is parsed by the handler; surface "" here so the
@@ -163,7 +158,8 @@ public sealed class OrderRepository : IOrderRepository
                 LineCount: r.LineCount,
                 CurrentSagaState: sagaStateMap.TryGetValue(r.Id, out var state) ? state : null,
                 CreatedAt: r.CreatedAt,
-                LastTransitionAt: r.LastTransitionAt))
+                LastTransitionAt: r.LastTransitionAt
+            ))
             .ToList();
 
         return new OrderListPageResult(items, total);
@@ -171,8 +167,7 @@ public sealed class OrderRepository : IOrderRepository
 
     public async Task<string?> GetCurrentSagaStateAsync(Guid orderId, CancellationToken ct)
     {
-        var row = await _db
-            .Set<FulfillmentSagaState>()
+        var row = await _db.Set<FulfillmentSagaState>()
             .AsNoTracking()
             .Where(s => s.CorrelationId == orderId)
             .Select(s => s.CurrentState)

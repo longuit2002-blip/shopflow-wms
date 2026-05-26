@@ -56,7 +56,8 @@ public sealed class VerifyEnrollMfaCommandHandler
         IAuthAuditLogRepository auditLog,
         ILogger<VerifyEnrollMfaCommandHandler> logger,
         IRequestContext requestContext,
-        TimeProvider clock)
+        TimeProvider clock
+    )
     {
         _users = users;
         _codec = codec;
@@ -75,21 +76,34 @@ public sealed class VerifyEnrollMfaCommandHandler
         _clock = clock;
     }
 
-    public async Task<Result<VerifyEnrollMfaResponse>> Handle(VerifyEnrollMfaCommand request, CancellationToken ct)
+    public async Task<Result<VerifyEnrollMfaResponse>> Handle(
+        VerifyEnrollMfaCommand request,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var now = _clock.GetUtcNow().UtcDateTime;
         var payload = _codec.TryDecode(request.EnrollmentToken, now);
-        if (payload is null || payload.Intent != MfaChallengeIntent.Enrollment || payload.UserId != request.UserId)
+        if (
+            payload is null
+            || payload.Intent != MfaChallengeIntent.Enrollment
+            || payload.UserId != request.UserId
+        )
         {
-            return Result<VerifyEnrollMfaResponse>.Failure("Invalid credentials.", InvalidCredentials);
+            return Result<VerifyEnrollMfaResponse>.Failure(
+                "Invalid credentials.",
+                InvalidCredentials
+            );
         }
 
         var user = await _users.GetByIdAsync(request.UserId, ct).ConfigureAwait(false);
         if (user is null || !user.IsActive)
         {
-            return Result<VerifyEnrollMfaResponse>.Failure("Invalid credentials.", InvalidCredentials);
+            return Result<VerifyEnrollMfaResponse>.Failure(
+                "Invalid credentials.",
+                InvalidCredentials
+            );
         }
 
         var secret = await _enrollmentStore
@@ -97,21 +111,30 @@ public sealed class VerifyEnrollMfaCommandHandler
             .ConfigureAwait(false);
         if (secret is null)
         {
-            return Result<VerifyEnrollMfaResponse>.Failure("Invalid credentials.", InvalidCredentials);
+            return Result<VerifyEnrollMfaResponse>.Failure(
+                "Invalid credentials.",
+                InvalidCredentials
+            );
         }
 
         var verify = _totp.VerifyOtp(secret, request.Otp, _clock);
         if (!verify.IsValid)
         {
-            return Result<VerifyEnrollMfaResponse>.Failure("Invalid credentials.", InvalidCredentials);
+            return Result<VerifyEnrollMfaResponse>.Failure(
+                "Invalid credentials.",
+                InvalidCredentials
+            );
         }
 
         var (cipherBlob, keyId) = _cipher.Encrypt(secret, _requestContext.TenantId, user.Id);
-        await _secrets.UpsertAsync(user.Id, cipherBlob, keyId, verify.TimeStep, ct).ConfigureAwait(false);
+        await _secrets
+            .UpsertAsync(user.Id, cipherBlob, keyId, verify.TimeStep, ct)
+            .ConfigureAwait(false);
 
         // 10 fresh recovery codes; hash + persist; plaintexts ship to
         // caller exactly once.
-        var plaintexts = Enumerable.Range(0, RecoveryCodeCount)
+        var plaintexts = Enumerable
+            .Range(0, RecoveryCodeCount)
             .Select(_ => GenerateCode())
             .ToList();
         var hashes = plaintexts.Select(c => _hasher.Hash(c, Argon2Profile.RecoveryCode)).ToList();
@@ -121,33 +144,50 @@ public sealed class VerifyEnrollMfaCommandHandler
         user.RecordLogin();
         await _users.UpdateAsync(user, ct).ConfigureAwait(false);
 
-        await _outbox.AppendAsync(
-            typeof(MfaEnrolledV1).FullName!,
-            new MfaEnrolledV1(_requestContext.TenantId, user.Id, user.Email, now, request.CorrelationId),
-            ct).ConfigureAwait(false);
+        await _outbox
+            .AppendAsync(
+                typeof(MfaEnrolledV1).FullName!,
+                new MfaEnrolledV1(
+                    _requestContext.TenantId,
+                    user.Id,
+                    user.Email,
+                    now,
+                    request.CorrelationId
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.MfaEnrolled,
-            user.Id,
-            request.SourceIp,
-            request.UserAgent,
-            metadata: null,
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.MfaEnrolled,
+                user.Id,
+                request.SourceIp,
+                request.UserAgent,
+                metadata: null,
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
-        var access = await _issuer.IssueAccessTokenAsync(user, payload.TenantSlug, ct).ConfigureAwait(false);
+        var access = await _issuer
+            .IssueAccessTokenAsync(user, payload.TenantSlug, ct)
+            .ConfigureAwait(false);
         var refresh = await _refreshStore
             .IssueAsync(payload.TenantSlug, user.Id, payload.RememberMe, ct)
             .ConfigureAwait(false);
 
-        return Result<VerifyEnrollMfaResponse>.Success(new VerifyEnrollMfaResponse(
-            AccessToken: access.Jwt,
-            AccessTokenExpiresAt: access.ExpiresAt,
-            RefreshToken: refresh,
-            RefreshTokenExpiresAt: now.AddDays(payload.RememberMe ? 30 : 7),
-            RecoveryCodes: new RecoveryCodeView(plaintexts, plaintexts.Count)));
+        return Result<VerifyEnrollMfaResponse>.Success(
+            new VerifyEnrollMfaResponse(
+                AccessToken: access.Jwt,
+                AccessTokenExpiresAt: access.ExpiresAt,
+                RefreshToken: refresh,
+                RefreshTokenExpiresAt: now.AddDays(payload.RememberMe ? 30 : 7),
+                RecoveryCodes: new RecoveryCodeView(plaintexts, plaintexts.Count)
+            )
+        );
     }
 
     private static string GenerateCode()

@@ -95,8 +95,10 @@ public sealed class AesTotpSecretCipherTests
         var otherTenantId = Guid.NewGuid();
         var act = () => cipher.Decrypt(blob, keyId, otherTenantId, userId);
 
-        act.Should().Throw<AuthenticationTagMismatchException>(
-            "AAD binds the ciphertext to (tenantId, userId) — different tenant fails");
+        act.Should()
+            .Throw<AuthenticationTagMismatchException>(
+                "AAD binds the ciphertext to (tenantId, userId) — different tenant fails"
+            );
     }
 
     [Fact]
@@ -127,10 +129,10 @@ public sealed class AesTotpSecretCipherTests
     [Fact]
     public void Constructor_RejectsMissingCurrentKey()
     {
-        var act = () => new AesTotpSecretCipher(Options.Create(new TotpKekOptions { Current = "" }));
+        var act = () =>
+            new AesTotpSecretCipher(Options.Create(new TotpKekOptions { Current = "" }));
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*Current*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*Current*");
     }
 
     [Fact]
@@ -139,7 +141,6 @@ public sealed class AesTotpSecretCipherTests
         var opts = new TotpKekOptions { Current = Convert.ToBase64String(RandomBytes(16)) };
         var act = () => new AesTotpSecretCipher(Options.Create(opts));
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*32 bytes*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*32 bytes*");
     }
 }

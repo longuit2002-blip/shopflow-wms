@@ -21,4 +21,5 @@ public sealed record AdjustStockCommand(
     int Delta,
     string Reason,
     string? Note,
-    string? IdempotencyKey) : IRequest<Result>;
+    string? IdempotencyKey
+) : IRequest<Result>;

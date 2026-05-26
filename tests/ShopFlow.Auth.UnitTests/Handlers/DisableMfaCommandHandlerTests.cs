@@ -23,12 +23,19 @@ public sealed class DisableMfaCommandHandlerTests
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
     private readonly ITotpSecretRepository _secrets = Substitute.For<ITotpSecretRepository>();
-    private readonly IRecoveryCodeRepository _recoveryCodes = Substitute.For<IRecoveryCodeRepository>();
+    private readonly IRecoveryCodeRepository _recoveryCodes =
+        Substitute.For<IRecoveryCodeRepository>();
     private readonly IAuthAuditLogRepository _auditLog = Substitute.For<IAuthAuditLogRepository>();
 
-    private DisableMfaCommandHandler BuildHandler() => new(
-        _users, _hasher, _secrets, _recoveryCodes, _auditLog,
-        NullLogger<DisableMfaCommandHandler>.Instance);
+    private DisableMfaCommandHandler BuildHandler() =>
+        new(
+            _users,
+            _hasher,
+            _secrets,
+            _recoveryCodes,
+            _auditLog,
+            NullLogger<DisableMfaCommandHandler>.Instance
+        );
 
     private static DisableMfaCommand Cmd(Guid userId, string currentPwd) =>
         new(userId, "t1", currentPwd, "203.0.113.10", "test-ua/1.0", Guid.NewGuid());
@@ -38,7 +45,8 @@ public sealed class DisableMfaCommandHandlerTests
     {
         var user = User.Create("alice@example.com", ValidHash, UserRole.Picker);
         user.MarkMfaEnrolled();
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
         _hasher.Verify("password", ValidHash).Returns(true);
 
@@ -47,10 +55,17 @@ public sealed class DisableMfaCommandHandlerTests
         result.IsSuccess.Should().BeTrue();
         await _secrets.Received(1).DeleteAsync(user.Id, Arg.Any<CancellationToken>());
         await _recoveryCodes.Received(1).DeleteAllAsync(user.Id, Arg.Any<CancellationToken>());
-        await _auditLog.Received(1).AppendAsync(
-            AuthAuditEventTypes.MfaDisabled,
-            user.Id, Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _auditLog
+            .Received(1)
+            .AppendAsync(
+                AuthAuditEventTypes.MfaDisabled,
+                user.Id,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -58,7 +73,8 @@ public sealed class DisableMfaCommandHandlerTests
     {
         var user = User.Create("alice@example.com", ValidHash, UserRole.Owner);
         user.MarkMfaEnrolled();
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
         _hasher.Verify("password", ValidHash).Returns(true);
 
@@ -66,17 +82,25 @@ public sealed class DisableMfaCommandHandlerTests
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.mfa_required_cannot_disable");
-        await _auditLog.DidNotReceive().AppendAsync(
-            Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid>(),
-            Arg.Any<CancellationToken>());
+        await _auditLog
+            .DidNotReceive()
+            .AppendAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
     public async Task WrongPassword_ReturnsInvalidCredentials_NoAuditRow()
     {
         var user = User.Create("alice@example.com", ValidHash, UserRole.Picker);
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
         _hasher.Verify("WRONG", ValidHash).Returns(false);
 
@@ -84,9 +108,16 @@ public sealed class DisableMfaCommandHandlerTests
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.invalid_credentials");
-        await _auditLog.DidNotReceive().AppendAsync(
-            Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid>(),
-            Arg.Any<CancellationToken>());
+        await _auditLog
+            .DidNotReceive()
+            .AppendAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

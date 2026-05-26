@@ -32,5 +32,10 @@ public interface IEnrollmentSecretStore
     /// (expired or replay-of-already-consumed). The verify handler
     /// treats null as <c>auth.invalid_credentials</c>.
     /// </summary>
-    Task<byte[]?> ConsumeAsync(string tenantSlug, Guid userId, Guid enrollmentId, CancellationToken ct);
+    Task<byte[]?> ConsumeAsync(
+        string tenantSlug,
+        Guid userId,
+        Guid enrollmentId,
+        CancellationToken ct
+    );
 }

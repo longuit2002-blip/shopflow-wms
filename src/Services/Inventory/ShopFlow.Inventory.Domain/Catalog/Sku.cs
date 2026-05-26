@@ -129,10 +129,7 @@ public sealed class Sku : BaseEntity
 
         if (string.IsNullOrWhiteSpace(name))
         {
-            return Result<Sku>.Failure(
-                "sku name is required.",
-                "sku.name_required"
-            );
+            return Result<Sku>.Failure("sku name is required.", "sku.name_required");
         }
         var trimmedName = name.Trim();
         if (trimmedName.Length > MaxNameLength)
@@ -145,17 +142,11 @@ public sealed class Sku : BaseEntity
 
         if (threshold is < 0)
         {
-            return Result<Sku>.Failure(
-                "threshold must be >= 0.",
-                "sku.threshold_negative"
-            );
+            return Result<Sku>.Failure("threshold must be >= 0.", "sku.threshold_negative");
         }
         if (weightGrams is < 0)
         {
-            return Result<Sku>.Failure(
-                "weight_grams must be >= 0.",
-                "sku.weight_negative"
-            );
+            return Result<Sku>.Failure("weight_grams must be >= 0.", "sku.weight_negative");
         }
 
         var validationFailure = ValidateOptionalStrings(
@@ -199,10 +190,7 @@ public sealed class Sku : BaseEntity
     {
         if (threshold is < 0)
         {
-            return Result.Failure(
-                "threshold must be >= 0.",
-                "sku.threshold_negative"
-            );
+            return Result.Failure("threshold must be >= 0.", "sku.threshold_negative");
         }
 
         if (Threshold == threshold)
@@ -364,10 +352,7 @@ public sealed class Sku : BaseEntity
         }
         if (brand is not null && brand.Trim().Length > MaxBrandLength)
         {
-            return (
-                $"brand must be {MaxBrandLength} characters or fewer.",
-                "sku.brand_too_long"
-            );
+            return ($"brand must be {MaxBrandLength} characters or fewer.", "sku.brand_too_long");
         }
         return null;
     }

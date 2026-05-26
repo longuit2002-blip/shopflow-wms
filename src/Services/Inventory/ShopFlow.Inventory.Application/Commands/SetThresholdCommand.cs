@@ -10,7 +10,5 @@ namespace ShopFlow.Inventory.Application.Commands;
 /// column via <see cref="Ports.ISkuRepository"/>. The in-memory
 /// <c>ISkuMetadataStore</c> singleton has been retired.
 /// </summary>
-public sealed record SetThresholdCommand(
-    string Sku,
-    int Threshold,
-    string? IdempotencyKey) : IRequest<Result>;
+public sealed record SetThresholdCommand(string Sku, int Threshold, string? IdempotencyKey)
+    : IRequest<Result>;

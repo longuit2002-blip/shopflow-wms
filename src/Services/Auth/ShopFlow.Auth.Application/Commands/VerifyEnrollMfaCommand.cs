@@ -21,7 +21,8 @@ public sealed record VerifyEnrollMfaCommand(
     bool RememberMe,
     string SourceIp,
     string UserAgent,
-    Guid CorrelationId) : IRequest<Result<VerifyEnrollMfaResponse>>;
+    Guid CorrelationId
+) : IRequest<Result<VerifyEnrollMfaResponse>>;
 
 /// <summary>
 /// Result of <see cref="VerifyEnrollMfaCommand"/>. Carries the active
@@ -34,4 +35,5 @@ public sealed record VerifyEnrollMfaResponse(
     DateTime AccessTokenExpiresAt,
     string RefreshToken,
     DateTime RefreshTokenExpiresAt,
-    RecoveryCodeView RecoveryCodes);
+    RecoveryCodeView RecoveryCodes
+);

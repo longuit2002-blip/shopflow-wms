@@ -11,7 +11,5 @@ namespace ShopFlow.Auth.Domain.Events;
 /// surface; false for the user's own self-service disable. The audit log
 /// reads this to distinguish the two cases for compliance review.
 /// </param>
-public sealed record UserMfaDisabledEvent(
-    Guid UserId,
-    bool ByOwnerAction,
-    DateTime OccurredAt) : IDomainEvent;
+public sealed record UserMfaDisabledEvent(Guid UserId, bool ByOwnerAction, DateTime OccurredAt)
+    : IDomainEvent;

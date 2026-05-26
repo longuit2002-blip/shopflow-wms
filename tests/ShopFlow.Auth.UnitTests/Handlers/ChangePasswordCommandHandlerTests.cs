@@ -26,9 +26,14 @@ public sealed class ChangePasswordCommandHandlerTests
     private readonly IRefreshTokenStore _refreshStore = Substitute.For<IRefreshTokenStore>();
     private readonly IAuthAuditLogRepository _auditLog = Substitute.For<IAuthAuditLogRepository>();
 
-    private ChangePasswordCommandHandler BuildHandler() => new(
-        _users, _hasher, _refreshStore, _auditLog,
-        NullLogger<ChangePasswordCommandHandler>.Instance);
+    private ChangePasswordCommandHandler BuildHandler() =>
+        new(
+            _users,
+            _hasher,
+            _refreshStore,
+            _auditLog,
+            NullLogger<ChangePasswordCommandHandler>.Instance
+        );
 
     private static ChangePasswordCommand Cmd(string current, string newPwd, Guid userId) =>
         new(current, newPwd, userId, "t1", "203.0.113.10", "test-ua/1.0", Guid.NewGuid());
@@ -37,47 +42,68 @@ public sealed class ChangePasswordCommandHandlerTests
     public async Task Happy_RotatesHashAndRevokesAllSessions_EmitsPasswordChangedAudit()
     {
         var user = User.Create("alice@example.com", CurrentHash, UserRole.Owner);
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
         _hasher.Verify("oldPassword1", CurrentHash).Returns(true);
         _hasher.Hash("newPassword1").Returns(NewHash);
 
-        var result = await BuildHandler().Handle(
-            Cmd("oldPassword1", "newPassword1", user.Id),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("oldPassword1", "newPassword1", user.Id), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         user.PasswordHash.Should().Be(NewHash);
         await _users.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
-        await _refreshStore.Received(1).RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
-        await _auditLog.Received(1).AppendAsync(
-            AuthAuditEventTypes.PasswordChanged,
-            user.Id, Arg.Any<string>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _refreshStore
+            .Received(1)
+            .RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
+        await _auditLog
+            .Received(1)
+            .AppendAsync(
+                AuthAuditEventTypes.PasswordChanged,
+                user.Id,
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
     public async Task WrongCurrentPassword_ReturnsInvalidCredentialsDoesNotRotate_NoAudit()
     {
         var user = User.Create("alice@example.com", CurrentHash, UserRole.Owner);
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
         _hasher.Verify("WRONG", CurrentHash).Returns(false);
 
-        var result = await BuildHandler().Handle(
-            Cmd("WRONG", "newPassword1", user.Id),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("WRONG", "newPassword1", user.Id), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.invalid_credentials");
         user.PasswordHash.Should().Be(CurrentHash);
         await _users.DidNotReceive().UpdateAsync(Arg.Any<User>(), Arg.Any<CancellationToken>());
-        await _refreshStore.DidNotReceive().RevokeAllForUserAsync(
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
-        await _auditLog.DidNotReceive().AppendAsync(
-            Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<string>(),
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid>(),
-            Arg.Any<CancellationToken>());
+        await _refreshStore
+            .DidNotReceive()
+            .RevokeAllForUserAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _auditLog
+            .DidNotReceive()
+            .AppendAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Theory]
@@ -88,7 +114,8 @@ public sealed class ChangePasswordCommandHandlerTests
     {
         var userId = Guid.NewGuid();
 
-        var result = await BuildHandler().Handle(Cmd("oldPassword1", newPwd, userId), CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("oldPassword1", newPwd, userId), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.password_too_short");
@@ -99,12 +126,12 @@ public sealed class ChangePasswordCommandHandlerTests
     [Fact]
     public async Task MissingUser_ReturnsInvalidCredentials()
     {
-        _users.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(null));
 
-        var result = await BuildHandler().Handle(
-            Cmd("oldPassword1", "newPassword1", Guid.NewGuid()),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("oldPassword1", "newPassword1", Guid.NewGuid()), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.invalid_credentials");
@@ -115,12 +142,12 @@ public sealed class ChangePasswordCommandHandlerTests
     {
         var user = User.Create("alice@example.com", CurrentHash, UserRole.Owner);
         user.Deactivate();
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
 
-        var result = await BuildHandler().Handle(
-            Cmd("oldPassword1", "newPassword1", user.Id),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(Cmd("oldPassword1", "newPassword1", user.Id), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.invalid_credentials");

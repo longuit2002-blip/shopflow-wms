@@ -10,7 +10,5 @@ namespace ShopFlow.Inventory.Application.Queries;
 /// <param name="Search">Optional case-insensitive substring match on SKU.</param>
 /// <param name="Page">1-based page index.</param>
 /// <param name="PageSize">Rows per page; clamped to [1, 200].</param>
-public sealed record ListSkusQuery(
-    string? Search = null,
-    int Page = 1,
-    int PageSize = 50) : IRequest<PaginatedSkuListDto>;
+public sealed record ListSkusQuery(string? Search = null, int Page = 1, int PageSize = 50)
+    : IRequest<PaginatedSkuListDto>;

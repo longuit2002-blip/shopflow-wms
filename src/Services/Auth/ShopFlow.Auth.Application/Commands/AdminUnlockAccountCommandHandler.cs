@@ -12,7 +12,8 @@ namespace ShopFlow.Auth.Application.Commands;
 /// Sprint-12.5 U1 — emits <c>auth.account.unlocked_by_owner</c> on the
 /// successful unlock path with <c>targetUserId</c> in metadata.
 /// </summary>
-public sealed class AdminUnlockAccountCommandHandler : IRequestHandler<AdminUnlockAccountCommand, Result>
+public sealed class AdminUnlockAccountCommandHandler
+    : IRequestHandler<AdminUnlockAccountCommand, Result>
 {
     private const string TargetNotFound = "auth.target_not_found";
 
@@ -23,7 +24,8 @@ public sealed class AdminUnlockAccountCommandHandler : IRequestHandler<AdminUnlo
     public AdminUnlockAccountCommandHandler(
         IUserRepository users,
         IAuthAuditLogRepository auditLog,
-        ILogger<AdminUnlockAccountCommandHandler> logger)
+        ILogger<AdminUnlockAccountCommandHandler> logger
+    )
     {
         _users = users;
         _auditLog = auditLog;
@@ -43,16 +45,19 @@ public sealed class AdminUnlockAccountCommandHandler : IRequestHandler<AdminUnlo
         target.Unlock();
         await _users.UpdateAsync(target, ct).ConfigureAwait(false);
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.AccountUnlockedByOwner,
-            request.ActorUserId,
-            request.SourceIp,
-            request.UserAgent,
-            new { targetUserId = request.TargetUserId.ToString() },
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.AccountUnlockedByOwner,
+                request.ActorUserId,
+                request.SourceIp,
+                request.UserAgent,
+                new { targetUserId = request.TargetUserId.ToString() },
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

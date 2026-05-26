@@ -35,16 +35,12 @@ public sealed class TemplateResourceLoader
 
     private static string LoadFromAssembly(string resourceKey)
     {
-        var manifestName =
-            $"ShopFlow.Notification.Infrastructure.Templates.{resourceKey}.tmpl";
+        var manifestName = $"ShopFlow.Notification.Infrastructure.Templates.{resourceKey}.tmpl";
 
         using var stream = InfrastructureAssembly.GetManifestResourceStream(manifestName);
         if (stream is null)
         {
-            var available = string.Join(
-                ", ",
-                InfrastructureAssembly.GetManifestResourceNames()
-            );
+            var available = string.Join(", ", InfrastructureAssembly.GetManifestResourceNames());
             throw new InvalidOperationException(
                 $"Notification template '{manifestName}' not found in embedded resources. "
                     + $"Available: {available}"

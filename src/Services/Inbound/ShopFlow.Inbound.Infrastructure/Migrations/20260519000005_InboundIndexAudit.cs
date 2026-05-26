@@ -29,10 +29,12 @@ public sealed partial class InboundIndexAudit : Migration
         ArgumentNullException.ThrowIfNull(mb);
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_purchase_orders_status_created_at "
-            + "ON purchase_orders (status, created_at DESC);");
+                + "ON purchase_orders (status, created_at DESC);"
+        );
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_receivings_purchase_order_id "
-            + "ON receivings (purchase_order_id);");
+                + "ON receivings (purchase_order_id);"
+        );
     }
 
     protected override void Down(MigrationBuilder mb)

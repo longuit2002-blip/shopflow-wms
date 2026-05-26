@@ -21,7 +21,8 @@ public sealed record RolePermissionsCommand(
     IReadOnlyList<string>? Permissions,
     string SourceIp,
     string UserAgent,
-    Guid CorrelationId) : IRequest<Result>;
+    Guid CorrelationId
+) : IRequest<Result>;
 
 /// <summary>
 /// Discriminator for <see cref="RolePermissionsCommand"/>.

@@ -41,6 +41,9 @@ public sealed record PushIntent(
     /// dispatcher + push-log lookup agree on the spelling.
     /// </summary>
     public static string BuildIdempotencyKey(
-        Guid tenantId, string sku, string channelType, DateTime observedAt) =>
-        $"{tenantId}:{sku}:{channelType}:{observedAt:O}";
+        Guid tenantId,
+        string sku,
+        string channelType,
+        DateTime observedAt
+    ) => $"{tenantId}:{sku}:{channelType}:{observedAt:O}";
 }

@@ -32,7 +32,8 @@ public sealed class DisableMfaCommandHandler : IRequestHandler<DisableMfaCommand
         ITotpSecretRepository secrets,
         IRecoveryCodeRepository recoveryCodes,
         IAuthAuditLogRepository auditLog,
-        ILogger<DisableMfaCommandHandler> logger)
+        ILogger<DisableMfaCommandHandler> logger
+    )
     {
         _users = users;
         _hasher = hasher;
@@ -61,7 +62,8 @@ public sealed class DisableMfaCommandHandler : IRequestHandler<DisableMfaCommand
         {
             return Result.Failure(
                 "MFA is required for this user and cannot be disabled.",
-                CannotDisable);
+                CannotDisable
+            );
         }
 
         await _secrets.DeleteAsync(user.Id, ct).ConfigureAwait(false);
@@ -69,16 +71,19 @@ public sealed class DisableMfaCommandHandler : IRequestHandler<DisableMfaCommand
         user.MarkMfaDisabled();
         await _users.UpdateAsync(user, ct).ConfigureAwait(false);
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.MfaDisabled,
-            user.Id,
-            request.SourceIp,
-            request.UserAgent,
-            metadata: null,
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.MfaDisabled,
+                user.Id,
+                request.SourceIp,
+                request.UserAgent,
+                metadata: null,
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

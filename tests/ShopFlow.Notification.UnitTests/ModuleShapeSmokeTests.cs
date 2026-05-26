@@ -33,9 +33,7 @@ public sealed class ModuleShapeSmokeTests
     public void Infrastructure_ExposesNotificationDbContext()
     {
         typeof(NotificationDbContext).Should().NotBeNull();
-        typeof(NotificationDbContext)
-            .Namespace.Should()
-            .Be("ShopFlow.Notification.Infrastructure");
+        typeof(NotificationDbContext).Namespace.Should().Be("ShopFlow.Notification.Infrastructure");
     }
 
     [Fact]
@@ -67,9 +65,7 @@ public sealed class ModuleShapeSmokeTests
         typeof(NotificationOutboxEntry)
             .Namespace.Should()
             .Be("ShopFlow.Notification.Domain.Entities");
-        typeof(NotificationLogEntry)
-            .Namespace.Should()
-            .Be("ShopFlow.Notification.Domain.Entities");
+        typeof(NotificationLogEntry).Namespace.Should().Be("ShopFlow.Notification.Domain.Entities");
         typeof(NotificationDeadLetterEntry)
             .Namespace.Should()
             .Be("ShopFlow.Notification.Domain.Entities");

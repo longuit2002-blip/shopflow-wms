@@ -35,7 +35,8 @@ public sealed class UpdateUserCommandHandlerTests
     {
         var user = User.Create("alice@example.com", CurrentHash, role);
         user.ClearDomainEvents();
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
         return user;
     }
@@ -47,16 +48,23 @@ public sealed class UpdateUserCommandHandlerTests
     {
         var user = Setup(UserRole.Owner);
 
-        var result = await BuildHandler().Handle(
-            new UpdateUserCommand(user.Id, UpdateUserOperation.SetRole, "Picker", "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(
+                new UpdateUserCommand(user.Id, UpdateUserOperation.SetRole, "Picker", "t1"),
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeTrue();
         user.Role.Should().Be(UserRole.Picker);
         user.DomainEvents.Should().ContainSingle(e => e is UserRoleChangedEvent);
         await _users.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
-        await _refreshStore.DidNotReceive().RevokeAllForUserAsync(
-            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _refreshStore
+            .DidNotReceive()
+            .RevokeAllForUserAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -64,9 +72,11 @@ public sealed class UpdateUserCommandHandlerTests
     {
         var user = Setup(UserRole.Picker);
 
-        var result = await BuildHandler().Handle(
-            new UpdateUserCommand(user.Id, UpdateUserOperation.SetRole, "Picker", "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(
+                new UpdateUserCommand(user.Id, UpdateUserOperation.SetRole, "Picker", "t1"),
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeTrue();
         user.DomainEvents.Should().BeEmpty();
@@ -80,9 +90,11 @@ public sealed class UpdateUserCommandHandlerTests
     {
         var user = Setup();
 
-        var result = await BuildHandler().Handle(
-            new UpdateUserCommand(user.Id, UpdateUserOperation.SetRole, role, "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(
+                new UpdateUserCommand(user.Id, UpdateUserOperation.SetRole, role, "t1"),
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("users.role_invalid");
@@ -97,16 +109,20 @@ public sealed class UpdateUserCommandHandlerTests
         _generator.Generate().Returns(TempPwd);
         _hasher.Hash(TempPwd).Returns(NewHash);
 
-        var result = await BuildHandler().Handle(
-            new UpdateUserCommand(user.Id, UpdateUserOperation.ResetPassword, null, "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(
+                new UpdateUserCommand(user.Id, UpdateUserOperation.ResetPassword, null, "t1"),
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeTrue();
         user.PasswordHash.Should().Be(NewHash);
         result.Value!.ResetPassword.Should().NotBeNull();
         result.Value.ResetPassword!.TemporaryPassword.Should().Be(TempPwd);
         await _users.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
-        await _refreshStore.Received(1).RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
+        await _refreshStore
+            .Received(1)
+            .RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
     }
 
     // ───────────── Deactivate branch ─────────────
@@ -116,14 +132,18 @@ public sealed class UpdateUserCommandHandlerTests
     {
         var user = Setup();
 
-        var result = await BuildHandler().Handle(
-            new UpdateUserCommand(user.Id, UpdateUserOperation.Deactivate, null, "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(
+                new UpdateUserCommand(user.Id, UpdateUserOperation.Deactivate, null, "t1"),
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeTrue();
         user.IsActive.Should().BeFalse();
         await _users.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
-        await _refreshStore.Received(1).RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
+        await _refreshStore
+            .Received(1)
+            .RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -131,17 +151,22 @@ public sealed class UpdateUserCommandHandlerTests
     {
         var user = Setup();
         user.Deactivate();
-        _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(user));
 
-        var result = await BuildHandler().Handle(
-            new UpdateUserCommand(user.Id, UpdateUserOperation.Deactivate, null, "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(
+                new UpdateUserCommand(user.Id, UpdateUserOperation.Deactivate, null, "t1"),
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeTrue();
         user.IsActive.Should().BeFalse();
         // Revoke-all still fires — idempotent on the store side.
-        await _refreshStore.Received(1).RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
+        await _refreshStore
+            .Received(1)
+            .RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
     }
 
     // ───────────── Common failure ─────────────
@@ -149,12 +174,15 @@ public sealed class UpdateUserCommandHandlerTests
     [Fact]
     public async Task MissingUser_ReturnsUsersNotFound()
     {
-        _users.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        _users
+            .GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult<User?>(null));
 
-        var result = await BuildHandler().Handle(
-            new UpdateUserCommand(Guid.NewGuid(), UpdateUserOperation.SetRole, "Owner", "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(
+                new UpdateUserCommand(Guid.NewGuid(), UpdateUserOperation.SetRole, "Owner", "t1"),
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("users.not_found");

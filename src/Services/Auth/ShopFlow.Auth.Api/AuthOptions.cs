@@ -37,10 +37,6 @@ public sealed class AuthOptions
     /// resolver. Default <c>shopflow.com</c> / <c>shopflow.local</c> /
     /// <c>localhost</c> covers prod + dev hosts. Add tenant-test
     /// domains via configuration in dev.</summary>
-    public IReadOnlyList<string> TrustedHostSuffixes { get; init; } = new[]
-    {
-        "shopflow.com",
-        "shopflow.local",
-        "localhost",
-    };
+    public IReadOnlyList<string> TrustedHostSuffixes { get; init; } =
+        new[] { "shopflow.com", "shopflow.local", "localhost" };
 }

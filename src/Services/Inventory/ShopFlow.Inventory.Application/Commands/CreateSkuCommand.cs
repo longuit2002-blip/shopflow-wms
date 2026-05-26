@@ -11,7 +11,5 @@ namespace ShopFlow.Inventory.Application.Commands;
 /// for Sprint-7's schema expansion; the frontend Create modal in U12
 /// collects them but the backend currently discards them.
 /// </summary>
-public sealed record CreateSkuCommand(
-    string Sku,
-    int InitialAvailable,
-    string? IdempotencyKey) : IRequest<Result>;
+public sealed record CreateSkuCommand(string Sku, int InitialAvailable, string? IdempotencyKey)
+    : IRequest<Result>;

@@ -14,4 +14,5 @@ public sealed record AccountLockedV1(
     DateTime LockedUntilUtc,
     string SourceIp,
     DateTime OccurredAtUtc,
-    Guid CorrelationId);
+    Guid CorrelationId
+);

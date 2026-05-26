@@ -46,7 +46,8 @@ public sealed class RefreshTokenCommandHandler
         IAuthOutbox outbox,
         IAuthAuditLogRepository auditLog,
         ILogger<RefreshTokenCommandHandler> logger,
-        IRequestContext requestContext)
+        IRequestContext requestContext
+    )
     {
         _refreshStore = refreshStore;
         _users = users;
@@ -57,7 +58,10 @@ public sealed class RefreshTokenCommandHandler
         _requestContext = requestContext;
     }
 
-    public async Task<Result<RefreshResponse>> Handle(RefreshTokenCommand request, CancellationToken ct)
+    public async Task<Result<RefreshResponse>> Handle(
+        RefreshTokenCommand request,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -81,43 +85,49 @@ public sealed class RefreshTokenCommandHandler
                 // revoked (chain-only or user-wide depending on outcome).
                 var presentedHash = HashHex(request.RefreshToken);
                 var revokedAt = DateTime.UtcNow;
-                await _outbox.AppendAsync(
-                    typeof(RefreshReuseDetectedV1).FullName!,
-                    new RefreshReuseDetectedV1(
-                        TenantId: _requestContext.TenantId,
-                        UserId: request.UserId,
-                        AffectedUserEmail: string.Empty, // resolved by Notification consumer if needed
-                        ChainId: rotation.ChainId ?? Guid.Empty,
-                        PresentedTokenHash: presentedHash,
-                        PresentingIp: "unknown",
-                        UserAgent: "unknown",
-                        OccurredAtUtc: revokedAt,
-                        CorrelationId: Guid.NewGuid()),
-                    ct).ConfigureAwait(false);
+                await _outbox
+                    .AppendAsync(
+                        typeof(RefreshReuseDetectedV1).FullName!,
+                        new RefreshReuseDetectedV1(
+                            TenantId: _requestContext.TenantId,
+                            UserId: request.UserId,
+                            AffectedUserEmail: string.Empty, // resolved by Notification consumer if needed
+                            ChainId: rotation.ChainId ?? Guid.Empty,
+                            PresentedTokenHash: presentedHash,
+                            PresentingIp: "unknown",
+                            UserAgent: "unknown",
+                            OccurredAtUtc: revokedAt,
+                            CorrelationId: Guid.NewGuid()
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false);
 
-                await AuthAuditWriter.TryAppendAsync(
-                    _auditLog,
-                    _logger,
-                    AuthAuditEventTypes.RefreshReused,
-                    request.UserId,
-                    request.SourceIp,
-                    request.UserAgent,
-                    new
-                    {
-                        chainId = (rotation.ChainId ?? Guid.Empty).ToString(),
-                        revokedAt = revokedAt.ToString("O"),
-                    },
-                    request.CorrelationId,
-                    ct).ConfigureAwait(false);
+                await AuthAuditWriter
+                    .TryAppendAsync(
+                        _auditLog,
+                        _logger,
+                        AuthAuditEventTypes.RefreshReused,
+                        request.UserId,
+                        request.SourceIp,
+                        request.UserAgent,
+                        new
+                        {
+                            chainId = (rotation.ChainId ?? Guid.Empty).ToString(),
+                            revokedAt = revokedAt.ToString("O"),
+                        },
+                        request.CorrelationId,
+                        ct
+                    )
+                    .ConfigureAwait(false);
 
                 return Result<RefreshResponse>.Failure(
                     "Refresh token reuse detected.",
-                    RefreshReused);
+                    RefreshReused
+                );
 
             case RefreshRotateOutcome.NotFound:
-                return Result<RefreshResponse>.Failure(
-                    "Invalid credentials.",
-                    InvalidCredentials);
+                return Result<RefreshResponse>.Failure("Invalid credentials.", InvalidCredentials);
 
             case RefreshRotateOutcome.Issued:
             case RefreshRotateOutcome.GraceReplay:
@@ -127,13 +137,14 @@ public sealed class RefreshTokenCommandHandler
                     // the successor token. Defensive: collapse to
                     // invalid_credentials so the user re-logs in.
                     return Result<RefreshResponse>.Failure(
-                        "Invalid credentials.", InvalidCredentials);
+                        "Invalid credentials.",
+                        InvalidCredentials
+                    );
                 }
                 break;
 
             default:
-                return Result<RefreshResponse>.Failure(
-                    "Invalid credentials.", InvalidCredentials);
+                return Result<RefreshResponse>.Failure("Invalid credentials.", InvalidCredentials);
         }
 
         var user = await _users.GetByIdAsync(request.UserId, ct).ConfigureAwait(false);
@@ -145,8 +156,7 @@ public sealed class RefreshTokenCommandHandler
             await _refreshStore
                 .RevokeAllForUserAsync(request.TenantSlug, request.UserId, ct)
                 .ConfigureAwait(false);
-            return Result<RefreshResponse>.Failure(
-                "Invalid credentials.", InvalidCredentials);
+            return Result<RefreshResponse>.Failure("Invalid credentials.", InvalidCredentials);
         }
 
         var accessToken = await _issuer
@@ -160,29 +170,37 @@ public sealed class RefreshTokenCommandHandler
         // authoritative.
         var refreshExpiresAt = DateTime.UtcNow.AddDays(7);
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.RefreshSuccess,
-            request.UserId,
-            request.SourceIp,
-            request.UserAgent,
-            new { chainId = (rotation.ChainId ?? Guid.Empty).ToString() },
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.RefreshSuccess,
+                request.UserId,
+                request.SourceIp,
+                request.UserAgent,
+                new { chainId = (rotation.ChainId ?? Guid.Empty).ToString() },
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
-        return Result<RefreshResponse>.Success(new RefreshResponse(
-            AccessToken: accessToken.Jwt,
-            AccessTokenExpiresAt: accessToken.ExpiresAt,
-            RefreshToken: rotation.NewToken!,
-            RefreshTokenExpiresAt: refreshExpiresAt));
+        return Result<RefreshResponse>.Success(
+            new RefreshResponse(
+                AccessToken: accessToken.Jwt,
+                AccessTokenExpiresAt: accessToken.ExpiresAt,
+                RefreshToken: rotation.NewToken!,
+                RefreshTokenExpiresAt: refreshExpiresAt
+            )
+        );
     }
 
     private static string HashHex(string plaintext)
     {
         Span<byte> hash = stackalloc byte[32];
         System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(plaintext), hash);
+            System.Text.Encoding.UTF8.GetBytes(plaintext),
+            hash
+        );
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 }

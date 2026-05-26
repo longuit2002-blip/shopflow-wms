@@ -18,9 +18,7 @@ namespace ShopFlow.Auth.IntegrationTests.Storage;
 [Trait("Category", "Integration")]
 public sealed class RedisRefreshTokenStoreTests : IAsyncLifetime
 {
-    private readonly RedisContainer _redis = new RedisBuilder()
-        .WithImage("redis:7")
-        .Build();
+    private readonly RedisContainer _redis = new RedisBuilder().WithImage("redis:7").Build();
 
     private IConnectionMultiplexer _mux = default!;
     private RedisRefreshTokenStore _store = default!;
@@ -152,7 +150,12 @@ public sealed class RedisRefreshTokenStoreTests : IAsyncLifetime
         const string tenant = "t1";
         var userId = Guid.NewGuid();
 
-        var result = await _store.RotateAsync(tenant, userId, "never-issued-token-value-here-32b", default);
+        var result = await _store.RotateAsync(
+            tenant,
+            userId,
+            "never-issued-token-value-here-32b",
+            default
+        );
 
         result.Outcome.Should().Be(RefreshRotateOutcome.NotFound);
         result.NewToken.Should().BeNull();
@@ -215,6 +218,7 @@ public sealed class RedisRefreshTokenStoreTests : IAsyncLifetime
         var t2 = await _store.RotateAsync("t2", userId, t2Token, default);
 
         t1.Outcome.Should().Be(RefreshRotateOutcome.NotFound);
-        t2.Outcome.Should().Be(RefreshRotateOutcome.Issued, because: "different tenant DB boundary");
+        t2.Outcome.Should()
+            .Be(RefreshRotateOutcome.Issued, because: "different tenant DB boundary");
     }
 }

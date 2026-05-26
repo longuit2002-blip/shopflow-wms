@@ -185,8 +185,7 @@ public sealed class PickWaveGeneratorService : BackgroundService
         var keysToFlush = _buffers
             .Where(kv => kv.Key.TenantId == tenant.Id && kv.Value.Count > 0)
             .Where(kv =>
-                kv.Value.Count >= MaxWaveSize
-                || (now - kv.Value[0].EnqueuedAt) >= WindowAge
+                kv.Value.Count >= MaxWaveSize || (now - kv.Value[0].EnqueuedAt) >= WindowAge
             )
             .Select(kv => kv.Key)
             .ToList();
@@ -238,9 +237,7 @@ public sealed class PickWaveGeneratorService : BackgroundService
             foreach (var item in items)
             {
                 wave.AssignOrder(item.OrderId, now);
-                var order = await orderRepo
-                    .FindByIdAsync(item.OrderId, ct)
-                    .ConfigureAwait(false);
+                var order = await orderRepo.FindByIdAsync(item.OrderId, ct).ConfigureAwait(false);
                 if (order is not null)
                 {
                     order.AttachToPickWave(wave.Id);

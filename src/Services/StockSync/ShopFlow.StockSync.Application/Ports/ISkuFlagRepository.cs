@@ -58,5 +58,6 @@ public interface ISkuFlagRepository
         string sku,
         bool isFlashSale,
         DateTime occurredAt,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 }

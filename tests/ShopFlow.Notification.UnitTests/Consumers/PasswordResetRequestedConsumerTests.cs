@@ -16,7 +16,9 @@ public sealed class PasswordResetRequestedConsumerTests
 {
     private static readonly Guid AnyTenant = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid AnyUser = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly Guid AnyCorrelation = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly Guid AnyCorrelation = Guid.Parse(
+        "33333333-3333-3333-3333-333333333333"
+    );
 
     private static PasswordResetRequestedV1 NewMessage(string email = "alice@example.com") =>
         new(
@@ -34,7 +36,8 @@ public sealed class PasswordResetRequestedConsumerTests
     public async Task Consume_HappyPath_InsertsSingleOutboxRow()
     {
         var outbox = Substitute.For<INotificationOutboxRepository>();
-        outbox.InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
+        outbox
+            .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ => Guid.NewGuid());
 
         await using var sp = BuildServiceProvider(outbox);
@@ -46,7 +49,8 @@ public sealed class PasswordResetRequestedConsumerTests
         var consumerHarness = harness.GetConsumerHarness<PasswordResetRequestedConsumer>();
         (await consumerHarness.Consumed.Any<PasswordResetRequestedV1>()).Should().BeTrue();
 
-        await outbox.Received(1)
+        await outbox
+            .Received(1)
             .InsertAsync(
                 Arg.Is<NotificationOutboxEntry>(e =>
                     e.RecipientEmail == "alice@example.com"
@@ -73,7 +77,8 @@ public sealed class PasswordResetRequestedConsumerTests
         var consumerHarness = harness.GetConsumerHarness<PasswordResetRequestedConsumer>();
         (await consumerHarness.Consumed.Any<PasswordResetRequestedV1>()).Should().BeTrue();
 
-        await outbox.DidNotReceive()
+        await outbox
+            .DidNotReceive()
             .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>());
 
         await harness.Stop();
@@ -83,7 +88,8 @@ public sealed class PasswordResetRequestedConsumerTests
     public async Task Consume_LowercasesAndTrimsRecipientEmail()
     {
         var outbox = Substitute.For<INotificationOutboxRepository>();
-        outbox.InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
+        outbox
+            .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ => Guid.NewGuid());
 
         await using var sp = BuildServiceProvider(outbox);
@@ -95,7 +101,8 @@ public sealed class PasswordResetRequestedConsumerTests
         var consumerHarness = harness.GetConsumerHarness<PasswordResetRequestedConsumer>();
         (await consumerHarness.Consumed.Any<PasswordResetRequestedV1>()).Should().BeTrue();
 
-        await outbox.Received(1)
+        await outbox
+            .Received(1)
             .InsertAsync(
                 Arg.Is<NotificationOutboxEntry>(e => e.RecipientEmail == "alice@example.com"),
                 Arg.Any<CancellationToken>()

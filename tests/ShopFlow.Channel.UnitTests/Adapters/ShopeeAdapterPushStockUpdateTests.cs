@@ -55,14 +55,16 @@ public sealed class ShopeeAdapterPushStockUpdateTests
                     // roll the predicate so the test stays on the non-generic
                     // pipeline contract the ShopeeAdapter ctor accepts. See
                     // docs/solutions/2026-05-20-polly-v8-predicatebuilder-non-generic.md.
-                    ShouldHandle = args => args.Outcome switch
-                    {
-                        { Exception: HttpRequestException } => ValueTask.FromResult(true),
-                        { Result: HttpResponseMessage r } when (int)r.StatusCode >= 500
-                            || r.StatusCode == HttpStatusCode.TooManyRequests
-                            => ValueTask.FromResult(true),
-                        _ => ValueTask.FromResult(false),
-                    },
+                    ShouldHandle = args =>
+                        args.Outcome switch
+                        {
+                            { Exception: HttpRequestException } => ValueTask.FromResult(true),
+                            { Result: HttpResponseMessage r }
+                                when (int)r.StatusCode >= 500
+                                    || r.StatusCode == HttpStatusCode.TooManyRequests =>
+                                ValueTask.FromResult(true),
+                            _ => ValueTask.FromResult(false),
+                        },
                 }
             )
             .Build();
@@ -87,12 +89,12 @@ public sealed class ShopeeAdapterPushStockUpdateTests
     [Fact]
     public async Task PushStockUpdateAsync_Maps_503_To_5xx_Code()
     {
-        var handler = new RecordingHandler(_ =>
-            new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
-            {
-                Content = new StringContent("upstream unavailable"),
-            }
-        );
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(
+            HttpStatusCode.ServiceUnavailable
+        )
+        {
+            Content = new StringContent("upstream unavailable"),
+        });
         var adapter = NewAdapter(handler);
 
         var result = await adapter.PushStockUpdateAsync(NewRequest(), CancellationToken.None);
@@ -104,12 +106,12 @@ public sealed class ShopeeAdapterPushStockUpdateTests
     [Fact]
     public async Task PushStockUpdateAsync_Maps_429_To_Rate_Limited_Code()
     {
-        var handler = new RecordingHandler(_ =>
-            new HttpResponseMessage(HttpStatusCode.TooManyRequests)
-            {
-                Content = new StringContent("rate limited"),
-            }
-        );
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(
+            HttpStatusCode.TooManyRequests
+        )
+        {
+            Content = new StringContent("rate limited"),
+        });
         var adapter = NewAdapter(handler);
 
         var result = await adapter.PushStockUpdateAsync(NewRequest(), CancellationToken.None);
@@ -121,12 +123,10 @@ public sealed class ShopeeAdapterPushStockUpdateTests
     [Fact]
     public async Task PushStockUpdateAsync_Maps_400_To_4xx_Code()
     {
-        var handler = new RecordingHandler(_ =>
-            new HttpResponseMessage(HttpStatusCode.BadRequest)
-            {
-                Content = new StringContent("bad request"),
-            }
-        );
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent("bad request"),
+        });
         var adapter = NewAdapter(handler);
 
         var result = await adapter.PushStockUpdateAsync(NewRequest(), CancellationToken.None);
@@ -146,7 +146,8 @@ public sealed class ShopeeAdapterPushStockUpdateTests
             CancellationToken.None
         );
 
-        handler.Requests[0]
+        handler
+            .Requests[0]
             .Headers.GetValues("X-ShopFlow-Idempotency-Key")
             .Should()
             .ContainSingle()
@@ -225,12 +226,12 @@ public sealed class ShopeeAdapterPushStockUpdateTests
     [Fact]
     public async Task PushStockUpdateAsync_Returns_Failure_When_Retries_Exhausted()
     {
-        var handler = new RecordingHandler(_ =>
-            new HttpResponseMessage(HttpStatusCode.InternalServerError)
-            {
-                Content = new StringContent("still failing"),
-            }
-        );
+        var handler = new RecordingHandler(_ => new HttpResponseMessage(
+            HttpStatusCode.InternalServerError
+        )
+        {
+            Content = new StringContent("still failing"),
+        });
         var adapter = NewAdapter(handler, BuildRetryPipeline(maxRetries: 2));
 
         var result = await adapter.PushStockUpdateAsync(NewRequest(), CancellationToken.None);

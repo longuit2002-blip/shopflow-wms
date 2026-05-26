@@ -50,7 +50,8 @@ public sealed class PushLogRepository : IPushLogRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pg
-                && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
         {
             // MassTransit redelivery (or retry-after-cooldown re-emit)
             // produced the same idempotency key. The first row is

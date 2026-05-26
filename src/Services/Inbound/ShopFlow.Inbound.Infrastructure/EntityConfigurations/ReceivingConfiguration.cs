@@ -37,8 +37,6 @@ internal sealed class ReceivingConfiguration : IEntityTypeConfiguration<Receivin
             .HasConstraintName("fk_receiving_lines_receivings")
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder
-            .HasIndex(r => r.PurchaseOrderId)
-            .HasDatabaseName("ix_receivings_purchase_order_id");
+        builder.HasIndex(r => r.PurchaseOrderId).HasDatabaseName("ix_receivings_purchase_order_id");
     }
 }

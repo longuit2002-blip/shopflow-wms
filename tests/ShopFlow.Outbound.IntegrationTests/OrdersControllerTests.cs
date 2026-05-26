@@ -26,8 +26,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class OrdersControllerTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
 
     private readonly OutboundTenantFixture _fx;
     private ProvisionedOutboundTenant _tenant = default!;
@@ -84,7 +83,10 @@ public sealed class OrdersControllerTests : IAsyncLifetime
         // U3's canonical contract type must match.
         using var doc = JsonDocument.Parse(row.Payload);
         doc.RootElement.GetProperty("orderId").GetGuid().Should().Be(body.Id);
-        doc.RootElement.GetProperty("channelExternalOrderId").GetString().Should().Be("ext-create-1");
+        doc.RootElement.GetProperty("channelExternalOrderId")
+            .GetString()
+            .Should()
+            .Be("ext-create-1");
         doc.RootElement.GetProperty("shippingProfile").GetString().Should().Be("standard");
         doc.RootElement.GetProperty("lines").GetArrayLength().Should().Be(2);
     }
@@ -120,8 +122,9 @@ public sealed class OrdersControllerTests : IAsyncLifetime
         secondBody.Id.Should().Be(firstBody.Id);
 
         await using var verify = new OutboundDbContext(_tenant.Options);
-        var rowCount = await verify
-            .Orders.CountAsync(o => o.ChannelExternalOrderId == "ext-idem-1");
+        var rowCount = await verify.Orders.CountAsync(o =>
+            o.ChannelExternalOrderId == "ext-idem-1"
+        );
         rowCount.Should().Be(1);
     }
 
@@ -302,10 +305,7 @@ public sealed class OrdersControllerTests : IAsyncLifetime
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
 
-        public Task Publish<T>(
-            object values,
-            CancellationToken cancellationToken = default
-        )
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
         public Task Publish<T>(

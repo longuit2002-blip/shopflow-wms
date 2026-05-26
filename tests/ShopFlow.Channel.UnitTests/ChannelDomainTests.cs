@@ -125,7 +125,12 @@ public sealed class ChannelDomainTests
         var channelId = Guid.NewGuid();
         var providerEventId = ProviderEventId.Create("evt-1").Value!;
 
-        var result = WebhookEvent.Create(channelId, providerEventId, "{\"k\":1}", signatureVerified: true);
+        var result = WebhookEvent.Create(
+            channelId,
+            providerEventId,
+            "{\"k\":1}",
+            signatureVerified: true
+        );
 
         result.IsSuccess.Should().BeTrue();
         var evt = result.Value!;
@@ -160,7 +165,9 @@ public sealed class ChannelDomainTests
     [Fact]
     public void WebhookEvent_MarkProcessed_FromReceived_Succeeds()
     {
-        var evt = WebhookEvent.Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true).Value!;
+        var evt = WebhookEvent
+            .Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true)
+            .Value!;
         var result = evt.MarkProcessed(Now);
 
         result.IsSuccess.Should().BeTrue();
@@ -171,7 +178,9 @@ public sealed class ChannelDomainTests
     [Fact]
     public void WebhookEvent_MarkProcessed_IsIdempotent()
     {
-        var evt = WebhookEvent.Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true).Value!;
+        var evt = WebhookEvent
+            .Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true)
+            .Value!;
         evt.MarkProcessed(Now);
 
         var second = evt.MarkProcessed(Now.AddMinutes(5));
@@ -182,7 +191,9 @@ public sealed class ChannelDomainTests
     [Fact]
     public void WebhookEvent_MarkProcessed_FromFailed_Rejected()
     {
-        var evt = WebhookEvent.Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true).Value!;
+        var evt = WebhookEvent
+            .Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true)
+            .Value!;
         evt.MarkFailed("unmappable sku", Now);
 
         var result = evt.MarkProcessed(Now.AddMinutes(1));
@@ -194,7 +205,9 @@ public sealed class ChannelDomainTests
     [Fact]
     public void WebhookEvent_MarkFailed_FromReceived_Succeeds()
     {
-        var evt = WebhookEvent.Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true).Value!;
+        var evt = WebhookEvent
+            .Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true)
+            .Value!;
         var result = evt.MarkFailed("sku M-001 unmapped", Now);
 
         result.IsSuccess.Should().BeTrue();
@@ -206,7 +219,9 @@ public sealed class ChannelDomainTests
     [Fact]
     public void WebhookEvent_MarkFailed_RequiresReason()
     {
-        var evt = WebhookEvent.Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true).Value!;
+        var evt = WebhookEvent
+            .Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true)
+            .Value!;
         var result = evt.MarkFailed("  ", Now);
 
         result.IsSuccess.Should().BeFalse();
@@ -216,7 +231,9 @@ public sealed class ChannelDomainTests
     [Fact]
     public void WebhookEvent_MarkFailed_FromProcessed_Rejected()
     {
-        var evt = WebhookEvent.Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true).Value!;
+        var evt = WebhookEvent
+            .Create(Guid.NewGuid(), ProviderEventId.Create("e").Value!, "{}", true)
+            .Value!;
         evt.MarkProcessed(Now);
 
         var result = evt.MarkFailed("late failure", Now.AddMinutes(1));
@@ -268,11 +285,23 @@ public sealed class ChannelDomainTests
     [Fact]
     public void ProductMapping_Create_Exact_RequiresConfidenceOne()
     {
-        var ok = ProductMapping.Create(Guid.NewGuid(), ExternalSku.Create("ext").Value!, "int", MappingMethod.Exact, 1m);
+        var ok = ProductMapping.Create(
+            Guid.NewGuid(),
+            ExternalSku.Create("ext").Value!,
+            "int",
+            MappingMethod.Exact,
+            1m
+        );
         ok.IsSuccess.Should().BeTrue();
         ok.Value!.ConfidenceScore.Should().Be(1m);
 
-        var bad = ProductMapping.Create(Guid.NewGuid(), ExternalSku.Create("ext").Value!, "int", MappingMethod.Exact, 0.9m);
+        var bad = ProductMapping.Create(
+            Guid.NewGuid(),
+            ExternalSku.Create("ext").Value!,
+            "int",
+            MappingMethod.Exact,
+            0.9m
+        );
         bad.IsSuccess.Should().BeFalse();
         bad.ErrorCode.Should().Be("mapping.exact_confidence_mismatch");
     }
@@ -280,7 +309,13 @@ public sealed class ChannelDomainTests
     [Fact]
     public void ProductMapping_Create_Fuzzy_AcceptsAboveThreshold()
     {
-        var ok = ProductMapping.Create(Guid.NewGuid(), ExternalSku.Create("ext").Value!, "int", MappingMethod.Fuzzy, 0.75m);
+        var ok = ProductMapping.Create(
+            Guid.NewGuid(),
+            ExternalSku.Create("ext").Value!,
+            "int",
+            MappingMethod.Fuzzy,
+            0.75m
+        );
         ok.IsSuccess.Should().BeTrue();
         ok.Value!.ConfidenceScore.Should().Be(0.75m);
         ok.Value!.Method.Should().Be(MappingMethod.Fuzzy);
@@ -289,7 +324,13 @@ public sealed class ChannelDomainTests
     [Fact]
     public void ProductMapping_Create_Fuzzy_RejectsBelowThreshold()
     {
-        var bad = ProductMapping.Create(Guid.NewGuid(), ExternalSku.Create("ext").Value!, "int", MappingMethod.Fuzzy, 0.49m);
+        var bad = ProductMapping.Create(
+            Guid.NewGuid(),
+            ExternalSku.Create("ext").Value!,
+            "int",
+            MappingMethod.Fuzzy,
+            0.49m
+        );
         bad.IsSuccess.Should().BeFalse();
         bad.ErrorCode.Should().Be("mapping.fuzzy_below_threshold");
     }

@@ -14,8 +14,7 @@ namespace ShopFlow.Auth.UnitTests.Hashing;
 /// </summary>
 public sealed class Argon2DualProfileTests
 {
-    private static Argon2idPasswordHasher BuildHasher() =>
-        new(Options.Create(new Argon2Options()));
+    private static Argon2idPasswordHasher BuildHasher() => new(Options.Create(new Argon2Options()));
 
     [Fact]
     public void Hash_Password_EmbedsOwaspBaselineParams()
@@ -78,6 +77,6 @@ public sealed class Argon2DualProfileTests
         var hasher = BuildHasher();
         hasher.Verify("anything", "not-a-phc-string").Should().BeFalse();
         hasher.Verify("anything", "").Should().BeFalse();
-        hasher.Verify("anything", "$argon2id$v=19$"). Should().BeFalse();
+        hasher.Verify("anything", "$argon2id$v=19$").Should().BeFalse();
     }
 }

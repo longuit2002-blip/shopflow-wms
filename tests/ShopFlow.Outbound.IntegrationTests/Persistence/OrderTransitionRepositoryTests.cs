@@ -57,14 +57,18 @@ public sealed class OrderTransitionRepositoryTests : IAsyncLifetime
 
         await using (var dbWrite = new OutboundDbContext(_tenant.Options))
         {
-            await new OrderTransitionRepository(dbWrite)
-                .AppendAsync(transition, CancellationToken.None);
+            await new OrderTransitionRepository(dbWrite).AppendAsync(
+                transition,
+                CancellationToken.None
+            );
             await dbWrite.SaveChangesAsync();
         }
 
         await using var dbRead = new OutboundDbContext(_tenant.Options);
-        var rows = await new OrderTransitionRepository(dbRead)
-            .ListByOrderIdAsync(orderId, CancellationToken.None);
+        var rows = await new OrderTransitionRepository(dbRead).ListByOrderIdAsync(
+            orderId,
+            CancellationToken.None
+        );
 
         rows.Should().HaveCount(1);
         var row = rows[0];
@@ -87,23 +91,46 @@ public sealed class OrderTransitionRepositoryTests : IAsyncLifetime
             var repo = new OrderTransitionRepository(dbWrite);
             // Append in non-chronological order — list should still return ASC.
             await repo.AppendAsync(
-                OrderTransition.Create(orderId, "AwaitingPick", "Picked", t0.AddSeconds(20), "PickConfirmedV1", "00-trace-id-3"),
+                OrderTransition.Create(
+                    orderId,
+                    "AwaitingPick",
+                    "Picked",
+                    t0.AddSeconds(20),
+                    "PickConfirmedV1",
+                    "00-trace-id-3"
+                ),
                 CancellationToken.None
             );
             await repo.AppendAsync(
-                OrderTransition.Create(orderId, "Initial", "AwaitingReservation", t0, "OrderPlacedV1", "00-trace-id-1"),
+                OrderTransition.Create(
+                    orderId,
+                    "Initial",
+                    "AwaitingReservation",
+                    t0,
+                    "OrderPlacedV1",
+                    "00-trace-id-1"
+                ),
                 CancellationToken.None
             );
             await repo.AppendAsync(
-                OrderTransition.Create(orderId, "AwaitingReservation", "Reserved", t0.AddSeconds(10), "StockReservedV1", "00-trace-id-2"),
+                OrderTransition.Create(
+                    orderId,
+                    "AwaitingReservation",
+                    "Reserved",
+                    t0.AddSeconds(10),
+                    "StockReservedV1",
+                    "00-trace-id-2"
+                ),
                 CancellationToken.None
             );
             await dbWrite.SaveChangesAsync();
         }
 
         await using var dbRead = new OutboundDbContext(_tenant.Options);
-        var rows = await new OrderTransitionRepository(dbRead)
-            .ListByOrderIdAsync(orderId, CancellationToken.None);
+        var rows = await new OrderTransitionRepository(dbRead).ListByOrderIdAsync(
+            orderId,
+            CancellationToken.None
+        );
 
         rows.Should().HaveCount(3);
         rows[0].ToState.Should().Be("AwaitingReservation");
@@ -123,15 +150,36 @@ public sealed class OrderTransitionRepositoryTests : IAsyncLifetime
         {
             var repo = new OrderTransitionRepository(dbWrite);
             await repo.AppendAsync(
-                OrderTransition.Create(orderX, "Initial", "AwaitingReservation", occurredAt, "OrderPlacedV1", "trace-x"),
+                OrderTransition.Create(
+                    orderX,
+                    "Initial",
+                    "AwaitingReservation",
+                    occurredAt,
+                    "OrderPlacedV1",
+                    "trace-x"
+                ),
                 CancellationToken.None
             );
             await repo.AppendAsync(
-                OrderTransition.Create(orderY, "Initial", "AwaitingReservation", occurredAt, "OrderPlacedV1", "trace-y"),
+                OrderTransition.Create(
+                    orderY,
+                    "Initial",
+                    "AwaitingReservation",
+                    occurredAt,
+                    "OrderPlacedV1",
+                    "trace-y"
+                ),
                 CancellationToken.None
             );
             await repo.AppendAsync(
-                OrderTransition.Create(orderX, "AwaitingReservation", "Reserved", occurredAt.AddSeconds(1), "StockReservedV1", "trace-x"),
+                OrderTransition.Create(
+                    orderX,
+                    "AwaitingReservation",
+                    "Reserved",
+                    occurredAt.AddSeconds(1),
+                    "StockReservedV1",
+                    "trace-x"
+                ),
                 CancellationToken.None
             );
             await dbWrite.SaveChangesAsync();
@@ -154,8 +202,10 @@ public sealed class OrderTransitionRepositoryTests : IAsyncLifetime
     public async Task ListByOrderIdAsync_UnknownOrder_ReturnsEmptyList()
     {
         await using var db = new OutboundDbContext(_tenant.Options);
-        var rows = await new OrderTransitionRepository(db)
-            .ListByOrderIdAsync(Guid.NewGuid(), CancellationToken.None);
+        var rows = await new OrderTransitionRepository(db).ListByOrderIdAsync(
+            Guid.NewGuid(),
+            CancellationToken.None
+        );
 
         rows.Should().BeEmpty();
     }
@@ -174,19 +224,35 @@ public sealed class OrderTransitionRepositoryTests : IAsyncLifetime
         {
             var repo = new OrderTransitionRepository(dbWrite);
             await repo.AppendAsync(
-                OrderTransition.Create(orderId, "AwaitingPack", "Packed", sameMoment, "PackConfirmedV1", "trace-1"),
+                OrderTransition.Create(
+                    orderId,
+                    "AwaitingPack",
+                    "Packed",
+                    sameMoment,
+                    "PackConfirmedV1",
+                    "trace-1"
+                ),
                 CancellationToken.None
             );
             await repo.AppendAsync(
-                OrderTransition.Create(orderId, "Packed", "AwaitingShip", sameMoment, "PackConfirmedV1", "trace-1"),
+                OrderTransition.Create(
+                    orderId,
+                    "Packed",
+                    "AwaitingShip",
+                    sameMoment,
+                    "PackConfirmedV1",
+                    "trace-1"
+                ),
                 CancellationToken.None
             );
             await dbWrite.SaveChangesAsync();
         }
 
         await using var dbRead = new OutboundDbContext(_tenant.Options);
-        var rows = await new OrderTransitionRepository(dbRead)
-            .ListByOrderIdAsync(orderId, CancellationToken.None);
+        var rows = await new OrderTransitionRepository(dbRead).ListByOrderIdAsync(
+            orderId,
+            CancellationToken.None
+        );
 
         rows.Should().HaveCount(2);
         rows.Should().AllSatisfy(r => r.OccurredAt.Should().Be(sameMoment));
@@ -200,8 +266,8 @@ public sealed class OrderTransitionRepositoryTests : IAsyncLifetime
         // ProvisionTenantAsync; this test asserts the table is reachable
         // via raw SQL through the same connection string.
         await using var db = new OutboundDbContext(_tenant.Options);
-        var exists = await db.Database
-            .SqlQueryRaw<bool>(
+        var exists = await db
+            .Database.SqlQueryRaw<bool>(
                 @"SELECT EXISTS (
                     SELECT 1 FROM information_schema.tables
                     WHERE table_schema = 'public'

@@ -26,24 +26,13 @@ internal sealed class PasswordResetTokenConfiguration : IEntityTypeConfiguration
             .HasColumnType("bytea")
             .IsRequired();
 
-        builder
-            .Property(t => t.UserId)
-            .HasColumnName("user_id")
-            .IsRequired();
+        builder.Property(t => t.UserId).HasColumnName("user_id").IsRequired();
 
-        builder
-            .Property(t => t.ExpiresAt)
-            .HasColumnName("expires_at")
-            .IsRequired();
+        builder.Property(t => t.ExpiresAt).HasColumnName("expires_at").IsRequired();
 
-        builder
-            .Property(t => t.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
+        builder.Property(t => t.CreatedAt).HasColumnName("created_at").IsRequired();
 
-        builder
-            .Property(t => t.UsedAt)
-            .HasColumnName("used_at");
+        builder.Property(t => t.UsedAt).HasColumnName("used_at");
 
         builder
             .HasIndex(t => new { t.UserId, t.CreatedAt })

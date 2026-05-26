@@ -46,11 +46,7 @@ internal sealed class PushLogEntryConfiguration : IEntityTypeConfiguration<PushL
             .HasMaxLength(32)
             .IsRequired();
 
-        builder
-            .Property(p => p.Sku)
-            .HasColumnName("sku")
-            .HasMaxLength(64)
-            .IsRequired();
+        builder.Property(p => p.Sku).HasColumnName("sku").HasMaxLength(64).IsRequired();
 
         builder.Property(p => p.Available).HasColumnName("available").IsRequired();
 
@@ -60,11 +56,7 @@ internal sealed class PushLogEntryConfiguration : IEntityTypeConfiguration<PushL
             .HasMaxLength(128)
             .IsRequired();
 
-        builder
-            .Property(p => p.Status)
-            .HasColumnName("status")
-            .HasMaxLength(16)
-            .IsRequired();
+        builder.Property(p => p.Status).HasColumnName("status").HasMaxLength(16).IsRequired();
 
         builder.Property(p => p.ErrorCode).HasColumnName("error_code").HasMaxLength(64);
 
@@ -80,7 +72,12 @@ internal sealed class PushLogEntryConfiguration : IEntityTypeConfiguration<PushL
             .HasDatabaseName("ux_stock_sync_push_log_idempotency");
 
         builder
-            .HasIndex(p => new { p.TenantId, p.ChannelType, p.PushedAt })
+            .HasIndex(p => new
+            {
+                p.TenantId,
+                p.ChannelType,
+                p.PushedAt,
+            })
             .HasDatabaseName("ix_stock_sync_push_log_tenant_channel_pushed");
     }
 }

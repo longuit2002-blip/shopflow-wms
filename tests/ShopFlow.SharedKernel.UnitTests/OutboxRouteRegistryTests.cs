@@ -12,7 +12,9 @@ namespace ShopFlow.SharedKernel.UnitTests;
 public sealed class OutboxRouteRegistryTests
 {
     private sealed record FooMessage;
+
     private sealed record BarCommand;
+
     private sealed record UnregisteredEvent;
 
     [Fact]
@@ -64,7 +66,10 @@ public sealed class OutboxRouteRegistryTests
         var seeds = new[]
         {
             new OutboxRouteSeed(typeof(FooMessage), new OutboxRoute(SendKind.Publish)),
-            new OutboxRouteSeed(typeof(BarCommand), new OutboxRoute(SendKind.Send, RoutingKey: "bar-queue")),
+            new OutboxRouteSeed(
+                typeof(BarCommand),
+                new OutboxRoute(SendKind.Send, RoutingKey: "bar-queue")
+            ),
         };
 
         var registry = new OutboxRouteRegistry(seeds);

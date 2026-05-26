@@ -114,11 +114,8 @@ public sealed class TenantBindingHubFilter : IHubFilter
         await using (var scope = _scopeFactory.CreateAsyncScope())
         {
             var ct = context.Context.ConnectionAborted;
-            var catalog =
-                scope.ServiceProvider.GetService<ITenantCatalog>() ?? _tenantCatalog;
-            tenant = await catalog
-                .LookupBySlugAsync(normalized, ct)
-                .ConfigureAwait(false);
+            var catalog = scope.ServiceProvider.GetService<ITenantCatalog>() ?? _tenantCatalog;
+            tenant = await catalog.LookupBySlugAsync(normalized, ct).ConfigureAwait(false);
         }
 
         if (tenant is null)
@@ -183,11 +180,8 @@ public sealed class TenantBindingHubFilter : IHubFilter
         var ct = invocationContext.Context.ConnectionAborted;
 
         await using var scope = _scopeFactory.CreateAsyncScope();
-        var catalog =
-            scope.ServiceProvider.GetService<ITenantCatalog>() ?? _tenantCatalog;
-        var tenant = await catalog
-            .LookupBySlugAsync(normalized, ct)
-            .ConfigureAwait(false);
+        var catalog = scope.ServiceProvider.GetService<ITenantCatalog>() ?? _tenantCatalog;
+        var tenant = await catalog.LookupBySlugAsync(normalized, ct).ConfigureAwait(false);
         if (tenant is null || tenant.Status != TenantStatus.Ready)
         {
             invocationContext.Context.Abort();

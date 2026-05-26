@@ -50,7 +50,8 @@ public static class AuthAuditWriter
         string userAgent,
         object? metadata,
         Guid correlationId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(auditLog);
         ArgumentNullException.ThrowIfNull(logger);
@@ -62,14 +63,17 @@ public static class AuthAuditWriter
 
         try
         {
-            await auditLog.AppendAsync(
-                eventType,
-                userId,
-                sourceIp ?? "unknown",
-                userAgent ?? string.Empty,
-                metadataJson,
-                correlationId,
-                ct).ConfigureAwait(false);
+            await auditLog
+                .AppendAsync(
+                    eventType,
+                    userId,
+                    sourceIp ?? "unknown",
+                    userAgent ?? string.Empty,
+                    metadataJson,
+                    correlationId,
+                    ct
+                )
+                .ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -81,7 +85,8 @@ public static class AuthAuditWriter
                 "Audit write failed for {EventType} (userId={UserId}, correlationId={CorrelationId})",
                 eventType,
                 userId,
-                correlationId);
+                correlationId
+            );
         }
     }
 }

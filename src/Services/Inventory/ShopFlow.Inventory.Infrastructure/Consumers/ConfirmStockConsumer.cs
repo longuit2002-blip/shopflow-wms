@@ -72,10 +72,7 @@ public sealed class ConfirmStockConsumer : IConsumer<ConfirmStockV1>
         }
 
         var occurredAt = _clock.GetUtcNow().UtcDateTime;
-        EnqueueOutbox(
-            new StockConfirmedV1(msg.OrderId, msg.TenantId, occurredAt),
-            occurredAt
-        );
+        EnqueueOutbox(new StockConfirmedV1(msg.OrderId, msg.TenantId, occurredAt), occurredAt);
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
 
         _logger.LogInformation("ConfirmStockV1 applied for order={OrderId}.", msg.OrderId);

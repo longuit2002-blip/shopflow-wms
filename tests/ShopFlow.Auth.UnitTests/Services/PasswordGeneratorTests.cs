@@ -48,9 +48,11 @@ public sealed class PasswordGeneratorTests
         for (var i = 0; i < 50; i++)
         {
             var pwd = gen.Generate();
-            pwd.Should().NotContainAny(
-                ambiguous.Select(c => c.ToString()),
-                because: "alphabet excludes 0/O/o/1/l/I per spec");
+            pwd.Should()
+                .NotContainAny(
+                    ambiguous.Select(c => c.ToString()),
+                    because: "alphabet excludes 0/O/o/1/l/I per spec"
+                );
         }
     }
 
@@ -80,7 +82,10 @@ public sealed class PasswordGeneratorTests
 
         var pwd = gen.Generate();
 
-        pwd.Length.Should().BeGreaterThanOrEqualTo(8,
-            because: "ChangePassword's auth.password_too_short floor is 8");
+        pwd.Length.Should()
+            .BeGreaterThanOrEqualTo(
+                8,
+                because: "ChangePassword's auth.password_too_short floor is 8"
+            );
     }
 }

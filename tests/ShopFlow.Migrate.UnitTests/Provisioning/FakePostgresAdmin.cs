@@ -48,11 +48,7 @@ internal sealed class FakePostgresAdmin : IPostgresAdmin
         return Task.CompletedTask;
     }
 
-    public Task GrantTenantPrivilegesAsync(
-        string dbName,
-        string roleName,
-        CancellationToken ct
-    )
+    public Task GrantTenantPrivilegesAsync(string dbName, string roleName, CancellationToken ct)
     {
         Calls.Add($"Grant({dbName},{roleName})");
         return Task.CompletedTask;

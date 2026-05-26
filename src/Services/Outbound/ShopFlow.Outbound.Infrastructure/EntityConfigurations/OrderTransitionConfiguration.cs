@@ -28,11 +28,7 @@ internal sealed class OrderTransitionConfiguration : IEntityTypeConfiguration<Or
             .HasMaxLength(64)
             .IsRequired();
 
-        builder
-            .Property(o => o.ToState)
-            .HasColumnName("to_state")
-            .HasMaxLength(64)
-            .IsRequired();
+        builder.Property(o => o.ToState).HasColumnName("to_state").HasMaxLength(64).IsRequired();
 
         builder.Property(o => o.OccurredAt).HasColumnName("occurred_at").IsRequired();
 
@@ -50,9 +46,7 @@ internal sealed class OrderTransitionConfiguration : IEntityTypeConfiguration<Or
 
         // Sprint-12.5 U2 — nullable actor_user_id captures the operator who
         // triggered the transition (NULL for system-triggered chains).
-        builder
-            .Property(o => o.ActorUserId)
-            .HasColumnName("actor_user_id");
+        builder.Property(o => o.ActorUserId).HasColumnName("actor_user_id");
 
         builder.Property(o => o.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at");
@@ -69,7 +63,12 @@ internal sealed class OrderTransitionConfiguration : IEntityTypeConfiguration<Or
         // `SagaTransitionDuplicateInterceptor` catches the residual 23505
         // and treats it as a no-op.
         builder
-            .HasIndex(o => new { o.OrderId, o.OccurredAt, o.ToState })
+            .HasIndex(o => new
+            {
+                o.OrderId,
+                o.OccurredAt,
+                o.ToState,
+            })
             .IsUnique()
             .HasDatabaseName("uq_outbound_saga_transitions_order_occurred_state");
     }

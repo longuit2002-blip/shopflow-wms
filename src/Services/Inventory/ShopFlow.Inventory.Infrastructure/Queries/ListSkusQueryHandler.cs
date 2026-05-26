@@ -24,9 +24,7 @@ namespace ShopFlow.Inventory.Infrastructure.Queries;
 /// <para>Channel allocations + p24 outbound still ship empty
 /// (Sprint-6 trade-off #3, unchanged in Sprint-7.5).</para>
 /// </remarks>
-public sealed class ListSkusQueryHandler(
-    InventoryDbContext db,
-    ISkuRepository skuRepository)
+public sealed class ListSkusQueryHandler(InventoryDbContext db, ISkuRepository skuRepository)
     : IRequestHandler<ListSkusQuery, PaginatedSkuListDto>
 {
     private readonly InventoryDbContext db = db;
@@ -34,7 +32,8 @@ public sealed class ListSkusQueryHandler(
 
     public async Task<PaginatedSkuListDto> Handle(
         ListSkusQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -66,12 +65,11 @@ public sealed class ListSkusQueryHandler(
             .ConfigureAwait(false);
 
         var skuCodes = rows.Select(r => r.Sku).ToList();
-        var metadata = await this.skuRepository
-            .GetListMetadataAsync(skuCodes, cancellationToken)
+        var metadata = await this
+            .skuRepository.GetListMetadataAsync(skuCodes, cancellationToken)
             .ConfigureAwait(false);
 
-        var items = rows
-            .Select(r =>
+        var items = rows.Select(r =>
             {
                 metadata.TryGetValue(r.Sku, out var m);
                 return new SkuListItemDto(
@@ -83,7 +81,8 @@ public sealed class ListSkusQueryHandler(
                     Threshold: m?.Threshold,
                     IsFlashSale: m?.IsFlashSale ?? false,
                     Allocations: Array.Empty<ChannelAllocationDto>(),
-                    P24Outbound: 0);
+                    P24Outbound: 0
+                );
             })
             .ToList();
 

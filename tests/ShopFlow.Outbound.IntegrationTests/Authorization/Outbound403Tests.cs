@@ -187,8 +187,8 @@ public sealed class Outbound403Tests
     /// </summary>
     private HttpClient BuildClientNarrowedFor(string omittedKey)
     {
-        var includeKeys = PermissionKeys.All
-            .Where(k => !string.Equals(k, omittedKey, StringComparison.Ordinal))
+        var includeKeys = PermissionKeys
+            .All.Where(k => !string.Equals(k, omittedKey, StringComparison.Ordinal))
             .ToArray();
         var jwt = _fixture.JwtBuilder.Build(
             tenantSlug: OutboundAuthorizationFixture.TenantSlug,

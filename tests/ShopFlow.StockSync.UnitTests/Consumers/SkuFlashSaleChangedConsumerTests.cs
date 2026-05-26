@@ -30,7 +30,8 @@ public sealed class SkuFlashSaleChangedConsumerTests
                 Arg.Any<string>(),
                 Arg.Any<bool>(),
                 Arg.Any<DateTime>(),
-                Arg.Any<CancellationToken>())
+                Arg.Any<CancellationToken>()
+            )
             .Returns(true);
 
         var harness = await StartHarnessAsync(repo);
@@ -41,12 +42,8 @@ public sealed class SkuFlashSaleChangedConsumerTests
             var consumed = harness.GetConsumerHarness<SkuFlashSaleChangedConsumer>();
             (await consumed.Consumed.Any<SkuFlashSaleChangedV1>()).Should().BeTrue();
 
-            await repo.Received(1).ApplyEventAsync(
-                TenantA,
-                "SKU-A",
-                true,
-                Now,
-                Arg.Any<CancellationToken>());
+            await repo.Received(1)
+                .ApplyEventAsync(TenantA, "SKU-A", true, Now, Arg.Any<CancellationToken>());
         }
         finally
         {
@@ -65,20 +62,24 @@ public sealed class SkuFlashSaleChangedConsumerTests
                 Arg.Any<string>(),
                 Arg.Any<bool>(),
                 Arg.Any<DateTime>(),
-                Arg.Any<CancellationToken>())
+                Arg.Any<CancellationToken>()
+            )
             .Returns(false);
 
         var harness = await StartHarnessAsync(repo);
         try
         {
-            await harness.Bus.Publish(new SkuFlashSaleChangedV1(TenantA, "SKU-A", true, Now.AddMinutes(-5)));
+            await harness.Bus.Publish(
+                new SkuFlashSaleChangedV1(TenantA, "SKU-A", true, Now.AddMinutes(-5))
+            );
 
             var consumed = harness.GetConsumerHarness<SkuFlashSaleChangedConsumer>();
             (await consumed.Consumed.Any<SkuFlashSaleChangedV1>()).Should().BeTrue();
 
             // No exception thrown by the consumer; MT considers the
             // message successfully handled.
-            var faulted = harness.Consumed.Select<SkuFlashSaleChangedV1>()
+            var faulted = harness
+                .Consumed.Select<SkuFlashSaleChangedV1>()
                 .Any(ctx => ctx.Exception is not null);
             faulted.Should().BeFalse();
         }
@@ -92,7 +93,9 @@ public sealed class SkuFlashSaleChangedConsumerTests
     {
         var services = new ServiceCollection();
         services.AddSingleton(repo);
-        services.AddSingleton<ILogger<SkuFlashSaleChangedConsumer>>(NullLogger<SkuFlashSaleChangedConsumer>.Instance);
+        services.AddSingleton<ILogger<SkuFlashSaleChangedConsumer>>(
+            NullLogger<SkuFlashSaleChangedConsumer>.Instance
+        );
         services.AddMassTransitTestHarness(cfg =>
         {
             cfg.AddConsumer<SkuFlashSaleChangedConsumer>();

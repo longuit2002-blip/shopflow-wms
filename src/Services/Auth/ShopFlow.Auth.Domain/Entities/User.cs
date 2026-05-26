@@ -31,7 +31,8 @@ public sealed class User : BaseEntity
 {
     private static readonly Regex EmailSanity = new(
         @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled
+    );
 
     private const int MaxEmailLength = 254;
 
@@ -95,7 +96,8 @@ public sealed class User : BaseEntity
         {
             throw new ArgumentException(
                 $"Email must be {MaxEmailLength} characters or fewer.",
-                nameof(email));
+                nameof(email)
+            );
         }
         if (!EmailSanity.IsMatch(normalized))
         {
@@ -105,7 +107,8 @@ public sealed class User : BaseEntity
         {
             throw new ArgumentException(
                 "Password hash is required (pre-hash via IPasswordHasher before calling Create).",
-                nameof(passwordHash));
+                nameof(passwordHash)
+            );
         }
         if (!Enum.IsDefined(role))
         {
@@ -133,9 +136,7 @@ public sealed class User : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(newPasswordHash))
         {
-            throw new ArgumentException(
-                "Password hash is required.",
-                nameof(newPasswordHash));
+            throw new ArgumentException("Password hash is required.", nameof(newPasswordHash));
         }
         PasswordHash = newPasswordHash;
         UpdatedAt = DateTime.UtcNow;
@@ -214,12 +215,16 @@ public sealed class User : BaseEntity
         TimeProvider clock,
         int maxAttempts,
         TimeSpan window,
-        TimeSpan lockoutDuration)
+        TimeSpan lockoutDuration
+    )
     {
         ArgumentNullException.ThrowIfNull(clock);
         if (maxAttempts <= 0)
         {
-            throw new ArgumentOutOfRangeException(nameof(maxAttempts), "maxAttempts must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(maxAttempts),
+                "maxAttempts must be positive."
+            );
         }
         if (window <= TimeSpan.Zero)
         {
@@ -227,7 +232,10 @@ public sealed class User : BaseEntity
         }
         if (lockoutDuration <= TimeSpan.Zero)
         {
-            throw new ArgumentOutOfRangeException(nameof(lockoutDuration), "lockoutDuration must be positive.");
+            throw new ArgumentOutOfRangeException(
+                nameof(lockoutDuration),
+                "lockoutDuration must be positive."
+            );
         }
 
         var now = clock.GetUtcNow().UtcDateTime;

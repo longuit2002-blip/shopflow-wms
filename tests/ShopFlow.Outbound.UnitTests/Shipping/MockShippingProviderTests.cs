@@ -22,9 +22,7 @@ public sealed class MockShippingProviderTests
 {
     private static Order NewAwaitingShipOrder()
     {
-        var order = Order
-            .Create("ext-mock", "standard", new[] { ("SKU-A", 1, (int?)100) })
-            .Value!;
+        var order = Order.Create("ext-mock", "standard", new[] { ("SKU-A", 1, (int?)100) }).Value!;
         order.MarkAwaitingReservation();
         order.MarkReserved();
         order.MarkAwaitingPick();
@@ -204,7 +202,8 @@ public sealed class MockShippingProviderTests
             flakeRate: 0.3,
             minDelayMs: 1,
             maxDelayMsExclusive: 10,
-            randomSource: rng);
+            randomSource: rng
+        );
 
         provider.Should().NotBeNull();
     }
@@ -232,7 +231,8 @@ public sealed class MockShippingProviderTests
             flakeRate: 0.5,
             minDelayMs: 1,
             maxDelayMsExclusive: 3,
-            randomSource: () => seq.TryDequeue(out var v) ? v : 1.0);
+            randomSource: () => seq.TryDequeue(out var v) ? v : 1.0
+        );
 
         // First attempt: 0.1 < 0.5 → throw.
         Func<Task> firstAttempt = async () =>
@@ -272,7 +272,12 @@ public sealed class MockShippingProviderTests
         viaFlakeDelayBuilder.Should().NotBeNull();
 
         var viaFlakeDelayRandomBuilder = MockShippingProvider.WithFlakeRateDelayAndRandom(
-            p, 0.0, 1, 10, () => 1.0);
+            p,
+            0.0,
+            1,
+            10,
+            () => 1.0
+        );
         viaFlakeDelayRandomBuilder.Should().NotBeNull();
     }
 }

@@ -15,7 +15,13 @@ public interface IMfaChallengeTokenCodec
     /// <paramref name="userId"/> + <paramref name="tenantSlug"/> +
     /// <paramref name="rememberMe"/> + <paramref name="intent"/>.
     /// </summary>
-    string Issue(Guid userId, string tenantSlug, bool rememberMe, MfaChallengeIntent intent, DateTime issuedAt);
+    string Issue(
+        Guid userId,
+        string tenantSlug,
+        bool rememberMe,
+        MfaChallengeIntent intent,
+        DateTime issuedAt
+    );
 
     /// <summary>
     /// Decode + validate the token. Returns null when the signature is
@@ -38,4 +44,5 @@ public sealed record MfaChallengePayload(
     Guid UserId,
     string TenantSlug,
     bool RememberMe,
-    MfaChallengeIntent Intent);
+    MfaChallengeIntent Intent
+);

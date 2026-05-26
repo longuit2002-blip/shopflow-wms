@@ -18,17 +18,13 @@ internal sealed class RolePermissionConfiguration : IEntityTypeConfiguration<Rol
 
         builder.ToTable("role_permissions");
 
-        builder
-            .HasKey(rp => new { rp.Role, rp.PermissionKey })
-            .HasName("pk_role_permissions");
+        builder.HasKey(rp => new { rp.Role, rp.PermissionKey }).HasName("pk_role_permissions");
 
         builder
             .Property(rp => rp.Role)
             .HasColumnName("role")
             .HasMaxLength(16)
-            .HasConversion(
-                v => v.ToString(),
-                v => Enum.Parse<UserRole>(v))
+            .HasConversion(v => v.ToString(), v => Enum.Parse<UserRole>(v))
             .IsRequired();
 
         builder
@@ -37,9 +33,6 @@ internal sealed class RolePermissionConfiguration : IEntityTypeConfiguration<Rol
             .HasMaxLength(64)
             .IsRequired();
 
-        builder
-            .Property(rp => rp.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
+        builder.Property(rp => rp.CreatedAt).HasColumnName("created_at").IsRequired();
     }
 }

@@ -47,8 +47,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 19, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 19, 10, 0, 0, TimeSpan.Zero);
 
     private readonly OutboundTenantFixture _fx;
     private ProvisionedOutboundTenant _tenantA = default!;
@@ -85,19 +84,23 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
             until: null,
             skip: 0,
             take: 50,
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var body = ok.Value.Should().BeOfType<OrderListResponse>().Subject;
         body.TotalCount.Should().Be(2);
         body.Items.Should().HaveCount(2);
         body.Items.Select(i => i.ChannelExternalOrderId)
-            .Should().BeEquivalentTo(new[] { "SHOPEE_ORD-1", "LAZADA_ORD-2" });
+            .Should()
+            .BeEquivalentTo(new[] { "SHOPEE_ORD-1", "LAZADA_ORD-2" });
         // Channel label parsed from the prefix per Sprint-7 plan U3.
-        body.Items.Single(i => i.ChannelExternalOrderId == "SHOPEE_ORD-1").Channel
-            .Should().Be("Shopee");
-        body.Items.Single(i => i.ChannelExternalOrderId == "LAZADA_ORD-2").Channel
-            .Should().Be("Lazada");
+        body.Items.Single(i => i.ChannelExternalOrderId == "SHOPEE_ORD-1")
+            .Channel.Should()
+            .Be("Shopee");
+        body.Items.Single(i => i.ChannelExternalOrderId == "LAZADA_ORD-2")
+            .Channel.Should()
+            .Be("Lazada");
     }
 
     [Fact]
@@ -127,11 +130,15 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
             until: null,
             skip: 0,
             take: 50,
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         var body = result
-            .Should().BeOfType<OkObjectResult>()
-            .Subject.Value.Should().BeOfType<OrderListResponse>().Subject;
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Subject.Value.Should()
+            .BeOfType<OrderListResponse>()
+            .Subject;
         body.TotalCount.Should().Be(1);
         body.Items.Single().Id.Should().Be(aId);
         body.Items.Single().ChannelExternalOrderId.Should().Be("SHOPEE_FLT-A");
@@ -150,19 +157,19 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
             _tenantA,
             channelRef: "DIRECT_DETAIL-1",
             shippingProfile: "express",
-            lines: new[]
-            {
-                ("SKU-1", 2, (int?)100),
-                ("SKU-2", 1, (int?)200),
-            });
+            lines: new[] { ("SKU-1", 2, (int?)100), ("SKU-2", 1, (int?)200) }
+        );
 
         await using var harness = BuildHarness(_tenantA);
 
         var result = await harness.Controller.GetByIdAsync(orderId, CancellationToken.None);
 
         var body = result
-            .Should().BeOfType<OkObjectResult>()
-            .Subject.Value.Should().BeOfType<OrderResponse>().Subject;
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Subject.Value.Should()
+            .BeOfType<OrderResponse>()
+            .Subject;
         body.Id.Should().Be(orderId);
         body.ChannelExternalOrderId.Should().Be("DIRECT_DETAIL-1");
         body.Lines.Should().HaveCount(2);
@@ -179,9 +186,11 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
         var result = await harness.Controller.GetTransitionsAsync(orderId, CancellationToken.None);
 
         var body = result
-            .Should().BeOfType<OkObjectResult>()
+            .Should()
+            .BeOfType<OkObjectResult>()
             .Subject.Value.Should()
-            .BeAssignableTo<IReadOnlyList<OrderTransitionDto>>().Subject;
+            .BeAssignableTo<IReadOnlyList<OrderTransitionDto>>()
+            .Subject;
         body.Should().BeEmpty();
     }
 
@@ -204,14 +213,17 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
                     toState: "AwaitingReservation",
                     occurredAt: t1,
                     eventType: "OrderPlacedV1",
-                    correlationId: "trace-aaaa"),
+                    correlationId: "trace-aaaa"
+                ),
                 OrderTransition.Create(
                     orderId: orderId,
                     fromState: "AwaitingReservation",
                     toState: "Reserved",
                     occurredAt: t2,
                     eventType: "StockReservedV1",
-                    correlationId: "trace-bbbb"));
+                    correlationId: "trace-bbbb"
+                )
+            );
             await db.SaveChangesAsync();
         }
 
@@ -219,9 +231,11 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
 
         var result = await harness.Controller.GetTransitionsAsync(orderId, CancellationToken.None);
         var body = result
-            .Should().BeOfType<OkObjectResult>()
+            .Should()
+            .BeOfType<OkObjectResult>()
             .Subject.Value.Should()
-            .BeAssignableTo<IReadOnlyList<OrderTransitionDto>>().Subject;
+            .BeAssignableTo<IReadOnlyList<OrderTransitionDto>>()
+            .Subject;
 
         body.Should().HaveCount(2);
         body[0].FromState.Should().Be("Initial");
@@ -247,7 +261,8 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
             until: null,
             skip: 0,
             take: 50,
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         AssertProblemWithCode(result, expectedStatus: 400, expectedCode: "order.invalid_since");
     }
@@ -267,7 +282,8 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
             until: badUntil,
             skip: 0,
             take: 50,
-            ct: CancellationToken.None);
+            ct: CancellationToken.None
+        );
 
         AssertProblemWithCode(result, expectedStatus: 400, expectedCode: "order.invalid_until");
     }
@@ -295,8 +311,11 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
 
         var result = await harness.Controller.GetKpisAsync(CancellationToken.None);
         var body = result
-            .Should().BeOfType<OkObjectResult>()
-            .Subject.Value.Should().BeOfType<OrderKpiResponse>().Subject;
+            .Should()
+            .BeOfType<OkObjectResult>()
+            .Subject.Value.Should()
+            .BeOfType<OrderKpiResponse>()
+            .Subject;
 
         body.AwaitingPick.Should().Be(1);
         body.AwaitingShip.Should().Be(0);
@@ -315,7 +334,8 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
         ProvisionedOutboundTenant tenant,
         string channelRef,
         string shippingProfile,
-        IEnumerable<(string Sku, int Qty, int? ExpectedWeight)>? lines = null)
+        IEnumerable<(string Sku, int Qty, int? ExpectedWeight)>? lines = null
+    )
     {
         lines ??= new[] { ("SKU-A", 1, (int?)100) };
         await using var db = new OutboundDbContext(tenant.Options);
@@ -345,8 +365,9 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
         services.AddScoped<IOutboundOutbox, OutboundOutbox>();
 
         // MediatR scan picks up the Outbound.Application handlers (U3).
-        services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(
-            typeof(ListOrdersQuery).Assembly));
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(ListOrdersQuery).Assembly)
+        );
 
         var sp = services.BuildServiceProvider();
         var scope = sp.CreateScope();
@@ -360,7 +381,8 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
             publishEndpoint: new NoopPublishEndpoint(),
             shippingProvider: new UnusedMockShippingProvider(),
             mediator: scope.ServiceProvider.GetRequiredService<IMediator>(),
-            env: new TestHostEnvironment(environmentName: "Development"));
+            env: new TestHostEnvironment(environmentName: "Development")
+        );
         return new ControllerHarness(controller, sp, scope);
     }
 
@@ -370,7 +392,11 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
         private readonly ServiceProvider _sp;
         private readonly IServiceScope _scope;
 
-        public ControllerHarness(OrdersController controller, ServiceProvider sp, IServiceScope scope)
+        public ControllerHarness(
+            OrdersController controller,
+            ServiceProvider sp,
+            IServiceScope scope
+        )
         {
             Controller = controller;
             _sp = sp;
@@ -387,7 +413,12 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
     private sealed class FakeClock : TimeProvider
     {
         private readonly DateTimeOffset _now;
-        public FakeClock(DateTimeOffset now) { _now = now; }
+
+        public FakeClock(DateTimeOffset now)
+        {
+            _now = now;
+        }
+
         public override DateTimeOffset GetUtcNow() => _now;
     }
 
@@ -397,15 +428,15 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
         {
             EnvironmentName = environmentName;
         }
+
         public string EnvironmentName { get; set; }
         public string ApplicationName { get; set; } = "ShopFlow.Outbound.Api";
         public string ContentRootPath { get; set; } = AppContext.BaseDirectory;
+
         // IsDevelopment() only reads EnvironmentName; ContentRootFileProvider
         // is never inspected by the controller path under test.
-        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider
-        {
-            get; set;
-        } = new Microsoft.Extensions.FileProviders.NullFileProvider();
+        public Microsoft.Extensions.FileProviders.IFileProvider ContentRootFileProvider { get; set; } =
+            new Microsoft.Extensions.FileProviders.NullFileProvider();
     }
 
     /// <summary>
@@ -416,31 +447,57 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
         public Task Publish<T>(T message, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
-        public Task Publish<T>(T message, IPipe<PublishContext<T>> publishPipe, CancellationToken cancellationToken = default)
+        public Task Publish<T>(
+            T message,
+            IPipe<PublishContext<T>> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
 
-        public Task Publish<T>(T message, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default)
+        public Task Publish<T>(
+            T message,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
 
         public Task Publish(object message, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
-        public Task Publish(object message, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task Publish(
+            object message,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
 
-        public Task Publish(object message, Type messageType, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task Publish(
+            object message,
+            Type messageType,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
 
-        public Task Publish(object message, Type messageType, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task Publish(
+            object message,
+            Type messageType,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        ) => Task.CompletedTask;
 
         public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
-        public Task Publish<T>(object values, IPipe<PublishContext<T>> publishPipe, CancellationToken cancellationToken = default)
+        public Task Publish<T>(
+            object values,
+            IPipe<PublishContext<T>> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
 
-        public Task Publish<T>(object values, IPipe<PublishContext> publishPipe, CancellationToken cancellationToken = default)
+        public Task Publish<T>(
+            object values,
+            IPipe<PublishContext> publishPipe,
+            CancellationToken cancellationToken = default
+        )
             where T : class => Task.CompletedTask;
 
         public ConnectHandle ConnectPublishObserver(IPublishObserver observer) =>
@@ -451,13 +508,15 @@ public sealed class OrdersListAndDetailEndpointTests : IAsyncLifetime
     {
         public Task<ShippingLabel> CreateLabelAsync(Order order, CancellationToken ct) =>
             throw new InvalidOperationException(
-                "Sprint-7 U4 read endpoints should not call the shipping provider.");
+                "Sprint-7 U4 read endpoints should not call the shipping provider."
+            );
     }
 
     private static void AssertProblemWithCode(
         IActionResult actionResult,
         int expectedStatus,
-        string expectedCode)
+        string expectedCode
+    )
     {
         var problem = actionResult.Should().BeOfType<ObjectResult>().Subject;
         problem.StatusCode.Should().Be(expectedStatus);

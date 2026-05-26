@@ -100,17 +100,19 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
-            builder.ConfigureAppConfiguration((_, cfg) =>
-            {
-                cfg.AddInMemoryCollection(
-                    new Dictionary<string, string?>
-                    {
-                        ["ControlPlane:ConnectionString"] = controlConnStr,
-                        ["ControlPlane:TenantTemplate"] = BuildTenantTemplate(),
-                        ["MessageBus:Transport"] = "InMemory",
-                    }
-                );
-            });
+            builder.ConfigureAppConfiguration(
+                (_, cfg) =>
+                {
+                    cfg.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["ControlPlane:ConnectionString"] = controlConnStr,
+                            ["ControlPlane:TenantTemplate"] = BuildTenantTemplate(),
+                            ["MessageBus:Transport"] = "InMemory",
+                        }
+                    );
+                }
+            );
         });
 
         _client = _factory.CreateClient();
@@ -273,10 +275,7 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         );
     }
 
-    private static async Task ApplyControlPlaneMigrationsAsync(
-        string connStr,
-        CancellationToken ct
-    )
+    private static async Task ApplyControlPlaneMigrationsAsync(string connStr, CancellationToken ct)
     {
         var options = new DbContextOptionsBuilder<ControlPlaneDbContext>()
             .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.ControlPlane.Migrations"))
@@ -292,7 +291,10 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
     )
     {
         var options = new DbContextOptionsBuilder<ControlPlaneDbContext>()
-            .UseNpgsql(controlConnStr, npg => npg.MigrationsAssembly("ShopFlow.ControlPlane.Migrations"))
+            .UseNpgsql(
+                controlConnStr,
+                npg => npg.MigrationsAssembly("ShopFlow.ControlPlane.Migrations")
+            )
             .Options;
         await using var ctx = new ControlPlaneDbContext(options);
 
@@ -338,7 +340,8 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
     private static void SetPrivateProperty<T>(object instance, string propertyName, T value)
     {
         var prop =
-            instance.GetType()
+            instance
+                .GetType()
                 .GetProperty(
                     propertyName,
                     System.Reflection.BindingFlags.Public

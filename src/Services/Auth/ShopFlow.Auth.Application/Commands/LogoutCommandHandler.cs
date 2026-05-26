@@ -22,7 +22,8 @@ public sealed class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result
     public LogoutCommandHandler(
         IRefreshTokenStore refreshStore,
         IAuthAuditLogRepository auditLog,
-        ILogger<LogoutCommandHandler> logger)
+        ILogger<LogoutCommandHandler> logger
+    )
     {
         _refreshStore = refreshStore;
         _auditLog = auditLog;
@@ -54,16 +55,19 @@ public sealed class LogoutCommandHandler : IRequestHandler<LogoutCommand, Result
                 .ConfigureAwait(false);
         }
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.Logout,
-            request.UserId,
-            request.SourceIp,
-            request.UserAgent,
-            metadata: null,
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.Logout,
+                request.UserId,
+                request.SourceIp,
+                request.UserAgent,
+                metadata: null,
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

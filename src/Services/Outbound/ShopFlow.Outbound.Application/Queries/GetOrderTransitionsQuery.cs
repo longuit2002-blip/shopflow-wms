@@ -10,7 +10,8 @@ namespace ShopFlow.Outbound.Application.Queries;
 /// the saga has not produced any transitions yet (e.g., freshly seeded
 /// order before the first <c>OrderPlacedV1</c> consume).
 /// </summary>
-public sealed record GetOrderTransitionsQuery(Guid OrderId) : IRequest<IReadOnlyList<OrderTransitionReadModel>>;
+public sealed record GetOrderTransitionsQuery(Guid OrderId)
+    : IRequest<IReadOnlyList<OrderTransitionReadModel>>;
 
 /// <summary>
 /// Read model for one row in the transitions log. Sprint-7 R14 — every
@@ -31,4 +32,5 @@ public sealed record OrderTransitionReadModel(
     string ToState,
     DateTime OccurredAt,
     string EventType,
-    string CorrelationId);
+    string CorrelationId
+);

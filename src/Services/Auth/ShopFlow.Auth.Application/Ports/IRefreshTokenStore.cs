@@ -72,7 +72,8 @@ public interface IRefreshTokenStore
         string tenantSlug,
         Guid userId,
         string presentedToken,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Revoke a single refresh token (logout from one device).
@@ -136,4 +137,5 @@ public enum RefreshRotateOutcome
 public sealed record RefreshRotateResult(
     RefreshRotateOutcome Outcome,
     string? NewToken,
-    Guid? ChainId = null);
+    Guid? ChainId = null
+);

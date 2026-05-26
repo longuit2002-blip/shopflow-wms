@@ -80,7 +80,10 @@ public sealed class PickQueueTests
 
         for (var i = 0; i < 1000; i++)
         {
-            writer.TryWrite(Sample(tenantId)).Should().BeTrue($"item {i} should fit before the cap");
+            writer
+                .TryWrite(Sample(tenantId))
+                .Should()
+                .BeTrue($"item {i} should fit before the cap");
         }
 
         // 1001st TryWrite — should fail (channel full).
@@ -91,9 +94,10 @@ public sealed class PickQueueTests
         var write = writer.WriteAsync(Sample(tenantId), cts.Token);
         // The task should still be pending (back-pressured) — TaskCanceledException after 200ms.
         var act = async () => await write;
-        await act.Should().ThrowAsync<OperationCanceledException>(
-            "WriteAsync must wait when the channel is full"
-        );
+        await act.Should()
+            .ThrowAsync<OperationCanceledException>(
+                "WriteAsync must wait when the channel is full"
+            );
     }
 
     [Fact]

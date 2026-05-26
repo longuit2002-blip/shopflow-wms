@@ -112,7 +112,13 @@ public sealed class SagaTransitionObserverTests
             .When(r => r.AppendAsync(Arg.Any<OrderTransition>(), Arg.Any<CancellationToken>()))
             .Do(ci => capturedTransition = ci.Arg<OrderTransition>());
         outbox
-            .When(o => o.AppendAsync(Arg.Any<string>(), Arg.Any<SagaTransitionedV1>(), Arg.Any<CancellationToken>()))
+            .When(o =>
+                o.AppendAsync(
+                    Arg.Any<string>(),
+                    Arg.Any<SagaTransitionedV1>(),
+                    Arg.Any<CancellationToken>()
+                )
+            )
             .Do(ci => capturedEvent = ci.ArgAt<SagaTransitionedV1>(1));
 
         await observer.RecordAsync(
@@ -139,7 +145,8 @@ public sealed class SagaTransitionObserverTests
         using var listener = new ActivityListener
         {
             ShouldListenTo = _ => true,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllData,
             ActivityStarted = _ => { },
             ActivityStopped = _ => { },
         };
@@ -232,9 +239,7 @@ public sealed class SagaTransitionObserverTests
 
         await using (var db = new OutboundDbContext(options))
         {
-            var rows = await db
-                .OrderTransitions.Where(t => t.OrderId == orderId)
-                .ToListAsync();
+            var rows = await db.OrderTransitions.Where(t => t.OrderId == orderId).ToListAsync();
             rows.Should().HaveCount(1);
         }
     }
@@ -343,10 +348,7 @@ public sealed class SagaTransitionObserverTests
     public void Classify_FalseForNonUniqueSqlState()
     {
         SagaTransitionDuplicateInterceptor
-            .Classify(
-                "23502",
-                SagaTransitionDuplicateInterceptor.UniqueConstraintName
-            )
+            .Classify("23502", SagaTransitionDuplicateInterceptor.UniqueConstraintName)
             .Should()
             .BeFalse();
     }
@@ -361,10 +363,7 @@ public sealed class SagaTransitionObserverTests
     public void Classify_FalseForDifferentConstraintName()
     {
         SagaTransitionDuplicateInterceptor
-            .Classify(
-                PostgresErrorCodes.UniqueViolation,
-                "ux_orders_channel_external_order_id"
-            )
+            .Classify(PostgresErrorCodes.UniqueViolation, "ux_orders_channel_external_order_id")
             .Should()
             .BeFalse();
     }
@@ -381,10 +380,7 @@ public sealed class SagaTransitionObserverTests
             .Should()
             .BeFalse();
         SagaTransitionDuplicateInterceptor
-            .Classify(
-                sqlState: PostgresErrorCodes.UniqueViolation,
-                constraintName: null
-            )
+            .Classify(sqlState: PostgresErrorCodes.UniqueViolation, constraintName: null)
             .Should()
             .BeFalse();
     }

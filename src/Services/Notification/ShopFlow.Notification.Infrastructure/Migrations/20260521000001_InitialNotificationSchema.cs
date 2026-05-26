@@ -195,9 +195,7 @@ public sealed partial class InitialNotificationSchema : Migration
         mb.Sql(
             "ALTER TABLE notification_dead_letter DROP CONSTRAINT IF EXISTS chk_notification_dead_letter_kind;"
         );
-        mb.Sql(
-            "ALTER TABLE notification_log DROP CONSTRAINT IF EXISTS chk_notification_log_kind;"
-        );
+        mb.Sql("ALTER TABLE notification_log DROP CONSTRAINT IF EXISTS chk_notification_log_kind;");
         mb.Sql(
             "ALTER TABLE notification_outbox DROP CONSTRAINT IF EXISTS chk_notification_outbox_kind;"
         );

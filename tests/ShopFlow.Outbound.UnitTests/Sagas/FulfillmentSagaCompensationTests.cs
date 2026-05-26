@@ -59,8 +59,7 @@ public sealed class FulfillmentSagaCompensationTests
 
         services.AddMassTransitTestHarness(cfg =>
         {
-            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .InMemoryRepository();
+            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>().InMemoryRepository();
         });
 
         var sp = services.BuildServiceProvider(true);
@@ -123,8 +122,9 @@ public sealed class FulfillmentSagaCompensationTests
         // pre-check (orchestrator brief calls it out explicitly).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -146,8 +146,9 @@ public sealed class FulfillmentSagaCompensationTests
         // branch publishes ONE ReleaseStockV1 carrying both line ids.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -168,7 +169,9 @@ public sealed class FulfillmentSagaCompensationTests
             .Published.Select<ReleaseStockV1>()
             .Where(p => p.Context.Message.OrderId == orderId)
             .ToList();
-        released.Should().HaveCount(1, "the saga publishes one multi-line ReleaseStockV1 per PickFailed");
+        released
+            .Should()
+            .HaveCount(1, "the saga publishes one multi-line ReleaseStockV1 per PickFailed");
         var msg = released.Single().Context.Message;
         msg.TenantId.Should().Be(tenantId);
         msg.OrderLineIds.Should().BeEquivalentTo(new[] { "L1", "L2" });
@@ -183,8 +186,9 @@ public sealed class FulfillmentSagaCompensationTests
         // ReleaseStockV1 and StockReleasedV1.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -208,13 +212,8 @@ public sealed class FulfillmentSagaCompensationTests
             )
         );
 
-        var cancelled = await sagaHarness.Exists(
-            orderId,
-            sagaHarness.StateMachine.Cancelled
-        );
-        cancelled
-            .Should()
-            .NotBeNull("once the counter hits 0 the saga transitions to Cancelled");
+        var cancelled = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Cancelled);
+        cancelled.Should().NotBeNull("once the counter hits 0 the saga transitions to Cancelled");
 
         var saga = sagaHarness.Created.Contains(orderId)!;
         saga.LinesAwaitingRelease.Should().BeLessOrEqualTo(0);
@@ -239,8 +238,9 @@ public sealed class FulfillmentSagaCompensationTests
         // publish (release-the-empty-set is a no-op).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -271,10 +271,7 @@ public sealed class FulfillmentSagaCompensationTests
             )
         );
 
-        var cancelled = await sagaHarness.Exists(
-            orderId,
-            sagaHarness.StateMachine.Cancelled
-        );
+        var cancelled = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Cancelled);
         cancelled
             .Should()
             .NotBeNull(
@@ -304,8 +301,9 @@ public sealed class FulfillmentSagaCompensationTests
         // has no handler for StockReleasedV1 so the redelivery is ignored).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -368,8 +366,9 @@ public sealed class FulfillmentSagaCompensationTests
         // its results in tranches).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -448,8 +447,9 @@ public sealed class FulfillmentSagaCompensationTests
         // ONE ReleaseStockV1 carrying both line ids — exactly Path B's behavior.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -491,8 +491,9 @@ public sealed class FulfillmentSagaCompensationTests
         // counter-drain behavior — Sprint-12.5 KTD5 reuse claim under test.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -532,8 +533,9 @@ public sealed class FulfillmentSagaCompensationTests
         // past Picked.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -543,7 +545,8 @@ public sealed class FulfillmentSagaCompensationTests
         await Task.Delay(200);
 
         var saga = sagaHarness.Created.Contains(orderId)!;
-        saga.CurrentState.Should().Be("AwaitingPick", "saga ignores ShipFailed outside Packed state");
+        saga.CurrentState.Should()
+            .Be("AwaitingPick", "saga ignores ShipFailed outside Packed state");
 
         var released = harness
             .Published.Select<ReleaseStockV1>()
@@ -563,20 +566,14 @@ public sealed class FulfillmentSagaCompensationTests
         // AwaitingReservation.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
         await harness.Bus.Publish(
-            new OrderPlacedV1(
-                orderId,
-                tenantId,
-                "ext-oob",
-                "standard",
-                TwoLines(),
-                DateTime.UtcNow
-            )
+            new OrderPlacedV1(orderId, tenantId, "ext-oob", "standard", TwoLines(), DateTime.UtcNow)
         );
         (await sagaHarness.Exists(orderId, sagaHarness.StateMachine.AwaitingReservation))
             .Should()

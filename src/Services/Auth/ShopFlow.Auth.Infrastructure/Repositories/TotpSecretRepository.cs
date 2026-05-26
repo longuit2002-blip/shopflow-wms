@@ -22,8 +22,7 @@ public sealed class TotpSecretRepository : ITotpSecretRepository
     public async Task<TotpSecretView?> GetAsync(Guid userId, CancellationToken ct)
     {
         var row = await _db
-            .TotpSecrets
-            .AsNoTracking()
+            .TotpSecrets.AsNoTracking()
             .FirstOrDefaultAsync(s => s.UserId == userId, ct)
             .ConfigureAwait(false);
         return row is null
@@ -36,12 +35,12 @@ public sealed class TotpSecretRepository : ITotpSecretRepository
         byte[] encryptedSecret,
         int keyId,
         long? lastUsedTimeStep,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(encryptedSecret);
         var existing = await _db
-            .TotpSecrets
-            .FirstOrDefaultAsync(s => s.UserId == userId, ct)
+            .TotpSecrets.FirstOrDefaultAsync(s => s.UserId == userId, ct)
             .ConfigureAwait(false);
         if (existing is null)
         {
@@ -66,8 +65,7 @@ public sealed class TotpSecretRepository : ITotpSecretRepository
     public async Task UpdateLastUsedStepAsync(Guid userId, long timeStep, CancellationToken ct)
     {
         var row = await _db
-            .TotpSecrets
-            .FirstOrDefaultAsync(s => s.UserId == userId, ct)
+            .TotpSecrets.FirstOrDefaultAsync(s => s.UserId == userId, ct)
             .ConfigureAwait(false);
         if (row is null)
         {
@@ -80,8 +78,7 @@ public sealed class TotpSecretRepository : ITotpSecretRepository
     public async Task DeleteAsync(Guid userId, CancellationToken ct)
     {
         await _db
-            .TotpSecrets
-            .Where(s => s.UserId == userId)
+            .TotpSecrets.Where(s => s.UserId == userId)
             .ExecuteDeleteAsync(ct)
             .ConfigureAwait(false);
     }

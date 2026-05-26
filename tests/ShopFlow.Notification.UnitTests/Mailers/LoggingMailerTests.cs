@@ -20,9 +20,7 @@ public sealed class LoggingMailerTests
         var result = await _mailer.SendAsync(email, recipient, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result
-            .Value.Value.Should()
-            .Match("<dev-*@logging-mailer.local>");
+        result.Value.Value.Should().Match("<dev-*@logging-mailer.local>");
     }
 
     [Fact]
@@ -42,8 +40,7 @@ public sealed class LoggingMailerTests
     {
         var recipient = Recipient.Create("alice@example.com", "Alice", AnyTenant);
 
-        var act = async () =>
-            await _mailer.SendAsync(null!, recipient, CancellationToken.None);
+        var act = async () => await _mailer.SendAsync(null!, recipient, CancellationToken.None);
 
         await act.Should().ThrowAsync<ArgumentNullException>();
     }

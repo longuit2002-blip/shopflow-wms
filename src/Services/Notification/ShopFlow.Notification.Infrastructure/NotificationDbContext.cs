@@ -51,8 +51,7 @@ public sealed class NotificationDbContext : DbContext
         );
     }
 
-    public DbSet<NotificationOutboxEntry> NotificationOutbox =>
-        Set<NotificationOutboxEntry>();
+    public DbSet<NotificationOutboxEntry> NotificationOutbox => Set<NotificationOutboxEntry>();
 
     public DbSet<NotificationLogEntry> NotificationLog => Set<NotificationLogEntry>();
 

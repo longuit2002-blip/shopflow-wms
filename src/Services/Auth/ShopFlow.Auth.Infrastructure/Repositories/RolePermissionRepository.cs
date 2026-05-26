@@ -27,25 +27,24 @@ public sealed class RolePermissionRepository : IRolePermissionRepository
     public async Task<IReadOnlyList<string>> GetForRoleAsync(UserRole role, CancellationToken ct)
     {
         return await _db
-            .RolePermissions
-            .AsNoTracking()
+            .RolePermissions.AsNoTracking()
             .Where(rp => rp.Role == role)
             .Select(rp => rp.PermissionKey)
             .ToListAsync(ct)
             .ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyDictionary<UserRole, IReadOnlyList<string>>> ListAllAsync(CancellationToken ct)
+    public async Task<IReadOnlyDictionary<UserRole, IReadOnlyList<string>>> ListAllAsync(
+        CancellationToken ct
+    )
     {
-        var rows = await _db
-            .RolePermissions
-            .AsNoTracking()
-            .ToListAsync(ct)
-            .ConfigureAwait(false);
+        var rows = await _db.RolePermissions.AsNoTracking().ToListAsync(ct).ConfigureAwait(false);
 
-        var byRole = rows
-            .GroupBy(rp => rp.Role)
-            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(rp => rp.PermissionKey).ToList());
+        var byRole = rows.GroupBy(rp => rp.Role)
+            .ToDictionary(
+                g => g.Key,
+                g => (IReadOnlyList<string>)g.Select(rp => rp.PermissionKey).ToList()
+            );
 
         foreach (var role in Enum.GetValues<UserRole>())
         {
@@ -60,7 +59,8 @@ public sealed class RolePermissionRepository : IRolePermissionRepository
     public async Task<Result> UpdateForRoleAsync(
         UserRole role,
         IReadOnlyList<string> permissionKeys,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(permissionKeys);
 
@@ -71,17 +71,19 @@ public sealed class RolePermissionRepository : IRolePermissionRepository
             {
                 return Result.Failure(
                     $"Unknown permission key: {key}",
-                    "auth.role_permissions_unknown_key");
+                    "auth.role_permissions_unknown_key"
+                );
             }
         }
 
         var desired = permissionKeys.ToHashSet(StringComparer.Ordinal);
         var existing = await _db
-            .RolePermissions
-            .Where(rp => rp.Role == role)
+            .RolePermissions.Where(rp => rp.Role == role)
             .ToListAsync(ct)
             .ConfigureAwait(false);
-        var existingKeys = existing.Select(rp => rp.PermissionKey).ToHashSet(StringComparer.Ordinal);
+        var existingKeys = existing
+            .Select(rp => rp.PermissionKey)
+            .ToHashSet(StringComparer.Ordinal);
 
         // Drop rows that are no longer desired.
         var toDelete = existing.Where(rp => !desired.Contains(rp.PermissionKey)).ToList();
@@ -95,8 +97,7 @@ public sealed class RolePermissionRepository : IRolePermissionRepository
         foreach (var key in desired.Where(k => !existingKeys.Contains(k)))
         {
             await _db
-                .RolePermissions
-                .AddAsync(RolePermission.Grant(role, key, now), ct)
+                .RolePermissions.AddAsync(RolePermission.Grant(role, key, now), ct)
                 .ConfigureAwait(false);
         }
 

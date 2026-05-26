@@ -51,7 +51,8 @@ public sealed class MigrateTenantFixture : IAsyncLifetime
     /// </summary>
     public async Task<ProvisionedMigrateTenant> ProvisionTenantAsync(
         string slug,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var dbName = $"shopflow_migrate_{slug}_{Guid.NewGuid().ToString("N")[..8]}";
         await using (var admin = new NpgsqlConnection(AdminConnectionString))

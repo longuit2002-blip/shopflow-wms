@@ -21,7 +21,8 @@ public sealed class UpdateSkuCommandHandler(ISkuRepository skus)
 
     public async Task<Result<SkuMutationResult>> Handle(
         UpdateSkuCommand request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -46,7 +47,8 @@ public sealed class UpdateSkuCommandHandler(ISkuRepository skus)
             imageUrl: request.ImageUrl,
             barcode: request.Barcode,
             brand: request.Brand,
-            isFlashSale: request.IsFlashSale);
+            isFlashSale: request.IsFlashSale
+        );
 
         if (!build.IsSuccess)
         {

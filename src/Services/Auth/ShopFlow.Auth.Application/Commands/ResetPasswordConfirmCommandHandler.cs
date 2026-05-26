@@ -13,7 +13,8 @@ namespace ShopFlow.Auth.Application.Commands;
 /// predicate-in-UPDATE (single-use atomic) + writes the new password
 /// + revokes every refresh session for the user.
 /// </summary>
-public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPasswordConfirmCommand, Result>
+public sealed class ResetPasswordConfirmCommandHandler
+    : IRequestHandler<ResetPasswordConfirmCommand, Result>
 {
     private const string InvalidCredentials = "auth.invalid_credentials";
     private const string PasswordTooShort = "auth.password_too_short";
@@ -34,7 +35,8 @@ public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPa
         IRefreshTokenStore refreshStore,
         IAuthAuditLogRepository auditLog,
         ILogger<ResetPasswordConfirmCommandHandler> logger,
-        TimeProvider clock)
+        TimeProvider clock
+    )
     {
         _resetTokens = resetTokens;
         _users = users;
@@ -49,11 +51,15 @@ public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPa
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < MinPasswordLength)
+        if (
+            string.IsNullOrWhiteSpace(request.NewPassword)
+            || request.NewPassword.Length < MinPasswordLength
+        )
         {
             return Result.Failure(
                 $"New password must be at least {MinPasswordLength} characters.",
-                PasswordTooShort);
+                PasswordTooShort
+            );
         }
 
         if (string.IsNullOrWhiteSpace(request.Token))
@@ -62,7 +68,9 @@ public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPa
         }
 
         var tokenHash = SHA256.HashData(Encoding.UTF8.GetBytes(request.Token));
-        var consume = await _resetTokens.TryConsumeAsync(tokenHash, _clock, ct).ConfigureAwait(false);
+        var consume = await _resetTokens
+            .TryConsumeAsync(tokenHash, _clock, ct)
+            .ConfigureAwait(false);
         if (!consume.IsSuccess)
         {
             return Result.Failure("Invalid credentials.", InvalidCredentials);
@@ -83,16 +91,19 @@ public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPa
             .RevokeAllForUserAsync(request.TenantSlug, user.Id, ct)
             .ConfigureAwait(false);
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.PasswordResetCompleted,
-            user.Id,
-            request.SourceIp,
-            request.UserAgent,
-            metadata: null,
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.PasswordResetCompleted,
+                user.Id,
+                request.SourceIp,
+                request.UserAgent,
+                metadata: null,
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

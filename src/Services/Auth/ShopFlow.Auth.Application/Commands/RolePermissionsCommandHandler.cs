@@ -32,7 +32,8 @@ public sealed class RolePermissionsCommandHandler : IRequestHandler<RolePermissi
     public RolePermissionsCommandHandler(
         IRolePermissionRepository repo,
         IAuthAuditLogRepository auditLog,
-        ILogger<RolePermissionsCommandHandler> logger)
+        ILogger<RolePermissionsCommandHandler> logger
+    )
     {
         _repo = repo;
         _auditLog = auditLog;
@@ -56,7 +57,10 @@ public sealed class RolePermissionsCommandHandler : IRequestHandler<RolePermissi
                 }
                 if (!allKnown.Contains(request.PermissionKey))
                 {
-                    return Result.Failure($"Unknown permission key: {request.PermissionKey}", UnknownKey);
+                    return Result.Failure(
+                        $"Unknown permission key: {request.PermissionKey}",
+                        UnknownKey
+                    );
                 }
                 desired = current.Append(request.PermissionKey).Distinct().ToList();
                 break;
@@ -91,12 +95,15 @@ public sealed class RolePermissionsCommandHandler : IRequestHandler<RolePermissi
                 {
                     return Result.Failure(
                         $"Owner role cannot lose critical permission '{critical}'.",
-                        OwnerCriticalLocked);
+                        OwnerCriticalLocked
+                    );
                 }
             }
         }
 
-        var update = await _repo.UpdateForRoleAsync(request.TargetRole, desired, ct).ConfigureAwait(false);
+        var update = await _repo
+            .UpdateForRoleAsync(request.TargetRole, desired, ct)
+            .ConfigureAwait(false);
         if (!update.IsSuccess)
         {
             return Result.Failure(update.Error!, update.ErrorCode);
@@ -108,24 +115,33 @@ public sealed class RolePermissionsCommandHandler : IRequestHandler<RolePermissi
         // SetAll equivalents of an Add+Remove).
         var currentSet = current.ToHashSet(StringComparer.Ordinal);
         var desiredFinalSet = desired.ToHashSet(StringComparer.Ordinal);
-        var added = desiredFinalSet.Except(currentSet).OrderBy(s => s, StringComparer.Ordinal).ToArray();
-        var removed = currentSet.Except(desiredFinalSet).OrderBy(s => s, StringComparer.Ordinal).ToArray();
+        var added = desiredFinalSet
+            .Except(currentSet)
+            .OrderBy(s => s, StringComparer.Ordinal)
+            .ToArray();
+        var removed = currentSet
+            .Except(desiredFinalSet)
+            .OrderBy(s => s, StringComparer.Ordinal)
+            .ToArray();
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.RolePermissionsChanged,
-            request.ActorUserId,
-            request.SourceIp,
-            request.UserAgent,
-            new
-            {
-                targetRole = request.TargetRole.ToString(),
-                added,
-                removed,
-            },
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.RolePermissionsChanged,
+                request.ActorUserId,
+                request.SourceIp,
+                request.UserAgent,
+                new
+                {
+                    targetRole = request.TargetRole.ToString(),
+                    added,
+                    removed,
+                },
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

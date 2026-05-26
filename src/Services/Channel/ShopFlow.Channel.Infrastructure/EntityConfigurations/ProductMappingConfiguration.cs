@@ -33,10 +33,7 @@ internal sealed class ProductMappingConfiguration : IEntityTypeConfiguration<Pro
         builder
             .Property(m => m.ExternalSku)
             .HasColumnName("external_sku")
-            .HasConversion(
-                vo => vo.Value,
-                str => ExternalSku.Create(str).Value!
-            )
+            .HasConversion(vo => vo.Value, str => ExternalSku.Create(str).Value!)
             .HasMaxLength(ExternalSku.MaxLength)
             .IsRequired();
 

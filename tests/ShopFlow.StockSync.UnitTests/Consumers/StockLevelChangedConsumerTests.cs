@@ -30,10 +30,12 @@ public sealed class StockLevelChangedConsumerTests
     {
         var buffer = new CoalescingBuffer();
         var channelLookup = Substitute.For<IChannelLookupPort>();
-        channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
+        channelLookup
+            .GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee", "lazada" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        skuFlagRepo
+            .IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
@@ -45,8 +47,10 @@ public sealed class StockLevelChangedConsumerTests
 
             var snapshot = buffer.SnapshotAndClear();
             snapshot.Should().HaveCount(2);
-            snapshot.Select(kv => kv.Key.ChannelType)
-                .Should().BeEquivalentTo(new[] { "shopee", "lazada" });
+            snapshot
+                .Select(kv => kv.Key.ChannelType)
+                .Should()
+                .BeEquivalentTo(new[] { "shopee", "lazada" });
             snapshot.Should().OnlyContain(kv => kv.Value.AvailableToSell == 7);
         }
         finally
@@ -60,18 +64,23 @@ public sealed class StockLevelChangedConsumerTests
     {
         var buffer = new CoalescingBuffer();
         var channelLookup = Substitute.For<IChannelLookupPort>();
-        channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
+        channelLookup
+            .GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>())
-            .Returns(true);
+        skuFlagRepo.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>()).Returns(true);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
         try
         {
             await harness.Bus.Publish(NewMessage(sku: "SKU-X"));
-            (await harness.GetConsumerHarness<StockLevelChangedConsumer>()
-                .Consumed.Any<StockLevelChangedV1>()).Should().BeTrue();
+            (
+                await harness
+                    .GetConsumerHarness<StockLevelChangedConsumer>()
+                    .Consumed.Any<StockLevelChangedV1>()
+            )
+                .Should()
+                .BeTrue();
 
             var snapshot = buffer.SnapshotAndClear();
             snapshot.Should().HaveCount(1);
@@ -88,7 +97,8 @@ public sealed class StockLevelChangedConsumerTests
     {
         var buffer = new CoalescingBuffer();
         var channelLookup = Substitute.For<IChannelLookupPort>();
-        channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
+        channelLookup
+            .GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(Array.Empty<string>());
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
 
@@ -96,12 +106,18 @@ public sealed class StockLevelChangedConsumerTests
         try
         {
             await harness.Bus.Publish(NewMessage());
-            (await harness.GetConsumerHarness<StockLevelChangedConsumer>()
-                .Consumed.Any<StockLevelChangedV1>()).Should().BeTrue();
+            (
+                await harness
+                    .GetConsumerHarness<StockLevelChangedConsumer>()
+                    .Consumed.Any<StockLevelChangedV1>()
+            )
+                .Should()
+                .BeTrue();
 
             buffer.Count.Should().Be(0);
-            await skuFlagRepo.DidNotReceive().IsFlashSaleAsync(
-                Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+            await skuFlagRepo
+                .DidNotReceive()
+                .IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
         }
         finally
         {
@@ -114,10 +130,12 @@ public sealed class StockLevelChangedConsumerTests
     {
         var buffer = new CoalescingBuffer();
         var channelLookup = Substitute.For<IChannelLookupPort>();
-        channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
+        channelLookup
+            .GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        skuFlagRepo
+            .IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
@@ -133,7 +151,8 @@ public sealed class StockLevelChangedConsumerTests
 
             var consumerHarness = harness.GetConsumerHarness<StockLevelChangedConsumer>();
             (await consumerHarness.Consumed.SelectAsync<StockLevelChangedV1>().Take(2).Count())
-                .Should().Be(2);
+                .Should()
+                .Be(2);
 
             var snapshot = buffer.SnapshotAndClear();
             snapshot.Should().HaveCount(1, "redelivery collapses onto the same coalesce key");
@@ -151,21 +170,26 @@ public sealed class StockLevelChangedConsumerTests
     {
         var buffer = new CoalescingBuffer();
         var channelLookup = Substitute.For<IChannelLookupPort>();
-        channelLookup.GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
+        channelLookup
+            .GetActiveChannelsAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(new[] { "shopee" });
         var skuFlagRepo = Substitute.For<ISkuFlagRepository>();
-        skuFlagRepo.IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+        skuFlagRepo
+            .IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(false);
 
         var harness = await StartHarnessAsync(buffer, channelLookup, skuFlagRepo);
         try
         {
             await harness.Bus.Publish(new StockLevelChangedV1(TenantA, "SKU-X", 10, Now));
-            await harness.Bus.Publish(new StockLevelChangedV1(TenantA, "SKU-X", 3, Now.AddSeconds(1)));
+            await harness.Bus.Publish(
+                new StockLevelChangedV1(TenantA, "SKU-X", 3, Now.AddSeconds(1))
+            );
 
             var consumerHarness = harness.GetConsumerHarness<StockLevelChangedConsumer>();
             (await consumerHarness.Consumed.SelectAsync<StockLevelChangedV1>().Take(2).Count())
-                .Should().Be(2);
+                .Should()
+                .Be(2);
 
             var snapshot = buffer.SnapshotAndClear();
             snapshot.Should().HaveCount(1);
@@ -180,7 +204,8 @@ public sealed class StockLevelChangedConsumerTests
     private static async Task<ITestHarness> StartHarnessAsync(
         ICoalescingBuffer buffer,
         IChannelLookupPort channelLookup,
-        ISkuFlagRepository skuFlagRepo)
+        ISkuFlagRepository skuFlagRepo
+    )
     {
         var services = new ServiceCollection();
         services.AddSingleton(buffer);

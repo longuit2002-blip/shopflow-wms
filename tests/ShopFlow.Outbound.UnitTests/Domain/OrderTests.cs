@@ -13,8 +13,7 @@ public sealed class OrderTests
     private static IReadOnlyList<(string Sku, int Qty, int? ExpectedWeight)> TwoLines() =>
         new[] { ("SKU-A", 2, (int?)100), ("SKU-B", 5, (int?)50) };
 
-    private static Order NewCreatedOrder() =>
-        Order.Create("ext-1", "standard", TwoLines()).Value!;
+    private static Order NewCreatedOrder() => Order.Create("ext-1", "standard", TwoLines()).Value!;
 
     // ── Create -------------------------------------------------------------
 
@@ -36,11 +35,7 @@ public sealed class OrderTests
     [Fact]
     public void Create_EmptyLines_FailsWithCode()
     {
-        var result = Order.Create(
-            "ext-1",
-            "standard",
-            Array.Empty<(string, int, int?)>()
-        );
+        var result = Order.Create("ext-1", "standard", Array.Empty<(string, int, int?)>());
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("order.no_lines");
@@ -71,11 +66,7 @@ public sealed class OrderTests
     [InlineData("   ")]
     public void Create_BlankShippingProfile_FailsWithCode(string shippingProfile)
     {
-        var result = Order.Create(
-            "ext-1",
-            shippingProfile,
-            new[] { ("SKU-A", 1, (int?)null) }
-        );
+        var result = Order.Create("ext-1", shippingProfile, new[] { ("SKU-A", 1, (int?)null) });
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("order.shipping_profile_required");

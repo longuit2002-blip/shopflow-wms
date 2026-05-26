@@ -38,7 +38,8 @@ public sealed class UpdateUserCommandHandler
         IUserRepository users,
         IPasswordHasher hasher,
         IPasswordGenerator generator,
-        IRefreshTokenStore refreshStore)
+        IRefreshTokenStore refreshStore
+    )
     {
         _users = users;
         _hasher = hasher;
@@ -47,7 +48,9 @@ public sealed class UpdateUserCommandHandler
     }
 
     public async Task<Result<UpdateUserResult>> Handle(
-        UpdateUserCommand request, CancellationToken ct)
+        UpdateUserCommand request,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -55,53 +58,65 @@ public sealed class UpdateUserCommandHandler
         if (user is null)
         {
             return Result<UpdateUserResult>.Failure(
-                $"User '{request.UserId}' not found.", UserNotFoundCode);
+                $"User '{request.UserId}' not found.",
+                UserNotFoundCode
+            );
         }
 
         switch (request.Operation)
         {
             case UpdateUserOperation.SetRole:
+            {
+                if (
+                    !Enum.TryParse<UserRole>(request.NewRole, ignoreCase: false, out var newRole)
+                    || !Enum.IsDefined(newRole)
+                )
                 {
-                    if (!Enum.TryParse<UserRole>(request.NewRole, ignoreCase: false, out var newRole)
-                        || !Enum.IsDefined(newRole))
-                    {
-                        return Result<UpdateUserResult>.Failure(
-                            $"Unknown role '{request.NewRole}'.", RoleInvalidCode);
-                    }
-                    user.SetRole(newRole);
-                    await _users.UpdateAsync(user, ct).ConfigureAwait(false);
-                    return Result<UpdateUserResult>.Success(
-                        new UpdateUserResult(user.Id, ResetPassword: null));
+                    return Result<UpdateUserResult>.Failure(
+                        $"Unknown role '{request.NewRole}'.",
+                        RoleInvalidCode
+                    );
                 }
+                user.SetRole(newRole);
+                await _users.UpdateAsync(user, ct).ConfigureAwait(false);
+                return Result<UpdateUserResult>.Success(
+                    new UpdateUserResult(user.Id, ResetPassword: null)
+                );
+            }
 
             case UpdateUserOperation.ResetPassword:
-                {
-                    var tempPwd = _generator.Generate();
-                    user.UpdatePassword(_hasher.Hash(tempPwd));
-                    await _users.UpdateAsync(user, ct).ConfigureAwait(false);
-                    await _refreshStore
-                        .RevokeAllForUserAsync(request.TenantSlug, user.Id, ct)
-                        .ConfigureAwait(false);
-                    return Result<UpdateUserResult>.Success(new UpdateUserResult(
+            {
+                var tempPwd = _generator.Generate();
+                user.UpdatePassword(_hasher.Hash(tempPwd));
+                await _users.UpdateAsync(user, ct).ConfigureAwait(false);
+                await _refreshStore
+                    .RevokeAllForUserAsync(request.TenantSlug, user.Id, ct)
+                    .ConfigureAwait(false);
+                return Result<UpdateUserResult>.Success(
+                    new UpdateUserResult(
                         user.Id,
-                        ResetPassword: new ResetPasswordResponse(user.Id, tempPwd)));
-                }
+                        ResetPassword: new ResetPasswordResponse(user.Id, tempPwd)
+                    )
+                );
+            }
 
             case UpdateUserOperation.Deactivate:
-                {
-                    user.Deactivate();
-                    await _users.UpdateAsync(user, ct).ConfigureAwait(false);
-                    await _refreshStore
-                        .RevokeAllForUserAsync(request.TenantSlug, user.Id, ct)
-                        .ConfigureAwait(false);
-                    return Result<UpdateUserResult>.Success(
-                        new UpdateUserResult(user.Id, ResetPassword: null));
-                }
+            {
+                user.Deactivate();
+                await _users.UpdateAsync(user, ct).ConfigureAwait(false);
+                await _refreshStore
+                    .RevokeAllForUserAsync(request.TenantSlug, user.Id, ct)
+                    .ConfigureAwait(false);
+                return Result<UpdateUserResult>.Success(
+                    new UpdateUserResult(user.Id, ResetPassword: null)
+                );
+            }
 
             default:
                 return Result<UpdateUserResult>.Failure(
                     $"Unsupported operation '{request.Operation}'.",
-                    "users.operation_invalid");
+                    "users.operation_invalid"
+                );
         }
     }
 }

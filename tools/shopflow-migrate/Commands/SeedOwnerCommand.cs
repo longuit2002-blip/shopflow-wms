@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using ShopFlow.SharedKernel.Application.Ports;
 using ShopFlow.Migrate.Provisioning;
+using ShopFlow.SharedKernel.Application.Ports;
 
 namespace ShopFlow.Migrate.Commands;
 
@@ -34,7 +34,8 @@ public sealed class SeedOwnerCommand : ICommand
         ITenantCatalog tenantCatalog,
         OwnerSeed ownerSeed,
         RolePermissionsSeed rolePermissionsSeed,
-        ILogger<SeedOwnerCommand> logger)
+        ILogger<SeedOwnerCommand> logger
+    )
     {
         _tenantCatalog = tenantCatalog;
         _ownerSeed = ownerSeed;
@@ -54,13 +55,12 @@ public sealed class SeedOwnerCommand : ICommand
         }
 
         var normalized = slug.Trim().ToLowerInvariant();
-        var tenant = await _tenantCatalog
-            .LookupBySlugAsync(normalized, ct)
-            .ConfigureAwait(false);
+        var tenant = await _tenantCatalog.LookupBySlugAsync(normalized, ct).ConfigureAwait(false);
         if (tenant is null)
         {
             Console.Error.WriteLine(
-                $"Tenant '{normalized}' not found in catalog. Provision it first via 'provision --tenant={normalized}'.");
+                $"Tenant '{normalized}' not found in catalog. Provision it first via 'provision --tenant={normalized}'."
+            );
             return 2;
         }
 
@@ -76,9 +76,7 @@ public sealed class SeedOwnerCommand : ICommand
         // Sprint-9 U12 / ADV-003 — legacy-tenant retrofit also seeds
         // role_permissions. Idempotent — safe against tenants that
         // already had it seeded by a prior provision run.
-        await _rolePermissionsSeed
-            .SeedAsync(tenant.DbConnectionString, ct)
-            .ConfigureAwait(false);
+        await _rolePermissionsSeed.SeedAsync(tenant.DbConnectionString, ct).ConfigureAwait(false);
 
         return 0;
     }

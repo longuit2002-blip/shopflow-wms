@@ -52,7 +52,13 @@ public sealed class MockShippingProvider : IMockShippingProvider
     private readonly Func<double> _randomSource;
 
     public MockShippingProvider(ResiliencePipeline pipeline)
-        : this(pipeline, DefaultFlakeRate, DefaultMinDelayMs, DefaultMaxDelayMsExclusive, randomSource: null) { }
+        : this(
+            pipeline,
+            DefaultFlakeRate,
+            DefaultMinDelayMs,
+            DefaultMaxDelayMsExclusive,
+            randomSource: null
+        ) { }
 
     public MockShippingProvider(
         ResiliencePipeline pipeline,
@@ -129,10 +135,7 @@ public sealed class MockShippingProvider : IMockShippingProvider
             .AsTask();
     }
 
-    private async ValueTask<ShippingLabel> InnerCreateLabelAsync(
-        Order order,
-        CancellationToken ct
-    )
+    private async ValueTask<ShippingLabel> InnerCreateLabelAsync(Order order, CancellationToken ct)
     {
         // Simulate the 1-3 s carrier latency. Random.Shared per §3.21.
         var delay = Random.Shared.Next(_minDelayMs, _maxDelayMsExclusive);
@@ -154,8 +157,10 @@ public sealed class MockShippingProvider : IMockShippingProvider
     /// Builder for tests: returns a provider with a deterministic flake
     /// rate (0 = always succeed, 1 = always fail) using the same pipeline.
     /// </summary>
-    public static MockShippingProvider WithFlakeRate(ResiliencePipeline pipeline, double flakeRate) =>
-        new(pipeline, flakeRate, DefaultMinDelayMs, DefaultMaxDelayMsExclusive);
+    public static MockShippingProvider WithFlakeRate(
+        ResiliencePipeline pipeline,
+        double flakeRate
+    ) => new(pipeline, flakeRate, DefaultMinDelayMs, DefaultMaxDelayMsExclusive);
 
     /// <summary>
     /// Builder for tests: returns a provider with deterministic flake

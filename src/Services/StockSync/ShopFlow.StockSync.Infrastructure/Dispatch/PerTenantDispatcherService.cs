@@ -99,9 +99,7 @@ public sealed class PerTenantDispatcherService : BackgroundService
         {
             await using var rootScope = _scopeFactory.CreateAsyncScope();
             var catalog = rootScope.ServiceProvider.GetRequiredService<ITenantCatalog>();
-            tenants = await catalog
-                .GetReadyTenantsAsync(stoppingToken)
-                .ConfigureAwait(false);
+            tenants = await catalog.GetReadyTenantsAsync(stoppingToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -134,10 +132,7 @@ public sealed class PerTenantDispatcherService : BackgroundService
         // starving the next on a single scheduler queue. Phase-3 will
         // re-enumerate tenants on tenant-added events.
         var loops = tenants
-            .Select(t => Task.Run(
-                () => DispatchLoopAsync(t, stoppingToken),
-                stoppingToken
-            ))
+            .Select(t => Task.Run(() => DispatchLoopAsync(t, stoppingToken), stoppingToken))
             .ToArray();
 
         await Task.WhenAll(loops).ConfigureAwait(false);
@@ -213,18 +208,19 @@ public sealed class PerTenantDispatcherService : BackgroundService
         if (string.Equals(breakerState, "Open", StringComparison.Ordinal))
         {
             await AppendLogAsync(
-                tenant,
-                PushLogEntry.MarkBreakerOpen(
-                    intent.TenantId,
-                    intent.ChannelType,
-                    intent.Sku,
-                    intent.Available,
-                    intent.IdempotencyKey,
-                    intent.ObservedAt,
-                    _clock.GetUtcNow().UtcDateTime
-                ),
-                ct
-            ).ConfigureAwait(false);
+                    tenant,
+                    PushLogEntry.MarkBreakerOpen(
+                        intent.TenantId,
+                        intent.ChannelType,
+                        intent.Sku,
+                        intent.Available,
+                        intent.IdempotencyKey,
+                        intent.ObservedAt,
+                        _clock.GetUtcNow().UtcDateTime
+                    ),
+                    ct
+                )
+                .ConfigureAwait(false);
             return;
         }
 
@@ -327,11 +323,7 @@ public sealed class PerTenantDispatcherService : BackgroundService
         await AppendLogAsync(tenant, entry, ct).ConfigureAwait(false);
     }
 
-    private async Task AppendLogAsync(
-        TenantInfo tenant,
-        PushLogEntry entry,
-        CancellationToken ct
-    )
+    private async Task AppendLogAsync(TenantInfo tenant, PushLogEntry entry, CancellationToken ct)
     {
         await using var scope = _scopeFactory.CreateAsyncScope();
         var requestContext = scope.ServiceProvider.GetRequiredService<RequestContext>();

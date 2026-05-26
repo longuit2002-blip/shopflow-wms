@@ -85,21 +85,23 @@ public sealed class StockSyncHappyPathTests
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
-            builder.ConfigureAppConfiguration((_, cfg) =>
-            {
-                cfg.AddInMemoryCollection(
-                    new Dictionary<string, string?>
-                    {
-                        ["ControlPlane:ConnectionString"] = controlConnStr,
-                        ["ControlPlane:TenantTemplate"] = BuildTenantTemplate(),
-                        ["MessageBus:Transport"] = "InMemory",
-                        ["StockSync:CoalesceWindowMs"] = "200",
-                        ["StockSync:ActiveChannels:0"] = "shopee",
-                        ["StockSync:TokenBucket:Sustain"] = "100",
-                        ["StockSync:TokenBucket:Burst"] = "100",
-                    }
-                );
-            });
+            builder.ConfigureAppConfiguration(
+                (_, cfg) =>
+                {
+                    cfg.AddInMemoryCollection(
+                        new Dictionary<string, string?>
+                        {
+                            ["ControlPlane:ConnectionString"] = controlConnStr,
+                            ["ControlPlane:TenantTemplate"] = BuildTenantTemplate(),
+                            ["MessageBus:Transport"] = "InMemory",
+                            ["StockSync:CoalesceWindowMs"] = "200",
+                            ["StockSync:ActiveChannels:0"] = "shopee",
+                            ["StockSync:TokenBucket:Sustain"] = "100",
+                            ["StockSync:TokenBucket:Burst"] = "100",
+                        }
+                    );
+                }
+            );
             builder.ConfigureServices(services =>
             {
                 // Override the (unregistered) IChannelAdapterFactory with
@@ -127,15 +129,19 @@ public sealed class StockSyncHappyPathTests
         await WaitForAtLeastOnePushAsync(fakeAdapterFactory, sku, PollingBudget);
 
         var pushes = fakeAdapterFactory.PushesFor("shopee");
-        pushes.Should().NotBeEmpty(
-            "the dispatcher should have routed at least one StockLevelChangedV1 to the shopee adapter"
-        );
+        pushes
+            .Should()
+            .NotBeEmpty(
+                "the dispatcher should have routed at least one StockLevelChangedV1 to the shopee adapter"
+            );
 
         var pushForSku = pushes.Where(p => p.ExternalSku == sku).ToList();
-        pushForSku.Should().HaveCountGreaterThanOrEqualTo(
-            1,
-            $"a coalesced push for sku '{sku}' should have reached the adapter"
-        );
+        pushForSku
+            .Should()
+            .HaveCountGreaterThanOrEqualTo(
+                1,
+                $"a coalesced push for sku '{sku}' should have reached the adapter"
+            );
 
         // The single push must carry the input's available quantity (coalesce
         // last-write-wins → since only one StockLevelChangedV1 was emitted,
@@ -144,13 +150,20 @@ public sealed class StockSyncHappyPathTests
 
         // The dispatcher always emits a push_log row per processed intent
         // — Sprint-5 U5 contract. Poll until we observe the Success row.
-        await WaitForPushLogRowAsync(tenant, status: "Success", expectedSku: sku, budget: PollingBudget);
+        await WaitForPushLogRowAsync(
+            tenant,
+            status: "Success",
+            expectedSku: sku,
+            budget: PollingBudget
+        );
 
         await using var verifyDb = new StockSyncDbContext(tenant.Options);
         var logRows = await verifyDb.PushLogEntries.AsNoTracking().ToListAsync();
-        logRows.Should().NotBeEmpty(
-            "PerTenantDispatcherService must persist a push_log row for every processed intent"
-        );
+        logRows
+            .Should()
+            .NotBeEmpty(
+                "PerTenantDispatcherService must persist a push_log row for every processed intent"
+            );
 
         var successRows = logRows.Where(r => r.Status == "Success" && r.Sku == sku).ToList();
         successRows.Should().HaveCountGreaterThanOrEqualTo(1);
@@ -180,10 +193,7 @@ public sealed class StockSyncHappyPathTests
         }.ConnectionString;
 
         var options = new DbContextOptionsBuilder<ControlPlaneDbContext>()
-            .UseNpgsql(
-                connStr,
-                npg => npg.MigrationsAssembly("ShopFlow.ControlPlane.Migrations")
-            )
+            .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.ControlPlane.Migrations"))
             .Options;
         await using var ctx = new ControlPlaneDbContext(options);
         await ctx.Database.MigrateAsync();
@@ -241,7 +251,8 @@ public sealed class StockSyncHappyPathTests
     private static void SetPrivateProperty<T>(object instance, string propertyName, T value)
     {
         var prop =
-            instance.GetType()
+            instance
+                .GetType()
                 .GetProperty(
                     propertyName,
                     System.Reflection.BindingFlags.Public

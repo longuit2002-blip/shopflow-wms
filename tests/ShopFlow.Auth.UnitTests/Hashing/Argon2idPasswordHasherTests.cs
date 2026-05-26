@@ -26,13 +26,17 @@ namespace ShopFlow.Auth.UnitTests.Hashing;
 public sealed class Argon2idPasswordHasherTests
 {
     private static Argon2idPasswordHasher BuildHasher() =>
-        new(Options.Create(new Argon2Options
-        {
-            MemorySizeKib = 4_096,
-            Iterations = 1,
-            DegreeOfParallelism = 1,
-            HashLengthBytes = 32,
-        }));
+        new(
+            Options.Create(
+                new Argon2Options
+                {
+                    MemorySizeKib = 4_096,
+                    Iterations = 1,
+                    DegreeOfParallelism = 1,
+                    HashLengthBytes = 32,
+                }
+            )
+        );
 
     [Fact]
     public void Hash_ReturnsPhcModularString()
@@ -134,22 +138,30 @@ public sealed class Argon2idPasswordHasherTests
         // PHC parameters travel in the hash; an instance with different
         // configured defaults still verifies an existing hash by reading
         // the embedded parameters.
-        var hasherA = new Argon2idPasswordHasher(Options.Create(new Argon2Options
-        {
-            MemorySizeKib = 4_096,
-            Iterations = 1,
-            DegreeOfParallelism = 1,
-            HashLengthBytes = 32,
-        }));
-        var hasherB = new Argon2idPasswordHasher(Options.Create(new Argon2Options
-        {
-            // Different defaults — would produce different new hashes,
-            // but verify uses the embedded params from hasherA's output.
-            MemorySizeKib = 8_192,
-            Iterations = 2,
-            DegreeOfParallelism = 2,
-            HashLengthBytes = 32,
-        }));
+        var hasherA = new Argon2idPasswordHasher(
+            Options.Create(
+                new Argon2Options
+                {
+                    MemorySizeKib = 4_096,
+                    Iterations = 1,
+                    DegreeOfParallelism = 1,
+                    HashLengthBytes = 32,
+                }
+            )
+        );
+        var hasherB = new Argon2idPasswordHasher(
+            Options.Create(
+                new Argon2Options
+                {
+                    // Different defaults — would produce different new hashes,
+                    // but verify uses the embedded params from hasherA's output.
+                    MemorySizeKib = 8_192,
+                    Iterations = 2,
+                    DegreeOfParallelism = 2,
+                    HashLengthBytes = 32,
+                }
+            )
+        );
 
         var phc = hasherA.Hash("samepass");
 

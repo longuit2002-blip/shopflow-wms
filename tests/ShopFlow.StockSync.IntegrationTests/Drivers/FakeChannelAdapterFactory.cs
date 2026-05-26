@@ -35,8 +35,9 @@ namespace ShopFlow.StockSync.IntegrationTests.Drivers;
 /// </remarks>
 public sealed class FakeChannelAdapterFactory : IChannelAdapterFactory
 {
-    private readonly ConcurrentDictionary<string, FakeChannelAdapter> _adapters =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, FakeChannelAdapter> _adapters = new(
+        StringComparer.OrdinalIgnoreCase
+    );
 
     public FakeChannelAdapterFactory(params string[] channelTypes)
     {
@@ -186,9 +187,7 @@ internal sealed class FakeChannelAdapter : IChannelAdapter
 
         if (FailWith is { } code)
         {
-            return Task.FromResult(
-                Result.Failure($"Fake push failure for {ChannelType}.", code)
-            );
+            return Task.FromResult(Result.Failure($"Fake push failure for {ChannelType}.", code));
         }
 
         return Task.FromResult(Result.Success());

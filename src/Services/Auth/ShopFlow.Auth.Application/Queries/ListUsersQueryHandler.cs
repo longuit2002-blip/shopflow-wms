@@ -25,27 +25,27 @@ public sealed class ListUsersQueryHandler
     }
 
     public async Task<Result<ListUsersResponse>> Handle(
-        ListUsersQuery request, CancellationToken ct)
+        ListUsersQuery request,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var page = request.Page < 1 ? 1 : request.Page;
-        var pageSize = request.PageSize < 1
-            ? DefaultPageSize
-            : Math.Min(request.PageSize, MaxPageSize);
+        var pageSize =
+            request.PageSize < 1 ? DefaultPageSize : Math.Min(request.PageSize, MaxPageSize);
 
         var rows = await _users.ListAsync(page, pageSize, ct).ConfigureAwait(false);
-        var summaries = rows
-            .Select(u => new UserSummary(
+        var summaries = rows.Select(u => new UserSummary(
                 Id: u.Id,
                 Email: u.Email,
                 Role: u.Role.ToString(),
                 IsActive: u.IsActive,
                 CreatedAt: u.CreatedAt,
-                LastLoginAt: u.LastLoginAt))
+                LastLoginAt: u.LastLoginAt
+            ))
             .ToList();
 
-        return Result<ListUsersResponse>.Success(
-            new ListUsersResponse(summaries, page, pageSize));
+        return Result<ListUsersResponse>.Success(new ListUsersResponse(summaries, page, pageSize));
     }
 }

@@ -47,10 +47,14 @@ public sealed class AuthControllerEndpointTests : IClassFixture<WebApplicationFa
             b.UseSetting("MessageBus:Transport", "InMemory");
             // ControlPlane bind is unused in the route-shape tests because
             // the resolver short-circuits before catalog lookup.
-            b.UseSetting("ControlPlane:ConnectionString",
-                "Host=localhost;Database=shopflow_control;Username=postgres;Password=postgres");
-            b.UseSetting("ControlPlane:TenantTemplate",
-                "Host=localhost;Database={Database};Username=postgres;Password=postgres");
+            b.UseSetting(
+                "ControlPlane:ConnectionString",
+                "Host=localhost;Database=shopflow_control;Username=postgres;Password=postgres"
+            );
+            b.UseSetting(
+                "ControlPlane:TenantTemplate",
+                "Host=localhost;Database={Database};Username=postgres;Password=postgres"
+            );
         });
     }
 
@@ -58,13 +62,16 @@ public sealed class AuthControllerEndpointTests : IClassFixture<WebApplicationFa
     public async Task Login_AtCanonicalRoute_ReturnsJwtOnSuccessfulCredentials()
     {
         using var client = _factory.CreateClient();
-        var response = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            email = "owner@yensaokhanhhoa.local",
-            password = "OWNER-temp-password",
-            rememberMe = false,
-            tenantSlug = "yensaokhanhhoa",
-        });
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new
+            {
+                email = "owner@yensaokhanhhoa.local",
+                password = "OWNER-temp-password",
+                rememberMe = false,
+                tenantSlug = "yensaokhanhhoa",
+            }
+        );
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -83,13 +90,16 @@ public sealed class AuthControllerEndpointTests : IClassFixture<WebApplicationFa
         using var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Host = "evil.attacker.com";
 
-        var response = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            email = "owner@yensaokhanhhoa.local",
-            password = "anything",
-            rememberMe = false,
-            tenantSlug = "yensaokhanhhoa",
-        });
+        var response = await client.PostAsJsonAsync(
+            "/api/auth/login",
+            new
+            {
+                email = "owner@yensaokhanhhoa.local",
+                password = "anything",
+                rememberMe = false,
+                tenantSlug = "yensaokhanhhoa",
+            }
+        );
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }

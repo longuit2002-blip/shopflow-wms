@@ -234,11 +234,12 @@ public static class ShopFlowDefaultsExtensions
         // and IMMEDIATELY strip the parameter from the URL so request
         // logging middleware does NOT leak the bearer credential to access
         // logs (doc-review SEC-001 mitigation).
-        var devSecret = configuration["Auth:DevSecret"]
+        var devSecret =
+            configuration["Auth:DevSecret"]
             ?? throw new InvalidOperationException(
                 "Auth:DevSecret missing. AddShopFlowDefaults requires a shared "
-                + "secret with Auth.Api so each module API can validate JWTs "
-                + "issued by the auth module. Sprint-7 swaps for a shared signer."
+                    + "secret with Auth.Api so each module API can validate JWTs "
+                    + "issued by the auth module. Sprint-7 swaps for a shared signer."
             );
         var issuer = configuration["Auth:Issuer"] ?? "shopflow-dev";
         var audience = configuration["Auth:Audience"] ?? "shopflow-api";
@@ -270,8 +271,10 @@ public static class ShopFlowDefaultsExtensions
                         }
 
                         var query = ctx.HttpContext.Request.Query;
-                        if (!query.TryGetValue("access_token", out var token)
-                            || string.IsNullOrWhiteSpace(token))
+                        if (
+                            !query.TryGetValue("access_token", out var token)
+                            || string.IsNullOrWhiteSpace(token)
+                        )
                         {
                             return Task.CompletedTask;
                         }
@@ -282,14 +285,21 @@ public static class ShopFlowDefaultsExtensions
                         // access_token so request-logging middleware does
                         // NOT capture the bearer credential.
                         var sanitized = query
-                            .Where(p => !string.Equals(
-                                p.Key,
-                                "access_token",
-                                StringComparison.OrdinalIgnoreCase))
-                            .Select(p => $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value.ToString())}");
+                            .Where(p =>
+                                !string.Equals(
+                                    p.Key,
+                                    "access_token",
+                                    StringComparison.OrdinalIgnoreCase
+                                )
+                            )
+                            .Select(p =>
+                                $"{Uri.EscapeDataString(p.Key)}={Uri.EscapeDataString(p.Value.ToString())}"
+                            );
                         var rebuilt = string.Join("&", sanitized);
                         ctx.HttpContext.Request.QueryString =
-                            rebuilt.Length == 0 ? QueryString.Empty : new QueryString("?" + rebuilt);
+                            rebuilt.Length == 0
+                                ? QueryString.Empty
+                                : new QueryString("?" + rebuilt);
 
                         return Task.CompletedTask;
                     },
@@ -313,11 +323,15 @@ public static class ShopFlowDefaultsExtensions
             o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             o.KnownProxies.Clear();
             o.KnownNetworks.Clear();
-            o.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("127.0.0.0"), 8));
+            o.KnownNetworks.Add(
+                new Microsoft.AspNetCore.HttpOverrides.IPNetwork(IPAddress.Parse("127.0.0.0"), 8)
+            );
             o.KnownProxies.Add(IPAddress.IPv6Loopback);
 
             // Operators add gateway-side IPs via env-var binding.
-            var configuredProxies = configuration.GetSection("Auth:ForwardedHeaders:KnownProxies").Get<string[]>();
+            var configuredProxies = configuration
+                .GetSection("Auth:ForwardedHeaders:KnownProxies")
+                .Get<string[]>();
             if (configuredProxies is not null)
             {
                 foreach (var p in configuredProxies)
@@ -328,17 +342,23 @@ public static class ShopFlowDefaultsExtensions
                     }
                 }
             }
-            var configuredNetworks = configuration.GetSection("Auth:ForwardedHeaders:KnownNetworks").Get<string[]>();
+            var configuredNetworks = configuration
+                .GetSection("Auth:ForwardedHeaders:KnownNetworks")
+                .Get<string[]>();
             if (configuredNetworks is not null)
             {
                 foreach (var n in configuredNetworks)
                 {
                     var parts = n.Split('/');
-                    if (parts.Length == 2 &&
-                        IPAddress.TryParse(parts[0], out var net) &&
-                        int.TryParse(parts[1], out var prefix))
+                    if (
+                        parts.Length == 2
+                        && IPAddress.TryParse(parts[0], out var net)
+                        && int.TryParse(parts[1], out var prefix)
+                    )
                     {
-                        o.KnownNetworks.Add(new Microsoft.AspNetCore.HttpOverrides.IPNetwork(net, prefix));
+                        o.KnownNetworks.Add(
+                            new Microsoft.AspNetCore.HttpOverrides.IPNetwork(net, prefix)
+                        );
                     }
                 }
             }
@@ -347,19 +367,29 @@ public static class ShopFlowDefaultsExtensions
         // Startup gate per KTD7 — non-Development environment with no
         // configured proxies AND no networks beyond loopback throws at
         // boot rather than running with a silently-broken partition key.
-        var envName = configuration["ASPNETCORE_ENVIRONMENT"]
+        var envName =
+            configuration["ASPNETCORE_ENVIRONMENT"]
             ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
             ?? Environments.Production;
         if (!string.Equals(envName, Environments.Development, StringComparison.OrdinalIgnoreCase))
         {
-            var hasProxy = configuration.GetSection("Auth:ForwardedHeaders:KnownProxies").Get<string[]>()?.Length > 0;
-            var hasNetwork = configuration.GetSection("Auth:ForwardedHeaders:KnownNetworks").Get<string[]>()?.Length > 0;
+            var hasProxy =
+                configuration
+                    .GetSection("Auth:ForwardedHeaders:KnownProxies")
+                    .Get<string[]>()
+                    ?.Length > 0;
+            var hasNetwork =
+                configuration
+                    .GetSection("Auth:ForwardedHeaders:KnownNetworks")
+                    .Get<string[]>()
+                    ?.Length > 0;
             if (!hasProxy && !hasNetwork)
             {
                 throw new InvalidOperationException(
                     "Auth:ForwardedHeaders:KnownProxies or :KnownNetworks must be set in non-Development. "
-                    + "Empty allowlist silently disables forwarded-header processing AND allows direct callers "
-                    + "to forge X-Forwarded-For to spoof rate-limit partition keys (Sprint-9 KTD7).");
+                        + "Empty allowlist silently disables forwarded-header processing AND allows direct callers "
+                        + "to forge X-Forwarded-For to spoof rate-limit partition keys (Sprint-9 KTD7)."
+                );
             }
         }
 
@@ -375,33 +405,42 @@ public static class ShopFlowDefaultsExtensions
             {
                 if (ctx.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
                 {
-                    ctx.HttpContext.Response.Headers.RetryAfter =
-                        ((int)retryAfter.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    ctx.HttpContext.Response.Headers.RetryAfter = (
+                        (int)retryAfter.TotalSeconds
+                    ).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 }
                 return ValueTask.CompletedTask;
             };
-            opts.AddPolicy("auth-credentials", httpCtx =>
-                RateLimitPartition.GetTokenBucketLimiter(
-                    partitionKey: ClientIpKey(httpCtx),
-                    factory: _ => new TokenBucketRateLimiterOptions
-                    {
-                        TokenLimit = 10,
-                        TokensPerPeriod = 10,
-                        ReplenishmentPeriod = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0,
-                        AutoReplenishment = true,
-                    }));
-            opts.AddPolicy("auth-forgot-password", httpCtx =>
-                RateLimitPartition.GetTokenBucketLimiter(
-                    partitionKey: ClientIpKey(httpCtx),
-                    factory: _ => new TokenBucketRateLimiterOptions
-                    {
-                        TokenLimit = 5,
-                        TokensPerPeriod = 5,
-                        ReplenishmentPeriod = TimeSpan.FromMinutes(1),
-                        QueueLimit = 0,
-                        AutoReplenishment = true,
-                    }));
+            opts.AddPolicy(
+                "auth-credentials",
+                httpCtx =>
+                    RateLimitPartition.GetTokenBucketLimiter(
+                        partitionKey: ClientIpKey(httpCtx),
+                        factory: _ => new TokenBucketRateLimiterOptions
+                        {
+                            TokenLimit = 10,
+                            TokensPerPeriod = 10,
+                            ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                            AutoReplenishment = true,
+                        }
+                    )
+            );
+            opts.AddPolicy(
+                "auth-forgot-password",
+                httpCtx =>
+                    RateLimitPartition.GetTokenBucketLimiter(
+                        partitionKey: ClientIpKey(httpCtx),
+                        factory: _ => new TokenBucketRateLimiterOptions
+                        {
+                            TokenLimit = 5,
+                            TokensPerPeriod = 5,
+                            ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                            QueueLimit = 0,
+                            AutoReplenishment = true,
+                        }
+                    )
+            );
         });
 
         // ---- SignalR (Sprint-7 U5 + Sprint-7.5 U1) ------------------------
@@ -419,15 +458,16 @@ public static class ShopFlowDefaultsExtensions
         // as the worst outcome. AddJsonProtocol owns its OWN
         // JsonSerializerOptions independent from the MVC pipeline.
         services.AddScoped<TenantBindingHubFilter>();
-        services.AddSignalR(o =>
-        {
-            o.AddFilter<TenantBindingHubFilter>();
-        })
-        .AddJsonProtocol(opts =>
-        {
-            opts.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-            opts.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
-        });
+        services
+            .AddSignalR(o =>
+            {
+                o.AddFilter<TenantBindingHubFilter>();
+            })
+            .AddJsonProtocol(opts =>
+            {
+                opts.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+                opts.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
+            });
 
         // ---- ProblemDetails -------------------------------------------------
         Hellang.Middleware.ProblemDetails.ProblemDetailsExtensions.AddProblemDetails(

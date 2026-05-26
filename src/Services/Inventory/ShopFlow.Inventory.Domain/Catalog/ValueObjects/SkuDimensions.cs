@@ -46,27 +46,15 @@ public sealed class SkuDimensions : ValueObject
     {
         if (length <= 0m)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(length),
-                length,
-                "length must be > 0."
-            );
+            throw new ArgumentOutOfRangeException(nameof(length), length, "length must be > 0.");
         }
         if (width <= 0m)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(width),
-                width,
-                "width must be > 0."
-            );
+            throw new ArgumentOutOfRangeException(nameof(width), width, "width must be > 0.");
         }
         if (height <= 0m)
         {
-            throw new ArgumentOutOfRangeException(
-                nameof(height),
-                height,
-                "height must be > 0."
-            );
+            throw new ArgumentOutOfRangeException(nameof(height), height, "height must be > 0.");
         }
         if (string.IsNullOrWhiteSpace(unit))
         {

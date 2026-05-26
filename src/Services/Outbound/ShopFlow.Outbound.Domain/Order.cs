@@ -89,10 +89,7 @@ public sealed class Order : BaseEntity
         var lineList = lines.ToList();
         if (lineList.Count == 0)
         {
-            return Result<Order>.Failure(
-                "order must have at least one line.",
-                "order.no_lines"
-            );
+            return Result<Order>.Failure("order must have at least one line.", "order.no_lines");
         }
 
         var order = new Order
@@ -126,35 +123,34 @@ public sealed class Order : BaseEntity
     /// Created → AwaitingReservation. Invoked by U4's saga when it
     /// publishes <c>ReserveStockV1</c> to the Inventory module.
     /// </summary>
-    public Result MarkAwaitingReservation()
-        => TransitionFrom(OrderStatus.Created, OrderStatus.AwaitingReservation);
+    public Result MarkAwaitingReservation() =>
+        TransitionFrom(OrderStatus.Created, OrderStatus.AwaitingReservation);
 
     /// <summary>
     /// AwaitingReservation → Reserved. Invoked by U4's saga on
     /// <c>StockReservedV1</c>.
     /// </summary>
-    public Result MarkReserved()
-        => TransitionFrom(OrderStatus.AwaitingReservation, OrderStatus.Reserved);
+    public Result MarkReserved() =>
+        TransitionFrom(OrderStatus.AwaitingReservation, OrderStatus.Reserved);
 
     /// <summary>
     /// Reserved → AwaitingPick. Invoked by U4's saga as it enqueues the
     /// order onto the pick queue (U5).
     /// </summary>
-    public Result MarkAwaitingPick()
-        => TransitionFrom(OrderStatus.Reserved, OrderStatus.AwaitingPick);
+    public Result MarkAwaitingPick() =>
+        TransitionFrom(OrderStatus.Reserved, OrderStatus.AwaitingPick);
 
     /// <summary>
     /// AwaitingPick → Picked. Invoked by U6's <c>POST /confirm-pick</c>
     /// endpoint after the picker reports completion.
     /// </summary>
-    public Result MarkPicked()
-        => TransitionFrom(OrderStatus.AwaitingPick, OrderStatus.Picked);
+    public Result MarkPicked() => TransitionFrom(OrderStatus.AwaitingPick, OrderStatus.Picked);
 
     /// <summary>
     /// Picked → AwaitingPack.
     /// </summary>
-    public Result MarkAwaitingPack()
-        => TransitionFrom(OrderStatus.Picked, OrderStatus.AwaitingPack);
+    public Result MarkAwaitingPack() =>
+        TransitionFrom(OrderStatus.Picked, OrderStatus.AwaitingPack);
 
     /// <summary>
     /// AwaitingPack → Packed. Invoked by U6's <c>POST /confirm-pack</c>
@@ -175,8 +171,8 @@ public sealed class Order : BaseEntity
     /// <summary>
     /// Packed → AwaitingShip.
     /// </summary>
-    public Result MarkAwaitingShip()
-        => TransitionFrom(OrderStatus.Packed, OrderStatus.AwaitingShip);
+    public Result MarkAwaitingShip() =>
+        TransitionFrom(OrderStatus.Packed, OrderStatus.AwaitingShip);
 
     /// <summary>
     /// AwaitingShip → Shipped. Records the carrier label + tracking number
@@ -190,10 +186,7 @@ public sealed class Order : BaseEntity
         }
         if (string.IsNullOrWhiteSpace(trackingNumber))
         {
-            return Result.Failure(
-                "tracking_number is required.",
-                "order.tracking_number_required"
-            );
+            return Result.Failure("tracking_number is required.", "order.tracking_number_required");
         }
         var transition = TransitionFrom(OrderStatus.AwaitingShip, OrderStatus.Shipped);
         if (!transition.IsSuccess)
@@ -273,10 +266,7 @@ public sealed class Order : BaseEntity
             && Status != OrderStatus.Created
         )
         {
-            return Result.Failure(
-                $"cannot cancel order in {Status} state.",
-                "order.invalid_state"
-            );
+            return Result.Failure($"cannot cancel order in {Status} state.", "order.invalid_state");
         }
         Status = OrderStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;

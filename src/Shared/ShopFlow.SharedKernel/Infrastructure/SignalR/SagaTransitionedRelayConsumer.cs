@@ -74,10 +74,9 @@ public sealed class SagaTransitionedRelayConsumer : IConsumer<SagaTransitionedV1
         // Prefer the producer's correlation_id (carried in the integration
         // event envelope) over a freshly minted one so the hub payload's
         // trace ties back to the saga transition's audit row.
-        var correlationId =
-            !string.IsNullOrWhiteSpace(msg.CorrelationId)
-                ? msg.CorrelationId
-                : Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
+        var correlationId = !string.IsNullOrWhiteSpace(msg.CorrelationId)
+            ? msg.CorrelationId
+            : Activity.Current?.Id ?? Guid.NewGuid().ToString("N");
 
         var payload = new SagaTransitionedPayload(
             TenantId: msg.TenantId,

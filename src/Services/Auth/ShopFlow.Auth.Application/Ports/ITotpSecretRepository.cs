@@ -25,7 +25,8 @@ public interface ITotpSecretRepository
         byte[] encryptedSecret,
         int keyId,
         long? lastUsedTimeStep,
-        CancellationToken ct);
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Record the latest verified TOTP step so a subsequent verify with
@@ -46,7 +47,4 @@ public interface ITotpSecretRepository
 /// <see cref="ITotpSecretCipher.Decrypt"/> with the matching key id to
 /// recover the plaintext for OTP verification.
 /// </summary>
-public sealed record TotpSecretView(
-    byte[] EncryptedSecret,
-    int KeyId,
-    long? LastUsedTimeStep);
+public sealed record TotpSecretView(byte[] EncryptedSecret, int KeyId, long? LastUsedTimeStep);

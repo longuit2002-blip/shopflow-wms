@@ -50,16 +50,9 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.HasKey(u => u.Id).HasName("pk_users");
 
-        builder
-            .Property(u => u.Id)
-            .HasColumnName("id")
-            .IsRequired();
+        builder.Property(u => u.Id).HasColumnName("id").IsRequired();
 
-        builder
-            .Property(u => u.Email)
-            .HasColumnName("email")
-            .HasMaxLength(254)
-            .IsRequired();
+        builder.Property(u => u.Email).HasColumnName("email").HasMaxLength(254).IsRequired();
 
         builder
             .Property(u => u.PasswordHash)
@@ -71,10 +64,7 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .Property(u => u.Role)
             .HasColumnName("role")
             .HasMaxLength(16)
-            .HasConversion(
-                v => v.ToString(),
-                v => Enum.Parse<UserRole>(v)
-            )
+            .HasConversion(v => v.ToString(), v => Enum.Parse<UserRole>(v))
             .IsRequired();
 
         builder
@@ -83,18 +73,11 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValue(true)
             .IsRequired();
 
-        builder
-            .Property(u => u.LastLoginAt)
-            .HasColumnName("last_login_at");
+        builder.Property(u => u.LastLoginAt).HasColumnName("last_login_at");
 
-        builder
-            .Property(u => u.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
+        builder.Property(u => u.CreatedAt).HasColumnName("created_at").IsRequired();
 
-        builder
-            .Property(u => u.UpdatedAt)
-            .HasColumnName("updated_at");
+        builder.Property(u => u.UpdatedAt).HasColumnName("updated_at");
 
         // -------- Sprint-9 U3 lockout + MFA columns --------
 
@@ -104,13 +87,9 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .HasDefaultValue(0)
             .IsRequired();
 
-        builder
-            .Property(u => u.LockedUntil)
-            .HasColumnName("locked_until");
+        builder.Property(u => u.LockedUntil).HasColumnName("locked_until");
 
-        builder
-            .Property(u => u.LastFailedLoginAt)
-            .HasColumnName("last_failed_login_at");
+        builder.Property(u => u.LastFailedLoginAt).HasColumnName("last_failed_login_at");
 
         builder
             .Property(u => u.MfaRequired)

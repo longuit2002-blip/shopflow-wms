@@ -36,7 +36,8 @@ public sealed class GetSkuLedgerQueryHandler(InventoryDbContext db)
 
     public async Task<SkuLedgerDto> Handle(
         GetSkuLedgerQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -52,9 +53,7 @@ public sealed class GetSkuLedgerQueryHandler(InventoryDbContext db)
 
         // Fetch Limit+1 so we know whether a next page exists without a
         // second roundtrip.
-        var query = this.db.Reservations
-            .AsNoTracking()
-            .Where(r => r.Sku == skuValue);
+        var query = this.db.Reservations.AsNoTracking().Where(r => r.Sku == skuValue);
 
         if (hasCursor)
         {
@@ -66,7 +65,8 @@ public sealed class GetSkuLedgerQueryHandler(InventoryDbContext db)
             var cursorId = cursor.Id;
             query = query.Where(r =>
                 r.CreatedAt < cursorCreatedAt
-                || (r.CreatedAt == cursorCreatedAt && r.Id.CompareTo(cursorId) < 0));
+                || (r.CreatedAt == cursorCreatedAt && r.Id.CompareTo(cursorId) < 0)
+            );
         }
 
         var rows = await query
@@ -89,15 +89,14 @@ public sealed class GetSkuLedgerQueryHandler(InventoryDbContext db)
 
         // Running balance is most-useful when read chronologically. Build
         // ascending, accumulate, then flip DESC for the wire shape.
-        var ascending = rows
-            .Select(r =>
+        var ascending = rows.Select(r =>
             {
                 var ts = r.ConfirmedAt ?? r.ReleasedAt ?? r.ExpiredAt ?? r.CreatedAt;
                 var signed = r.Status switch
                 {
                     ReservationStatus.Confirmed
-                        or ReservationStatus.Released
-                        or ReservationStatus.Expired => -r.Quantity.Value,
+                    or ReservationStatus.Released
+                    or ReservationStatus.Expired => -r.Quantity.Value,
                     _ => r.Quantity.Value, // Pending = held; appears as additive in the ledger view
                 };
                 return (Row: r, Timestamp: ts, Signed: signed);
@@ -106,18 +105,23 @@ public sealed class GetSkuLedgerQueryHandler(InventoryDbContext db)
             .ToList();
 
         var running = 0;
-        var withBalance = ascending.Select(t =>
-        {
-            running += t.Signed;
-            return new SkuLedgerEntryDto(
-                Id: t.Row.Id,
-                OrderId: t.Row.OrderId,
-                OrderLineId: string.IsNullOrEmpty(t.Row.OrderLineId) ? "_default" : t.Row.OrderLineId,
-                Status: t.Row.Status.ToString(),
-                Quantity: t.Row.Quantity.Value,
-                Timestamp: t.Timestamp,
-                RunningBalance: running);
-        }).ToList();
+        var withBalance = ascending
+            .Select(t =>
+            {
+                running += t.Signed;
+                return new SkuLedgerEntryDto(
+                    Id: t.Row.Id,
+                    OrderId: t.Row.OrderId,
+                    OrderLineId: string.IsNullOrEmpty(t.Row.OrderLineId)
+                        ? "_default"
+                        : t.Row.OrderLineId,
+                    Status: t.Row.Status.ToString(),
+                    Quantity: t.Row.Quantity.Value,
+                    Timestamp: t.Timestamp,
+                    RunningBalance: running
+                );
+            })
+            .ToList();
 
         // Wire shape: newest first.
         withBalance.Reverse();

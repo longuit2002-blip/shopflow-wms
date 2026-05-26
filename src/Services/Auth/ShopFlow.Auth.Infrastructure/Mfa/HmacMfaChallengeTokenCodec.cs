@@ -34,12 +34,19 @@ public sealed class HmacMfaChallengeTokenCodec : IMfaChallengeTokenCodec
         if (bytes.Length < 32)
         {
             throw new InvalidOperationException(
-                "Auth:DevSecret must be at least 32 bytes for HMAC-SHA256 challenge tokens.");
+                "Auth:DevSecret must be at least 32 bytes for HMAC-SHA256 challenge tokens."
+            );
         }
         _key = bytes;
     }
 
-    public string Issue(Guid userId, string tenantSlug, bool rememberMe, MfaChallengeIntent intent, DateTime issuedAt)
+    public string Issue(
+        Guid userId,
+        string tenantSlug,
+        bool rememberMe,
+        MfaChallengeIntent intent,
+        DateTime issuedAt
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
 
@@ -48,7 +55,8 @@ public sealed class HmacMfaChallengeTokenCodec : IMfaChallengeTokenCodec
             tenantSlug,
             rememberMe,
             (int)intent,
-            new DateTimeOffset(issuedAt.Add(Ttl), TimeSpan.Zero).ToUnixTimeSeconds());
+            new DateTimeOffset(issuedAt.Add(Ttl), TimeSpan.Zero).ToUnixTimeSeconds()
+        );
 
         var json = JsonSerializer.Serialize(payload);
         var jsonBytes = Encoding.UTF8.GetBytes(json);
@@ -116,7 +124,8 @@ public sealed class HmacMfaChallengeTokenCodec : IMfaChallengeTokenCodec
             userId,
             payload.ts,
             payload.rm,
-            (MfaChallengeIntent)payload.@int);
+            (MfaChallengeIntent)payload.@int
+        );
     }
 
     private sealed record ChallengePayload(string uid, string ts, bool rm, int @int, long exp);

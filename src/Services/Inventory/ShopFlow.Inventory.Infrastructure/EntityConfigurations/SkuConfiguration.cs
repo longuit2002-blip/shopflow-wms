@@ -64,10 +64,22 @@ internal sealed class SkuConfiguration : IEntityTypeConfiguration<Sku>
             .HasColumnName("dimensions")
             .HasColumnType("jsonb")
             .HasConversion(
-                v => v == null ? null : JsonSerializer.Serialize(SkuDimensionsDto.From(v), (JsonSerializerOptions?)null),
-                v => string.IsNullOrEmpty(v)
-                    ? null
-                    : SkuDimensionsDto.ToDomain(JsonSerializer.Deserialize<SkuDimensionsDto>(v, (JsonSerializerOptions?)null))
+                v =>
+                    v == null
+                        ? null
+                        : JsonSerializer.Serialize(
+                            SkuDimensionsDto.From(v),
+                            (JsonSerializerOptions?)null
+                        ),
+                v =>
+                    string.IsNullOrEmpty(v)
+                        ? null
+                        : SkuDimensionsDto.ToDomain(
+                            JsonSerializer.Deserialize<SkuDimensionsDto>(
+                                v,
+                                (JsonSerializerOptions?)null
+                            )
+                        )
             );
 
         builder
@@ -85,10 +97,7 @@ internal sealed class SkuConfiguration : IEntityTypeConfiguration<Sku>
             .HasColumnName("barcode")
             .HasMaxLength(Sku.MaxBarcodeLength);
 
-        builder
-            .Property(s => s.Brand)
-            .HasColumnName("brand")
-            .HasMaxLength(Sku.MaxBrandLength);
+        builder.Property(s => s.Brand).HasColumnName("brand").HasMaxLength(Sku.MaxBrandLength);
 
         builder
             .Property(s => s.IsFlashSale)
@@ -100,9 +109,7 @@ internal sealed class SkuConfiguration : IEntityTypeConfiguration<Sku>
         builder.Property(s => s.UpdatedAt).HasColumnName("updated_at");
 
         // Sprint-7.5 R2 / KTD2 — three production indexes.
-        builder
-            .HasIndex(s => s.Category)
-            .HasDatabaseName("ix_skus_category");
+        builder.HasIndex(s => s.Category).HasDatabaseName("ix_skus_category");
 
         builder
             .HasIndex(s => s.IsFlashSale)
@@ -120,7 +127,12 @@ internal sealed class SkuConfiguration : IEntityTypeConfiguration<Sku>
     /// Wire shape for the <c>jsonb</c> dimensions column. Kept private
     /// so the Domain stays serialization-agnostic.
     /// </summary>
-    private sealed record SkuDimensionsDto(decimal Length, decimal Width, decimal Height, string Unit)
+    private sealed record SkuDimensionsDto(
+        decimal Length,
+        decimal Width,
+        decimal Height,
+        string Unit
+    )
     {
         public static SkuDimensionsDto From(SkuDimensions d) =>
             new(d.Length, d.Width, d.Height, d.Unit);

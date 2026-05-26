@@ -50,10 +50,7 @@ internal sealed class NotificationDeadLetterEntryConfiguration
             .Property(d => d.LastErrorMessage)
             .HasColumnName("last_error_message")
             .HasMaxLength(2048);
-        builder
-            .Property(d => d.DeadLetteredAt)
-            .HasColumnName("dead_lettered_at")
-            .IsRequired();
+        builder.Property(d => d.DeadLetteredAt).HasColumnName("dead_lettered_at").IsRequired();
         builder.Property(d => d.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(d => d.UpdatedAt).HasColumnName("updated_at").IsRequired();
 

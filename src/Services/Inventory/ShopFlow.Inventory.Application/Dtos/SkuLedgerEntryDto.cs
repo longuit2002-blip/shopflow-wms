@@ -21,8 +21,7 @@ public sealed record SkuLedgerEntryDto(
     string Status,
     int Quantity,
     DateTime Timestamp,
-    int RunningBalance);
+    int RunningBalance
+);
 
-public sealed record SkuLedgerDto(
-    IReadOnlyList<SkuLedgerEntryDto> Items,
-    string? NextCursor);
+public sealed record SkuLedgerDto(IReadOnlyList<SkuLedgerEntryDto> Items, string? NextCursor);

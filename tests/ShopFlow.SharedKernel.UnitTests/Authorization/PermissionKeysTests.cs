@@ -21,32 +21,40 @@ public sealed class PermissionKeysTests
     [Fact]
     public void All_ContainsCanonicalAuthAdminKeys()
     {
-        PermissionKeys.All.Should().Contain(new[]
-        {
-            PermissionKeys.AuthAdminUsersList,
-            PermissionKeys.AuthAdminUsersCreate,
-            PermissionKeys.AuthAdminUsersUpdateRole,
-            PermissionKeys.AuthAdminUsersResetPassword,
-            PermissionKeys.AuthAdminUsersDeactivate,
-            PermissionKeys.AuthAdminLockoutUnlock,
-            PermissionKeys.AuthAdminMfaReset,
-            PermissionKeys.AuthAdminRolePermissionsRead,
-            PermissionKeys.AuthAdminRolePermissionsUpdate,
-        });
+        PermissionKeys
+            .All.Should()
+            .Contain(
+                new[]
+                {
+                    PermissionKeys.AuthAdminUsersList,
+                    PermissionKeys.AuthAdminUsersCreate,
+                    PermissionKeys.AuthAdminUsersUpdateRole,
+                    PermissionKeys.AuthAdminUsersResetPassword,
+                    PermissionKeys.AuthAdminUsersDeactivate,
+                    PermissionKeys.AuthAdminLockoutUnlock,
+                    PermissionKeys.AuthAdminMfaReset,
+                    PermissionKeys.AuthAdminRolePermissionsRead,
+                    PermissionKeys.AuthAdminRolePermissionsUpdate,
+                }
+            );
     }
 
     [Fact]
     public void All_ContainsInventoryAndOutboundAndHubKeys()
     {
-        PermissionKeys.All.Should().Contain(new[]
-        {
-            PermissionKeys.InventoryRead,
-            PermissionKeys.InventoryAdjust,
-            PermissionKeys.InventorySkusWrite,
-            PermissionKeys.OutboundOrdersRead,
-            PermissionKeys.OutboundOrdersWrite,
-            PermissionKeys.HubConnect,
-        });
+        PermissionKeys
+            .All.Should()
+            .Contain(
+                new[]
+                {
+                    PermissionKeys.InventoryRead,
+                    PermissionKeys.InventoryAdjust,
+                    PermissionKeys.InventorySkusWrite,
+                    PermissionKeys.OutboundOrdersRead,
+                    PermissionKeys.OutboundOrdersWrite,
+                    PermissionKeys.HubConnect,
+                }
+            );
     }
 
     [Fact]
@@ -65,13 +73,17 @@ public sealed class PermissionKeysTests
     public void OwnerCritical_ContainsAuthAdminUsersAndRolePermissionsKeys()
     {
         // KTD13: stripping these would lock the tenant out of self-administration.
-        PermissionKeys.OwnerCritical.Should().Contain(new[]
-        {
-            PermissionKeys.AuthAdminUsersCreate,
-            PermissionKeys.AuthAdminUsersUpdateRole,
-            PermissionKeys.AuthAdminRolePermissionsUpdate,
-            PermissionKeys.AuthAdminLockoutUnlock,
-        });
+        PermissionKeys
+            .OwnerCritical.Should()
+            .Contain(
+                new[]
+                {
+                    PermissionKeys.AuthAdminUsersCreate,
+                    PermissionKeys.AuthAdminUsersUpdateRole,
+                    PermissionKeys.AuthAdminRolePermissionsUpdate,
+                    PermissionKeys.AuthAdminLockoutUnlock,
+                }
+            );
     }
 
     [Fact]
@@ -82,8 +94,11 @@ public sealed class PermissionKeysTests
         foreach (var key in PermissionKeys.All)
         {
             key.Should().NotBeNullOrWhiteSpace();
-            key.Should().MatchRegex("^[a-z][a-z0-9.-]*$",
-                "permission keys are lowercase, dot/hyphen-separated tokens");
+            key.Should()
+                .MatchRegex(
+                    "^[a-z][a-z0-9.-]*$",
+                    "permission keys are lowercase, dot/hyphen-separated tokens"
+                );
             key.Should().Contain(".", "every key carries at least one dotted segment");
         }
     }

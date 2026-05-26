@@ -103,10 +103,7 @@ public sealed class PerTenantQueue : IPerTenantQueue
     /// tenant — high-priority lane (flash-sale traffic) and
     /// normal-priority lane (baseline traffic).
     /// </summary>
-    private sealed record TenantQueuePair(
-        Channel<PushIntent> High,
-        Channel<PushIntent> Normal
-    )
+    private sealed record TenantQueuePair(Channel<PushIntent> High, Channel<PushIntent> Normal)
     {
         public static TenantQueuePair Create(int highCap, int normalCap)
         {

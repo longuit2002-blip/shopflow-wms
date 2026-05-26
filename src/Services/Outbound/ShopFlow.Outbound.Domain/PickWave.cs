@@ -53,10 +53,7 @@ public sealed class PickWave : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(shippingProfile))
         {
-            throw new ArgumentException(
-                "shipping_profile is required.",
-                nameof(shippingProfile)
-            );
+            throw new ArgumentException("shipping_profile is required.", nameof(shippingProfile));
         }
         if (string.IsNullOrWhiteSpace(pickerId))
         {
@@ -83,10 +80,7 @@ public sealed class PickWave : BaseEntity
     {
         if (ClosedAt.HasValue)
         {
-            return Result.Failure(
-                "cannot assign to a closed wave.",
-                "pick_wave.closed"
-            );
+            return Result.Failure("cannot assign to a closed wave.", "pick_wave.closed");
         }
         if (orderId == Guid.Empty)
         {
@@ -105,10 +99,7 @@ public sealed class PickWave : BaseEntity
     {
         if (ClosedAt.HasValue)
         {
-            return Result.Failure(
-                "wave already closed.",
-                "pick_wave.already_closed"
-            );
+            return Result.Failure("wave already closed.", "pick_wave.already_closed");
         }
         ClosedAt = closedAt;
         UpdatedAt = closedAt;

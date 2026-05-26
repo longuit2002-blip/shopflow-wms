@@ -42,7 +42,8 @@ public sealed class OtpNetTotpProvider : ITotpProvider
             issuer,
             OtpHashMode.Sha1,
             digits: 6,
-            period: 30);
+            period: 30
+        );
         return builder.ToString();
     }
 
@@ -68,7 +69,8 @@ public sealed class OtpNetTotpProvider : ITotpProvider
                 now,
                 code,
                 out var matchedStep,
-                VerificationWindow.RfcSpecifiedNetworkDelay);
+                VerificationWindow.RfcSpecifiedNetworkDelay
+            );
             return new OtpVerificationResult(valid, matchedStep);
         }
         catch (Exception)

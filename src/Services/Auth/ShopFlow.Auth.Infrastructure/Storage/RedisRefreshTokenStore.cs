@@ -68,7 +68,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
 
     public RedisRefreshTokenStore(
         IConnectionMultiplexer redis,
-        IOptions<RefreshTokenOptions> options)
+        IOptions<RefreshTokenOptions> options
+    )
     {
         ArgumentNullException.ThrowIfNull(redis);
         ArgumentNullException.ThrowIfNull(options);
@@ -80,7 +81,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         string tenantSlug,
         Guid userId,
         bool rememberMe,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
 
@@ -96,9 +98,11 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
 
         var db = _redis.GetDatabase();
         await db.StringSetAsync(
-            LiveKey(tenantSlug, userId, hashHex),
-            JsonSerializer.Serialize(record),
-            ttl).ConfigureAwait(false);
+                LiveKey(tenantSlug, userId, hashHex),
+                JsonSerializer.Serialize(record),
+                ttl
+            )
+            .ConfigureAwait(false);
 
         return plaintext;
     }
@@ -107,7 +111,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         string tenantSlug,
         Guid userId,
         string presentedToken,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
         ArgumentException.ThrowIfNullOrWhiteSpace(presentedToken);
@@ -140,25 +145,34 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         var ttl = TtlFor(existing.RememberMe);
         // Sprint-9 — chain_id propagates from predecessor to successor.
         var chainId = existing.ChainId == Guid.Empty ? Guid.NewGuid() : existing.ChainId;
-        var newRecord = new RefreshTokenRecord(userId, now, now.Add(ttl), existing.RememberMe, chainId);
+        var newRecord = new RefreshTokenRecord(
+            userId,
+            now,
+            now.Add(ttl),
+            existing.RememberMe,
+            chainId
+        );
         var tombstone = new RefreshTokenTombstone(newHashHex, newPlain, chainId, now);
 
         var newKey = LiveKey(tenantSlug, userId, newHashHex);
         var tombstoneKey = TombstoneKey(tenantSlug, userId, oldHashHex);
 
-        var rotated = (int?)await db.ScriptEvaluateAsync(
-            RotateScript,
-            new RedisKey[] { oldKey, newKey, tombstoneKey },
-            new RedisValue[]
-            {
-                JsonSerializer.Serialize(newRecord),
-                (long)ttl.TotalMilliseconds,
-                JsonSerializer.Serialize(tombstone),
-                // Sprint-9 — tombstone TTL is now 7d (configurable),
-                // not the 60-sec grace. The grace check moves to
-                // code-level comparison against tombstone.RotatedAt.
-                _options.TombstoneTtlSeconds * 1_000L,
-            }).ConfigureAwait(false);
+        var rotated = (int?)
+            await db.ScriptEvaluateAsync(
+                    RotateScript,
+                    new RedisKey[] { oldKey, newKey, tombstoneKey },
+                    new RedisValue[]
+                    {
+                        JsonSerializer.Serialize(newRecord),
+                        (long)ttl.TotalMilliseconds,
+                        JsonSerializer.Serialize(tombstone),
+                        // Sprint-9 — tombstone TTL is now 7d (configurable),
+                        // not the 60-sec grace. The grace check moves to
+                        // code-level comparison against tombstone.RotatedAt.
+                        _options.TombstoneTtlSeconds * 1_000L,
+                    }
+                )
+                .ConfigureAwait(false);
 
         if (rotated is null)
         {
@@ -183,7 +197,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         string tenantSlug,
         Guid userId,
         string oldHashHex,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var db = _redis.GetDatabase();
         var tombKey = TombstoneKey(tenantSlug, userId, oldHashHex);
@@ -215,7 +230,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
             {
                 return new RefreshRotateResult(
                     RefreshRotateOutcome.GraceReplay,
-                    tomb.NextTokenPlaintext);
+                    tomb.NextTokenPlaintext
+                );
             }
             return new RefreshRotateResult(RefreshRotateOutcome.ReuseDetected, null);
         }
@@ -226,24 +242,23 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
             return new RefreshRotateResult(
                 RefreshRotateOutcome.GraceReplay,
                 tomb.NextTokenPlaintext,
-                tomb.ChainId);
+                tomb.ChainId
+            );
         }
 
         // Post-grace replay — chain compromise. Revoke just this chain,
         // not all user sessions (KTD2). Other chains for the same user
         // (parallel logins from different devices) keep working.
         await RevokeChainAsync(tenantSlug, userId, tomb.ChainId, ct).ConfigureAwait(false);
-        return new RefreshRotateResult(
-            RefreshRotateOutcome.ChainRevoked,
-            null,
-            tomb.ChainId);
+        return new RefreshRotateResult(RefreshRotateOutcome.ChainRevoked, null, tomb.ChainId);
     }
 
     public async Task RevokeAsync(
         string tenantSlug,
         Guid userId,
         string token,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
@@ -257,10 +272,7 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         await db.KeyDeleteAsync(TombstoneKey(tenantSlug, userId, hashHex)).ConfigureAwait(false);
     }
 
-    public async Task RevokeAllForUserAsync(
-        string tenantSlug,
-        Guid userId,
-        CancellationToken ct)
+    public async Task RevokeAllForUserAsync(string tenantSlug, Guid userId, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
         var endpoints = _redis.GetEndPoints();
@@ -275,11 +287,21 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
             {
                 continue;
             }
-            await foreach (var key in server.KeysAsync(pattern: pattern).WithCancellation(ct).ConfigureAwait(false))
+            await foreach (
+                var key in server
+                    .KeysAsync(pattern: pattern)
+                    .WithCancellation(ct)
+                    .ConfigureAwait(false)
+            )
             {
                 await db.KeyDeleteAsync(key).ConfigureAwait(false);
             }
-            await foreach (var key in server.KeysAsync(pattern: tombPattern).WithCancellation(ct).ConfigureAwait(false))
+            await foreach (
+                var key in server
+                    .KeysAsync(pattern: tombPattern)
+                    .WithCancellation(ct)
+                    .ConfigureAwait(false)
+            )
             {
                 await db.KeyDeleteAsync(key).ConfigureAwait(false);
             }
@@ -290,9 +312,11 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         // missing-key. Consumers (Sprint-9 telemetry) can read this
         // to distinguish revoked vs expired.
         await db.StringSetAsync(
-            $"{RevokeAllMarkerPrefix}:{tenantSlug}:{userId}",
-            DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
-            TimeSpan.FromSeconds(_options.RotationGraceWindowSeconds)).ConfigureAwait(false);
+                $"{RevokeAllMarkerPrefix}:{tenantSlug}:{userId}",
+                DateTime.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                TimeSpan.FromSeconds(_options.RotationGraceWindowSeconds)
+            )
+            .ConfigureAwait(false);
     }
 
     private TimeSpan TtlFor(bool rememberMe) =>
@@ -312,10 +336,7 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         // URL-safe base64 without padding (44 chars → 43 chars) so the
         // token can ride in a URL query parameter or be embedded in a
         // JSON string without escaping.
-        return Convert.ToBase64String(bytes)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
+        return Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
     }
 
     private static string HashHex(string plaintext)
@@ -329,7 +350,8 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
         string tenantSlug,
         Guid userId,
         Guid chainId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
         if (chainId == Guid.Empty)
@@ -355,10 +377,12 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
             // login footprint, not the global key space. Sprint-10+
             // can add a secondary set-index keyed by chain_id if the
             // scan cost matters in practice.
-            await foreach (var key in server
-                .KeysAsync(pattern: livePattern)
-                .WithCancellation(ct)
-                .ConfigureAwait(false))
+            await foreach (
+                var key in server
+                    .KeysAsync(pattern: livePattern)
+                    .WithCancellation(ct)
+                    .ConfigureAwait(false)
+            )
             {
                 var json = await db.StringGetAsync(key).ConfigureAwait(false);
                 if (!json.HasValue)
@@ -375,10 +399,12 @@ public sealed class RedisRefreshTokenStore : IRefreshTokenStore
             // Also revoke matching tombstones — a hostile replay against
             // the predecessor token must not grace-replay into a fresh
             // successor after chain revocation.
-            await foreach (var key in server
-                .KeysAsync(pattern: tombPattern)
-                .WithCancellation(ct)
-                .ConfigureAwait(false))
+            await foreach (
+                var key in server
+                    .KeysAsync(pattern: tombPattern)
+                    .WithCancellation(ct)
+                    .ConfigureAwait(false)
+            )
             {
                 var json = await db.StringGetAsync(key).ConfigureAwait(false);
                 if (!json.HasValue)

@@ -59,11 +59,12 @@ public sealed class StockLevelEmitFlowTests : IAsyncLifetime
             .Where(o => o.EventType.StartsWith(EventTypePrefix))
             .OrderBy(o => o.CreatedAt)
             .ToListAsync();
-        return rows
-            .Select(o => JsonSerializer.Deserialize<StockLevelChangedV1>(
-                o.Payload,
-                OutboxJsonOptions.Default
-            )!)
+        return rows.Select(o =>
+                JsonSerializer.Deserialize<StockLevelChangedV1>(
+                    o.Payload,
+                    OutboxJsonOptions.Default
+                )!
+            )
             .ToList();
     }
 
@@ -162,16 +163,13 @@ public sealed class StockLevelEmitFlowTests : IAsyncLifetime
         await using var _ = db;
 
         // Release on an order that never existed → idempotent no-op
-        await repo.ReleaseLinesAsync(
-            "ORDER-NEVER",
-            new[] { "L1" },
-            CancellationToken.None
-        );
+        await repo.ReleaseLinesAsync("ORDER-NEVER", new[] { "L1" }, CancellationToken.None);
 
         var v1 = await ReadV1RowsAsync(db);
-        v1.Should().BeEmpty(
-            "idempotent no-op release must not emit StockLevelChangedV1 — nothing changed"
-        );
+        v1.Should()
+            .BeEmpty(
+                "idempotent no-op release must not emit StockLevelChangedV1 — nothing changed"
+            );
     }
 
     [Fact]

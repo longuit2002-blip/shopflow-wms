@@ -27,8 +27,8 @@ using ShopFlow.SharedKernel.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services
-    .AddOptions<AuthOptions>()
+builder
+    .Services.AddOptions<AuthOptions>()
     .Bind(builder.Configuration.GetSection(AuthOptions.SectionName))
     .ValidateOnStart();
 
@@ -39,7 +39,8 @@ builder.Services.AddShopFlowDefaults(
     {
         typeof(ShopFlow.Auth.Application.Commands.LoginCommand).Assembly,
         typeof(AuthDbContext).Assembly,
-    });
+    }
+);
 builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddShopFlowControllers();
@@ -47,6 +48,7 @@ builder.Services.AddShopFlowControllers();
 var app = builder.Build();
 
 app.UseProblemDetails();
+
 // Sprint-9 U7 — ForwardedHeaders + RateLimiter BEFORE Authentication so
 // the rate-limit partition key reads the real client IP from
 // X-Forwarded-For (per KTD7).

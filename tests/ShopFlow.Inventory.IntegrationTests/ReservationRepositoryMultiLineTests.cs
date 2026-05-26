@@ -78,7 +78,8 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
         result.LineOutcomes.Should().HaveCount(2);
         result.LineOutcomes.Should().OnlyContain(o => o.Status == LineOutcomeStatus.Reserved);
 
-        var ledger = await db.Reservations.AsNoTracking()
+        var ledger = await db
+            .Reservations.AsNoTracking()
             .Where(r => r.OrderId == "ORDER-MULTI-1")
             .ToListAsync();
         ledger.Should().HaveCount(2);
@@ -93,7 +94,9 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
 
         var outboxCount = await db
             .OutboxMessages.AsNoTracking()
-            .CountAsync(o => o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReservedEvent"));
+            .CountAsync(o =>
+                o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReservedEvent")
+            );
         outboxCount.Should().Be(2);
     }
 
@@ -129,13 +132,18 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("reservation.oversold");
         result.LineOutcomes.Should().HaveCount(2);
-        result.LineOutcomes.Single(o => o.OrderLineId == "L1").Status
-            .Should().Be(LineOutcomeStatus.Reserved);
-        result.LineOutcomes.Single(o => o.OrderLineId == "L2").Status
-            .Should().Be(LineOutcomeStatus.Oversold);
+        result
+            .LineOutcomes.Single(o => o.OrderLineId == "L1")
+            .Status.Should()
+            .Be(LineOutcomeStatus.Reserved);
+        result
+            .LineOutcomes.Single(o => o.OrderLineId == "L2")
+            .Status.Should()
+            .Be(LineOutcomeStatus.Oversold);
 
         // Atomic guarantee: zero ledger rows, zero stock change.
-        var ledger = await db.Reservations.AsNoTracking()
+        var ledger = await db
+            .Reservations.AsNoTracking()
             .CountAsync(r => r.OrderId == "ORDER-OVERSOLD");
         ledger.Should().Be(0);
 
@@ -183,7 +191,8 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
         secondIds.Should().BeEquivalentTo(firstIds);
 
         // Only 2 rows total — no duplicates.
-        var ledger = await db1.Reservations.AsNoTracking()
+        var ledger = await db1
+            .Reservations.AsNoTracking()
             .CountAsync(r => r.OrderId == "ORDER-IDEMP");
         ledger.Should().Be(2);
 
@@ -230,9 +239,13 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
 
         // Returned reservations are the existing L1+L2, not the new L3.
         second.Reservations.Should().HaveCount(2);
-        second.Reservations.Select(r => r.OrderLineId).Should().BeEquivalentTo(new[] { "L1", "L2" });
+        second
+            .Reservations.Select(r => r.OrderLineId)
+            .Should()
+            .BeEquivalentTo(new[] { "L1", "L2" });
 
-        var ledger = await db.Reservations.AsNoTracking()
+        var ledger = await db
+            .Reservations.AsNoTracking()
             .Where(r => r.OrderId == "ORDER-DIFF")
             .ToListAsync();
         ledger.Should().HaveCount(2);
@@ -266,7 +279,8 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
 
         release.ReleasedLineIds.Should().BeEquivalentTo(new[] { "L1" });
 
-        var ledger = await db.Reservations.AsNoTracking()
+        var ledger = await db
+            .Reservations.AsNoTracking()
             .Where(r => r.OrderId == "ORDER-PARTIAL")
             .ToListAsync();
         var l1 = ledger.Single(r => r.OrderLineId == "L1");
@@ -289,16 +303,8 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
         var (repo, db) = BuildRepo();
         await using var _ = db;
 
-        var lines = new[]
-        {
-            new LineReservation(Sku.Create(SkuA), "L1", Quantity.From(1)),
-        };
-        await repo.TryReserveLinesAsync(
-            "ORDER-DBL-REL",
-            lines,
-            Ttl,
-            CancellationToken.None
-        );
+        var lines = new[] { new LineReservation(Sku.Create(SkuA), "L1", Quantity.From(1)) };
+        await repo.TryReserveLinesAsync("ORDER-DBL-REL", lines, Ttl, CancellationToken.None);
 
         var firstRelease = await repo.ReleaseLinesAsync(
             "ORDER-DBL-REL",
@@ -330,7 +336,8 @@ public sealed class ReservationRepositoryMultiLineTests : IAsyncLifetime
         );
 
         result.IsSuccess.Should().BeTrue();
-        var row = await db.Reservations.AsNoTracking()
+        var row = await db
+            .Reservations.AsNoTracking()
             .SingleAsync(r => r.OrderId == "ORDER-LEGACY");
         row.OrderLineId.Should().Be(Reservation.DefaultOrderLineId);
         row.Quantity.Value.Should().Be(7);

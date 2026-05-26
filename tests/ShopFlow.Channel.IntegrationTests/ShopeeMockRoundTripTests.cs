@@ -18,8 +18,7 @@ namespace ShopFlow.Channel.IntegrationTests;
 /// Testcontainers — exercises the HTTP boundary only.
 /// </summary>
 [Trait("Category", "Integration")]
-public sealed class ShopeeMockRoundTripTests
-    : IClassFixture<WebApplicationFactory<MockEntryPoint>>
+public sealed class ShopeeMockRoundTripTests : IClassFixture<WebApplicationFactory<MockEntryPoint>>
 {
     private readonly WebApplicationFactory<MockEntryPoint> _factory;
 
@@ -31,11 +30,7 @@ public sealed class ShopeeMockRoundTripTests
     private ShopeeAdapter NewAdapterAgainstMock()
     {
         var http = _factory.CreateClient();
-        return new ShopeeAdapter(
-            new ShopeeWebhookParser(),
-            ResiliencePipeline.Empty,
-            http
-        );
+        return new ShopeeAdapter(new ShopeeWebhookParser(), ResiliencePipeline.Empty, http);
     }
 
     private static StockUpdateRequest NewRequest(string sku = "100200300", int qty = 17) =>
@@ -54,10 +49,7 @@ public sealed class ShopeeMockRoundTripTests
         await ResetChaosAsync();
 
         var adapter = NewAdapterAgainstMock();
-        var result = await adapter.PushStockUpdateAsync(
-            NewRequest(),
-            CancellationToken.None
-        );
+        var result = await adapter.PushStockUpdateAsync(NewRequest(), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue(result.Error);
     }
@@ -69,10 +61,7 @@ public sealed class ShopeeMockRoundTripTests
         try
         {
             var adapter = NewAdapterAgainstMock();
-            var result = await adapter.PushStockUpdateAsync(
-                NewRequest(),
-                CancellationToken.None
-            );
+            var result = await adapter.PushStockUpdateAsync(NewRequest(), CancellationToken.None);
 
             result.IsSuccess.Should().BeFalse();
             result.ErrorCode.Should().Be("shopee.push.5xx");

@@ -67,11 +67,7 @@ public sealed partial class AddSkusRichCatalog : Migration
 
         // Btree on category — supports the Inventory screen's category
         // filter once catalogs grow past a few thousand rows.
-        mb.CreateIndex(
-            name: "ix_skus_category",
-            table: "skus",
-            column: "category"
-        );
+        mb.CreateIndex(name: "ix_skus_category", table: "skus", column: "category");
 
         // Partial btree on is_flash_sale = TRUE — StockSync hot-path
         // bypass-check stays cheap, non-matching rows touch zero pages.

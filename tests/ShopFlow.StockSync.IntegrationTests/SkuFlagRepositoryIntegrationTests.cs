@@ -64,8 +64,7 @@ public sealed class SkuFlagRepositoryIntegrationTests
         await using var db = new StockSyncDbContext(tenant.Options);
         var repo = new SkuFlagRepository(db);
 
-        var read = await repo.IsFlashSaleAsync(
-            tenant.Info.Id, "SKU-NONE", CancellationToken.None);
+        var read = await repo.IsFlashSaleAsync(tenant.Info.Id, "SKU-NONE", CancellationToken.None);
 
         read.Should().BeFalse();
     }
@@ -168,15 +167,23 @@ public sealed class SkuFlagRepositoryIntegrationTests
         {
             var repo = new SkuFlagRepository(db1);
             await repo.SetFlashSaleAsync(
-                tenant1.Info.Id, "SKU-SHARED", true, CancellationToken.None);
+                tenant1.Info.Id,
+                "SKU-SHARED",
+                true,
+                CancellationToken.None
+            );
         }
 
         await using (var db2 = new StockSyncDbContext(tenant2.Options))
         {
             var repo = new SkuFlagRepository(db2);
             var read = await repo.IsFlashSaleAsync(
-                tenant2.Info.Id, "SKU-SHARED", CancellationToken.None);
-            read.Should().BeFalse("each tenant has its own DB; T1's row must not be visible from T2");
+                tenant2.Info.Id,
+                "SKU-SHARED",
+                CancellationToken.None
+            );
+            read.Should()
+                .BeFalse("each tenant has its own DB; T1's row must not be visible from T2");
         }
     }
 }

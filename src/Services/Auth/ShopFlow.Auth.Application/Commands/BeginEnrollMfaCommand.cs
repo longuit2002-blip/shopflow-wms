@@ -11,6 +11,5 @@ namespace ShopFlow.Auth.Application.Commands;
 /// rejects with 409 <c>auth.mfa_already_enrolled</c> when the user
 /// already has a row in <c>user_totp_secrets</c>.
 /// </summary>
-public sealed record BeginEnrollMfaCommand(
-    Guid UserId,
-    string TenantSlug) : IRequest<Result<BeginEnrollMfaResponse>>;
+public sealed record BeginEnrollMfaCommand(Guid UserId, string TenantSlug)
+    : IRequest<Result<BeginEnrollMfaResponse>>;

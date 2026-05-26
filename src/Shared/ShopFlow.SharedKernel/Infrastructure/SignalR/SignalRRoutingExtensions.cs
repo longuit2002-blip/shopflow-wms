@@ -54,8 +54,7 @@ public static class SignalRRoutingExtensions
             HubPath,
             options =>
             {
-                options.Transports =
-                    HttpTransportType.WebSockets | HttpTransportType.LongPolling;
+                options.Transports = HttpTransportType.WebSockets | HttpTransportType.LongPolling;
             }
         );
 

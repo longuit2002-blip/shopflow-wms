@@ -30,10 +30,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddShopFlowDefaults(
     builder.Configuration,
     configure: o => o.ServiceName = "shopflow-notification",
-    assembliesToScan: new[]
-    {
-        typeof(NotificationDbContext).Assembly,
-    });
+    assembliesToScan: new[] { typeof(NotificationDbContext).Assembly }
+);
 builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddNotificationModule(builder.Configuration);
 

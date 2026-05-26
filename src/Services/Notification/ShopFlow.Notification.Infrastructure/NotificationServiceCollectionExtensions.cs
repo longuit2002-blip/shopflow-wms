@@ -43,11 +43,10 @@ public static class NotificationServiceCollectionExtensions
             var options = new DbContextOptionsBuilder<NotificationDbContext>()
                 .UseNpgsql(
                     ctx.DbConnectionString,
-                    npg => npg.MigrationsAssembly(
-                        typeof(NotificationServiceCollectionExtensions)
-                            .Assembly.GetName()
-                            .Name
-                    )
+                    npg =>
+                        npg.MigrationsAssembly(
+                            typeof(NotificationServiceCollectionExtensions).Assembly.GetName().Name
+                        )
                 )
                 .Options;
             return new NotificationDbContext(options);
@@ -68,9 +67,7 @@ public static class NotificationServiceCollectionExtensions
             .Bind(configuration.GetSection("Notification:Mailer"));
         services.AddSingleton<SmtpResponseCodeMapper>(_ => new SmtpResponseCodeMapper());
 
-        var providerKind = configuration
-            .GetSection("Notification:Mailer:Provider")
-            .Value;
+        var providerKind = configuration.GetSection("Notification:Mailer:Provider").Value;
         if (
             string.Equals(
                 providerKind,

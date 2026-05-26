@@ -41,13 +41,14 @@ public sealed class Argon2Options
     /// Recovery-code profile (Sprint-9 KTD9). Lighter parameters
     /// because the codes themselves carry ~52-bit entropy.
     /// </summary>
-    public Argon2ProfileSettings RecoveryCode { get; set; } = new()
-    {
-        MemorySizeKib = 8_192,
-        Iterations = 2,
-        DegreeOfParallelism = 1,
-        HashLengthBytes = 32,
-    };
+    public Argon2ProfileSettings RecoveryCode { get; set; } =
+        new()
+        {
+            MemorySizeKib = 8_192,
+            Iterations = 2,
+            DegreeOfParallelism = 1,
+            HashLengthBytes = 32,
+        };
 }
 
 /// <summary>

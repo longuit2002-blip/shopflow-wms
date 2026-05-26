@@ -120,40 +120,41 @@ public sealed class TenantBurstDriver
         for (var p = 0; p < parallelism; p++)
         {
             var pIndex = p;
-            tasks[p] = Task.Run(async () =>
-            {
-                var local = 0;
-                var available = initialAvailable - pIndex * 1000;
-                while (_clock.GetUtcNow() < endAt && !ct.IsCancellationRequested)
+            tasks[p] = Task.Run(
+                async () =>
                 {
-                    try
-                    {
-                        await EmitOneAsync(sku, available, ct: ct).ConfigureAwait(false);
-                    }
-                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
-                    {
-                        return;
-                    }
-                    available = Math.Max(0, available - 1);
-                    local++;
-                    Interlocked.Increment(ref emitted);
-                    if (subDelayMs >= 1.0)
+                    var local = 0;
+                    var available = initialAvailable - pIndex * 1000;
+                    while (_clock.GetUtcNow() < endAt && !ct.IsCancellationRequested)
                     {
                         try
                         {
-                            await Task.Delay(
-                                TimeSpan.FromMilliseconds(subDelayMs),
-                                ct
-                            ).ConfigureAwait(false);
+                            await EmitOneAsync(sku, available, ct: ct).ConfigureAwait(false);
                         }
-                        catch (OperationCanceledException)
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
                         {
                             return;
                         }
+                        available = Math.Max(0, available - 1);
+                        local++;
+                        Interlocked.Increment(ref emitted);
+                        if (subDelayMs >= 1.0)
+                        {
+                            try
+                            {
+                                await Task.Delay(TimeSpan.FromMilliseconds(subDelayMs), ct)
+                                    .ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException)
+                            {
+                                return;
+                            }
+                        }
                     }
-                }
-                _ = local; // suppress unused-warning under Release builds
-            }, ct);
+                    _ = local; // suppress unused-warning under Release builds
+                },
+                ct
+            );
         }
         await Task.WhenAll(tasks).ConfigureAwait(false);
         return emitted;

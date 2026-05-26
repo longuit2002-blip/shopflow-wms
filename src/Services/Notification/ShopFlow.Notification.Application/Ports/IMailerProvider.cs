@@ -29,5 +29,9 @@ public readonly record struct MessageId(string Value)
 /// </remarks>
 public interface IMailerProvider
 {
-    Task<Result<MessageId>> SendAsync(RenderedEmail email, Recipient recipient, CancellationToken ct);
+    Task<Result<MessageId>> SendAsync(
+        RenderedEmail email,
+        Recipient recipient,
+        CancellationToken ct
+    );
 }

@@ -21,4 +21,5 @@ public sealed record VerifyMfaCommand(
     string TenantSlug,
     string SourceIp,
     string UserAgent,
-    Guid CorrelationId) : IRequest<Result<LoginResponse>>;
+    Guid CorrelationId
+) : IRequest<Result<LoginResponse>>;

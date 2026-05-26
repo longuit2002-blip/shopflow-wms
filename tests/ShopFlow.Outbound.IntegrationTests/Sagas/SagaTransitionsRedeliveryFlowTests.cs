@@ -102,8 +102,7 @@ public sealed class SagaTransitionsRedeliveryFlowTests : IAsyncLifetime
 
         services.AddMassTransitTestHarness(cfg =>
         {
-            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .InMemoryRepository();
+            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>().InMemoryRepository();
         });
 
         var sp = services.BuildServiceProvider(true);
@@ -149,7 +148,9 @@ public sealed class SagaTransitionsRedeliveryFlowTests : IAsyncLifetime
             // Wait for both consumes to settle. MT TestHarness' Consumed
             // counters track the cumulative count; we assert that BOTH
             // delivery attempts ran.
-            (await harness.Consumed.SelectAsync<OrderPlacedV1>().Take(2).Count()).Should().Be(2);
+            (await harness.Consumed.SelectAsync<OrderPlacedV1>().Take(2).Count())
+                .Should()
+                .Be(2);
 
             var rows = await db
                 .OrderTransitions.Where(t => t.OrderId == orderId)
@@ -178,7 +179,8 @@ public sealed class SagaTransitionsRedeliveryFlowTests : IAsyncLifetime
         await conn.OpenAsync();
 
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText =
+            @"
             SELECT indexname, indexdef
             FROM pg_indexes
             WHERE tablename = 'outbound_saga_transitions'
@@ -237,9 +239,7 @@ public sealed class SagaTransitionsRedeliveryFlowTests : IAsyncLifetime
 
         await using var db = new OutboundDbContext(_tenant.Options);
 
-        var auditRows = await db
-            .OrderTransitions.Where(t => t.OrderId == orderId)
-            .ToListAsync();
+        var auditRows = await db.OrderTransitions.Where(t => t.OrderId == orderId).ToListAsync();
         auditRows.Should().HaveCount(1, "the UNIQUE + interceptor must coalesce the audit row");
 
         // Outbox rows for SagaTransitionedV1 referencing this order — the
@@ -247,8 +247,7 @@ public sealed class SagaTransitionsRedeliveryFlowTests : IAsyncLifetime
         // serialized OrderId.
         var outboxRows = await db
             .OutboxMessages.Where(o =>
-                o.EventType == nameof(SagaTransitionedV1)
-                && o.Payload.Contains(orderId.ToString())
+                o.EventType == nameof(SagaTransitionedV1) && o.Payload.Contains(orderId.ToString())
             )
             .ToListAsync();
         outboxRows

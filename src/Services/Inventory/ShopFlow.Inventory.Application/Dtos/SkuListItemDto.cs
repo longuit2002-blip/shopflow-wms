@@ -24,7 +24,8 @@ public sealed record SkuListItemDto(
     int? Threshold,
     bool IsFlashSale,
     IReadOnlyList<ChannelAllocationDto> Allocations,
-    int P24Outbound);
+    int P24Outbound
+);
 
 public sealed record ChannelAllocationDto(string Channel, int Allocated);
 
@@ -32,4 +33,5 @@ public sealed record PaginatedSkuListDto(
     IReadOnlyList<SkuListItemDto> Items,
     int Page,
     int PageSize,
-    int Total);
+    int Total
+);

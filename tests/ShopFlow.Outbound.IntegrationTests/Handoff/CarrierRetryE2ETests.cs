@@ -231,7 +231,8 @@ public sealed class CarrierRetryE2ETests
         double flakeRate,
         int minDelayMs,
         int maxDelayMsExclusive,
-        CountingMockShippingProvider[] counterRef)
+        CountingMockShippingProvider[] counterRef
+    )
     {
         return sp =>
         {
@@ -241,7 +242,8 @@ public sealed class CarrierRetryE2ETests
                 flakeRate,
                 minDelayMs,
                 maxDelayMsExclusive,
-                randomSource: () => seq.TryDequeue(out var v) ? v : 0.0);
+                randomSource: () => seq.TryDequeue(out var v) ? v : 0.0
+            );
             var shim = new CountingMockShippingProvider(inner);
             counterRef[0] = shim;
             return shim;

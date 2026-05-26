@@ -80,11 +80,7 @@ public sealed class WebhooksController : ControllerBase
             return NotFound(new { error = "unknown channel" });
         }
 
-        if (!string.Equals(
-            binding.ChannelType,
-            channelType,
-            StringComparison.OrdinalIgnoreCase
-        ))
+        if (!string.Equals(binding.ChannelType, channelType, StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(new { error = "channel type mismatch" });
         }
@@ -104,14 +100,16 @@ public sealed class WebhooksController : ControllerBase
         {
             // No verifier registered for this channel type — Sprint-6+ will
             // add Lazada/TikTok adapters. Surface loudly.
-            return StatusCode(StatusCodes.Status501NotImplemented, new
-            {
-                error = $"no verifier registered for channel type '{binding.ChannelType}'",
-            });
+            return StatusCode(
+                StatusCodes.Status501NotImplemented,
+                new { error = $"no verifier registered for channel type '{binding.ChannelType}'" }
+            );
         }
 
-        if (string.IsNullOrWhiteSpace(signature)
-            || !verifier.Verify(bodyBytes, signature, binding.SecretEncrypted))
+        if (
+            string.IsNullOrWhiteSpace(signature)
+            || !verifier.Verify(bodyBytes, signature, binding.SecretEncrypted)
+        )
         {
             return Unauthorized(new { error = "signature verification failed" });
         }
@@ -133,10 +131,10 @@ public sealed class WebhooksController : ControllerBase
         var adapter = _adapterFactory.TryResolve(binding.ChannelType);
         if (adapter is null)
         {
-            return StatusCode(StatusCodes.Status501NotImplemented, new
-            {
-                error = $"no adapter registered for channel type '{binding.ChannelType}'",
-            });
+            return StatusCode(
+                StatusCodes.Status501NotImplemented,
+                new { error = $"no adapter registered for channel type '{binding.ChannelType}'" }
+            );
         }
 
         var headers = BuildHeaderSnapshot();
@@ -159,40 +157,40 @@ public sealed class WebhooksController : ControllerBase
 
         if (!processResult.IsSuccess)
         {
-            return BadRequest(
-                new { error = processResult.Error, code = processResult.ErrorCode }
-            );
+            return BadRequest(new { error = processResult.Error, code = processResult.ErrorCode });
         }
 
         var outcome = processResult.Value!;
         return outcome.Status switch
         {
-            WebhookProcessStatus.OrderImported => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-                status = "order_imported",
-            }),
-            WebhookProcessStatus.ImportFailed => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-                status = "import_failed",
-                reason = "unmapped_skus",
-                unmapped = outcome.UnmappedSkus,
-            }),
-            WebhookProcessStatus.EventSkipped => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-                status = "no_downstream",
-                eventType = envelope.EventType,
-            }),
-            _ => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-            }),
+            WebhookProcessStatus.OrderImported => Ok(
+                new
+                {
+                    eventId = outcome.EventId,
+                    isDuplicate = outcome.IsDuplicate,
+                    status = "order_imported",
+                }
+            ),
+            WebhookProcessStatus.ImportFailed => Ok(
+                new
+                {
+                    eventId = outcome.EventId,
+                    isDuplicate = outcome.IsDuplicate,
+                    status = "import_failed",
+                    reason = "unmapped_skus",
+                    unmapped = outcome.UnmappedSkus,
+                }
+            ),
+            WebhookProcessStatus.EventSkipped => Ok(
+                new
+                {
+                    eventId = outcome.EventId,
+                    isDuplicate = outcome.IsDuplicate,
+                    status = "no_downstream",
+                    eventType = envelope.EventType,
+                }
+            ),
+            _ => Ok(new { eventId = outcome.EventId, isDuplicate = outcome.IsDuplicate }),
         };
     }
 

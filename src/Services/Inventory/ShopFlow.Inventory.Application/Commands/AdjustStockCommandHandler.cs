@@ -18,7 +18,10 @@ public sealed class AdjustStockCommandHandler(IStockItemRepository repository)
 {
     private readonly IStockItemRepository repository = repository;
 
-    public async Task<Result> Handle(AdjustStockCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(
+        AdjustStockCommand request,
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -31,12 +34,13 @@ public sealed class AdjustStockCommandHandler(IStockItemRepository repository)
         {
             return Result.Failure(
                 $"unknown reason '{request.Reason}'. Valid: {string.Join(", ", Enum.GetNames<StockAdjustmentReason>())}.",
-                "stock.adjustment_reason_invalid");
+                "stock.adjustment_reason_invalid"
+            );
         }
 
         var sku = Sku.Create(request.Sku);
-        return await this.repository
-            .AdjustAsync(sku, request.Delta, reason, request.Note, cancellationToken)
+        return await this
+            .repository.AdjustAsync(sku, request.Delta, reason, request.Note, cancellationToken)
             .ConfigureAwait(false);
     }
 }

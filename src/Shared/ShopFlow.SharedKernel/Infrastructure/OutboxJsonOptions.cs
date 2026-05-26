@@ -28,10 +28,11 @@ public static class OutboxJsonOptions
     /// deserialize so older PascalCase-keyed payloads (none exist yet
     /// but the safety is cheap) still round-trip cleanly.
     /// </summary>
-    public static JsonSerializerOptions Default { get; } = new()
-    {
-        WriteIndented = false,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-    };
+    public static JsonSerializerOptions Default { get; } =
+        new()
+        {
+            WriteIndented = false,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+        };
 }

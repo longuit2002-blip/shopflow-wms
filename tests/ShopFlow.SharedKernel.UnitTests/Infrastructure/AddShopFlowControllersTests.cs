@@ -158,6 +158,8 @@ public sealed class AddShopFlowControllersTests
         var services = new ServiceCollection();
         services.AddShopFlowControllers();
         using var sp = services.BuildServiceProvider();
-        return sp.GetRequiredService<IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>>().Value.JsonSerializerOptions;
+        return sp.GetRequiredService<
+            IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>
+        >().Value.JsonSerializerOptions;
     }
 }

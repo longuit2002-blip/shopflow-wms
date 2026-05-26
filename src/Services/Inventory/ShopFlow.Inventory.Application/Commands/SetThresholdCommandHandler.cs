@@ -19,12 +19,15 @@ namespace ShopFlow.Inventory.Application.Commands;
 /// SKU modal. The user can rename the row later via Sprint-7.5 U4's
 /// edit modal.
 /// </remarks>
-public sealed class SetThresholdCommandHandler(
-    ISkuRepository skuRepository) : IRequestHandler<SetThresholdCommand, Result>
+public sealed class SetThresholdCommandHandler(ISkuRepository skuRepository)
+    : IRequestHandler<SetThresholdCommand, Result>
 {
     private readonly ISkuRepository skuRepository = skuRepository;
 
-    public async Task<Result> Handle(SetThresholdCommand request, CancellationToken cancellationToken)
+    public async Task<Result> Handle(
+        SetThresholdCommand request,
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -34,10 +37,7 @@ public sealed class SetThresholdCommandHandler(
         }
         if (request.Threshold < 0)
         {
-            return Result.Failure(
-                "threshold must be >= 0.",
-                "stock.threshold_negative"
-            );
+            return Result.Failure("threshold must be >= 0.", "stock.threshold_negative");
         }
 
         SkuCode code;
@@ -50,8 +50,8 @@ public sealed class SetThresholdCommandHandler(
             return Result.Failure(ex.Message, "stock.sku_invalid");
         }
 
-        var result = await this.skuRepository
-            .UpdateThresholdAsync(code, request.Threshold, cancellationToken)
+        var result = await this
+            .skuRepository.UpdateThresholdAsync(code, request.Threshold, cancellationToken)
             .ConfigureAwait(false);
 
         return result.IsSuccess

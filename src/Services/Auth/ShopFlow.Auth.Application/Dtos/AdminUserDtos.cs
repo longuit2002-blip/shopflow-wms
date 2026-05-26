@@ -23,7 +23,8 @@ public sealed record CreateUserResponse(
     Guid UserId,
     string Email,
     string Role,
-    string TemporaryPassword);
+    string TemporaryPassword
+);
 
 /// <summary>
 /// Discriminated request body for <c>PATCH /api/auth/admin/users/{id}</c>
@@ -56,6 +57,7 @@ public sealed record UserSummary(
     string Role,
     bool IsActive,
     DateTime CreatedAt,
-    DateTime? LastLoginAt);
+    DateTime? LastLoginAt
+);
 
 public sealed record ListUsersResponse(IReadOnlyList<UserSummary> Users, int Page, int PageSize);

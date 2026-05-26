@@ -73,7 +73,8 @@ public sealed class SkuFlagRepository : ISkuFlagRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pg
-                && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
         {
             // Concurrent admin write (or test priming) already inserted a
             // row with the same SKU primary key. Detach to keep the
@@ -84,9 +85,7 @@ public sealed class SkuFlagRepository : ISkuFlagRepository
             _db.Entry(newFlag).State = EntityState.Detached;
         }
 
-        var existing = await _db
-            .SkuFlags.FirstAsync(f => f.Sku == sku, ct)
-            .ConfigureAwait(false);
+        var existing = await _db.SkuFlags.FirstAsync(f => f.Sku == sku, ct).ConfigureAwait(false);
         existing.SetFlashSale(isFlashSale);
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
     }
@@ -96,7 +95,8 @@ public sealed class SkuFlagRepository : ISkuFlagRepository
         string sku,
         bool isFlashSale,
         DateTime occurredAt,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         _ = tenantId;
         ArgumentException.ThrowIfNullOrWhiteSpace(sku);
@@ -137,7 +137,8 @@ public sealed class SkuFlagRepository : ISkuFlagRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pg
-                && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
         {
             _db.Entry(fresh).State = EntityState.Detached;
         }

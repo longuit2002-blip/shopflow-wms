@@ -23,15 +23,18 @@ public sealed class RecoveryCodeRepository : IRecoveryCodeRepository
         _db = db;
     }
 
-    public async Task<Result> AddBatchAsync(Guid userId, IReadOnlyList<string> phcHashes, CancellationToken ct)
+    public async Task<Result> AddBatchAsync(
+        Guid userId,
+        IReadOnlyList<string> phcHashes,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(phcHashes);
         var now = DateTime.UtcNow;
         foreach (var hash in phcHashes)
         {
             await _db
-                .RecoveryCodes
-                .AddAsync(RecoveryCode.Issue(userId, hash, now), ct)
+                .RecoveryCodes.AddAsync(RecoveryCode.Issue(userId, hash, now), ct)
                 .ConfigureAwait(false);
         }
         try
@@ -40,9 +43,14 @@ public sealed class RecoveryCodeRepository : IRecoveryCodeRepository
             return Result.Success();
         }
         catch (DbUpdateException ex)
-            when (ex.InnerException is PostgresException pg && pg.SqlState == UniqueViolationSqlState)
+            when (ex.InnerException is PostgresException pg
+                && pg.SqlState == UniqueViolationSqlState
+            )
         {
-            return Result.Failure("Recovery codes collide with existing rows.", "auth.recovery_codes_in_use");
+            return Result.Failure(
+                "Recovery codes collide with existing rows.",
+                "auth.recovery_codes_in_use"
+            );
         }
     }
 
@@ -50,14 +58,14 @@ public sealed class RecoveryCodeRepository : IRecoveryCodeRepository
         Guid userId,
         string plaintext,
         IPasswordHasher hasher,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(plaintext);
         ArgumentNullException.ThrowIfNull(hasher);
 
         var candidates = await _db
-            .RecoveryCodes
-            .Where(c => c.UserId == userId && c.UsedAt == null)
+            .RecoveryCodes.Where(c => c.UserId == userId && c.UsedAt == null)
             .Select(c => c.CodeHash)
             .ToListAsync(ct)
             .ConfigureAwait(false);
@@ -108,8 +116,7 @@ public sealed class RecoveryCodeRepository : IRecoveryCodeRepository
     public async Task<int> CountRemainingAsync(Guid userId, CancellationToken ct)
     {
         return await _db
-            .RecoveryCodes
-            .Where(c => c.UserId == userId && c.UsedAt == null)
+            .RecoveryCodes.Where(c => c.UserId == userId && c.UsedAt == null)
             .CountAsync(ct)
             .ConfigureAwait(false);
     }
@@ -117,8 +124,7 @@ public sealed class RecoveryCodeRepository : IRecoveryCodeRepository
     public async Task DeleteAllAsync(Guid userId, CancellationToken ct)
     {
         await _db
-            .RecoveryCodes
-            .Where(c => c.UserId == userId)
+            .RecoveryCodes.Where(c => c.UserId == userId)
             .ExecuteDeleteAsync(ct)
             .ConfigureAwait(false);
     }

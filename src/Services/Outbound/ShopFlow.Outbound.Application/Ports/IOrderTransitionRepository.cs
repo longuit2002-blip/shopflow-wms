@@ -32,8 +32,5 @@ public interface IOrderTransitionRepository
     /// order has no recorded transitions yet (e.g., a freshly-created order
     /// before the saga has consumed its first event).
     /// </summary>
-    Task<IReadOnlyList<OrderTransition>> ListByOrderIdAsync(
-        Guid orderId,
-        CancellationToken ct
-    );
+    Task<IReadOnlyList<OrderTransition>> ListByOrderIdAsync(Guid orderId, CancellationToken ct);
 }

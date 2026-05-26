@@ -26,9 +26,7 @@ public sealed class PurchaseOrderRepository : IPurchaseOrderRepository
 
     public Task<PurchaseOrder?> FindByIdAsync(Guid id, CancellationToken ct)
     {
-        return _db
-            .PurchaseOrders.Include(p => p.Lines)
-            .FirstOrDefaultAsync(p => p.Id == id, ct);
+        return _db.PurchaseOrders.Include(p => p.Lines).FirstOrDefaultAsync(p => p.Id == id, ct);
     }
 
     public async Task<IReadOnlyList<PurchaseOrder>> ListOpenAsync(CancellationToken ct)

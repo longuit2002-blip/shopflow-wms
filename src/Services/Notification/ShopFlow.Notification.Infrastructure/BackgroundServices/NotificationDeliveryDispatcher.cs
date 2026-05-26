@@ -130,8 +130,7 @@ public sealed class NotificationDeliveryDispatcher : BackgroundService
 
         var outboxRepo =
             tenantScope.ServiceProvider.GetRequiredService<INotificationOutboxRepository>();
-        var logRepo =
-            tenantScope.ServiceProvider.GetRequiredService<INotificationLogRepository>();
+        var logRepo = tenantScope.ServiceProvider.GetRequiredService<INotificationLogRepository>();
         var mailer = tenantScope.ServiceProvider.GetRequiredService<IMailerProvider>();
 
         var batch = await outboxRepo
@@ -162,11 +161,7 @@ public sealed class NotificationDeliveryDispatcher : BackgroundService
         RenderedEmail email;
         try
         {
-            recipient = Recipient.Create(
-                row.RecipientEmail,
-                row.RecipientDisplayName,
-                tenant.Id
-            );
+            recipient = Recipient.Create(row.RecipientEmail, row.RecipientDisplayName, tenant.Id);
             email = RenderedEmail.Create(
                 row.RenderedSubject,
                 row.RenderedBodyText,
@@ -179,14 +174,15 @@ public sealed class NotificationDeliveryDispatcher : BackgroundService
             // Row failed value-object reconstruction — terminal data
             // corruption. Move to dead-letter and drop.
             await DeadLetterAsync(
-                row,
-                logRepo,
-                outboxRepo,
-                attemptCount: row.AttemptCount + 1,
-                errorCode: "mailer.permanent.invalid_payload",
-                errorMessage: ex.Message,
-                ct
-            ).ConfigureAwait(false);
+                    row,
+                    logRepo,
+                    outboxRepo,
+                    attemptCount: row.AttemptCount + 1,
+                    errorCode: "mailer.permanent.invalid_payload",
+                    errorMessage: ex.Message,
+                    ct
+                )
+                .ConfigureAwait(false);
             return;
         }
 
@@ -204,9 +200,7 @@ public sealed class NotificationDeliveryDispatcher : BackgroundService
                 SentAt = DateTime.UtcNow,
             };
 
-            var inserted = await logRepo
-                .TryInsertSuccessAsync(logEntry, ct)
-                .ConfigureAwait(false);
+            var inserted = await logRepo.TryInsertSuccessAsync(logEntry, ct).ConfigureAwait(false);
             if (!inserted)
             {
                 // KTD3 — duplicate row blocked by UNIQUE. The previous
@@ -232,14 +226,15 @@ public sealed class NotificationDeliveryDispatcher : BackgroundService
         if (isPermanent)
         {
             await DeadLetterAsync(
-                row,
-                logRepo,
-                outboxRepo,
-                attemptCount,
-                errorCode,
-                result.Error ?? "(no message)",
-                ct
-            ).ConfigureAwait(false);
+                    row,
+                    logRepo,
+                    outboxRepo,
+                    attemptCount,
+                    errorCode,
+                    result.Error ?? "(no message)",
+                    ct
+                )
+                .ConfigureAwait(false);
         }
         else
         {

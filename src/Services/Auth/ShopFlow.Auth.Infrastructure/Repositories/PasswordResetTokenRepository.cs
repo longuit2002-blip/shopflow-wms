@@ -24,7 +24,12 @@ public sealed class PasswordResetTokenRepository : IPasswordResetTokenRepository
         _db = db;
     }
 
-    public async Task<Result> AddAsync(byte[] tokenHash, Guid userId, DateTime expiresAt, CancellationToken ct)
+    public async Task<Result> AddAsync(
+        byte[] tokenHash,
+        Guid userId,
+        DateTime expiresAt,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(tokenHash);
         var token = PasswordResetToken.Issue(tokenHash, userId, expiresAt, DateTime.UtcNow);
@@ -35,13 +40,19 @@ public sealed class PasswordResetTokenRepository : IPasswordResetTokenRepository
             return Result.Success();
         }
         catch (DbUpdateException ex)
-            when (ex.InnerException is PostgresException pg && pg.SqlState == UniqueViolationSqlState)
+            when (ex.InnerException is PostgresException pg
+                && pg.SqlState == UniqueViolationSqlState
+            )
         {
             return Result.Failure("Password reset token already exists.", "auth.token_in_use");
         }
     }
 
-    public async Task<Result<Guid>> TryConsumeAsync(byte[] tokenHash, TimeProvider clock, CancellationToken ct)
+    public async Task<Result<Guid>> TryConsumeAsync(
+        byte[] tokenHash,
+        TimeProvider clock,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(tokenHash);
         ArgumentNullException.ThrowIfNull(clock);
@@ -87,8 +98,7 @@ public sealed class PasswordResetTokenRepository : IPasswordResetTokenRepository
     public async Task<DateTime?> GetLastIssuedAtAsync(Guid userId, CancellationToken ct)
     {
         return await _db
-            .PasswordResetTokens
-            .AsNoTracking()
+            .PasswordResetTokens.AsNoTracking()
             .Where(t => t.UserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .Select(t => (DateTime?)t.CreatedAt)

@@ -50,7 +50,8 @@ public sealed class AuthController : ControllerBase
         IMediator mediator,
         ITenantCatalog tenantCatalog,
         RequestContext requestContext,
-        IOptions<AuthOptions> authOptions)
+        IOptions<AuthOptions> authOptions
+    )
     {
         _mediator = mediator;
         _tenantCatalog = tenantCatalog;
@@ -82,19 +83,28 @@ public sealed class AuthController : ControllerBase
         var result = await _mediator
             .Send(
                 new LoginCommand(
-                    body.Email, body.Password, body.RememberMe, slugResult.Slug!,
-                    clientIp, userAgent, Guid.NewGuid()),
-                ct)
+                    body.Email,
+                    body.Password,
+                    body.RememberMe,
+                    slugResult.Slug!,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
             .ConfigureAwait(false);
 
         return result.IsSuccess
             ? Ok(result.Value)
-            : Unauthorized(new ProblemDetails
-            {
-                Title = "Invalid credentials.",
-                Status = StatusCodes.Status401Unauthorized,
-                Type = "auth.invalid_credentials",
-            });
+            : Unauthorized(
+                new ProblemDetails
+                {
+                    Title = "Invalid credentials.",
+                    Status = StatusCodes.Status401Unauthorized,
+                    Type = "auth.invalid_credentials",
+                }
+            );
     }
 
     [AllowAnonymous]
@@ -104,7 +114,8 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> Refresh(
         [FromBody] RefreshRequestDto? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (body is null || string.IsNullOrWhiteSpace(body.RefreshToken))
         {
@@ -122,9 +133,15 @@ public sealed class AuthController : ControllerBase
         var result = await _mediator
             .Send(
                 new RefreshTokenCommand(
-                    body.RefreshToken, body.UserId, slugResult.Slug!,
-                    clientIp, userAgent, Guid.NewGuid()),
-                ct)
+                    body.RefreshToken,
+                    body.UserId,
+                    slugResult.Slug!,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
             .ConfigureAwait(false);
 
         if (result.IsSuccess)
@@ -132,12 +149,14 @@ public sealed class AuthController : ControllerBase
             return Ok(result.Value);
         }
 
-        return Unauthorized(new ProblemDetails
-        {
-            Title = result.Error ?? "Invalid credentials.",
-            Status = StatusCodes.Status401Unauthorized,
-            Type = result.ErrorCode ?? "auth.invalid_credentials",
-        });
+        return Unauthorized(
+            new ProblemDetails
+            {
+                Title = result.Error ?? "Invalid credentials.",
+                Status = StatusCodes.Status401Unauthorized,
+                Type = result.ErrorCode ?? "auth.invalid_credentials",
+            }
+        );
     }
 
     [Authorize]
@@ -160,9 +179,16 @@ public sealed class AuthController : ControllerBase
         await _mediator
             .Send(
                 new LogoutCommand(
-                    body.RefreshToken, body.AllDevices, userId, slug,
-                    clientIp, userAgent, Guid.NewGuid()),
-                ct)
+                    body.RefreshToken,
+                    body.AllDevices,
+                    userId,
+                    slug,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
             .ConfigureAwait(false);
 
         return NoContent();
@@ -175,7 +201,8 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ChangeMyPassword(
         [FromBody] ChangePasswordRequest? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (body is null)
         {
@@ -192,9 +219,16 @@ public sealed class AuthController : ControllerBase
         var result = await _mediator
             .Send(
                 new ChangePasswordCommand(
-                    body.CurrentPassword, body.NewPassword, userId, slug,
-                    clientIp, userAgent, Guid.NewGuid()),
-                ct)
+                    body.CurrentPassword,
+                    body.NewPassword,
+                    userId,
+                    slug,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
             .ConfigureAwait(false);
 
         if (result.IsSuccess)
@@ -207,12 +241,15 @@ public sealed class AuthController : ControllerBase
             "auth.password_too_short" => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status401Unauthorized,
         };
-        return StatusCode(status, new ProblemDetails
-        {
-            Title = result.Error,
-            Status = status,
-            Type = result.ErrorCode,
-        });
+        return StatusCode(
+            status,
+            new ProblemDetails
+            {
+                Title = result.Error,
+                Status = status,
+                Type = result.ErrorCode,
+            }
+        );
     }
 
     // ───────────── Sprint-9 forgot-password + reset ─────────────
@@ -221,7 +258,10 @@ public sealed class AuthController : ControllerBase
     [HttpPost("forgot-password")]
     [EnableRateLimiting("auth-forgot-password")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest? body, CancellationToken ct)
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest? body,
+        CancellationToken ct
+    )
     {
         if (body is null || string.IsNullOrWhiteSpace(body.Email))
         {
@@ -240,10 +280,18 @@ public sealed class AuthController : ControllerBase
 
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        await _mediator.Send(
-            new ForgotPasswordCommand(
-                body.Email, slugResult.Slug!, clientIp, userAgent, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        await _mediator
+            .Send(
+                new ForgotPasswordCommand(
+                    body.Email,
+                    slugResult.Slug!,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Ok(new { status = "sent" });
     }
@@ -256,7 +304,8 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> ResetPasswordConfirm(
         [FromBody] ResetPasswordConfirmRequest? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (body is null || string.IsNullOrWhiteSpace(body.Token))
         {
@@ -276,19 +325,30 @@ public sealed class AuthController : ControllerBase
 
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var ua = Request.Headers.UserAgent.ToString();
-        var result = await _mediator.Send(
-            new ResetPasswordConfirmCommand(
-                body.Token, body.NewPassword, slugResult.Slug!, clientIp, ua, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(
+                new ResetPasswordConfirmCommand(
+                    body.Token,
+                    body.NewPassword,
+                    slugResult.Slug!,
+                    clientIp,
+                    ua,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         return result.IsSuccess
             ? NoContent()
-            : Unauthorized(new ProblemDetails
-            {
-                Title = result.Error,
-                Status = StatusCodes.Status401Unauthorized,
-                Type = result.ErrorCode,
-            });
+            : Unauthorized(
+                new ProblemDetails
+                {
+                    Title = result.Error,
+                    Status = StatusCodes.Status401Unauthorized,
+                    Type = result.ErrorCode,
+                }
+            );
     }
 
     // ───────────── Sprint-9 MFA ─────────────
@@ -303,20 +363,26 @@ public sealed class AuthController : ControllerBase
         {
             return Unauthorized();
         }
-        var result = await _mediator.Send(new BeginEnrollMfaCommand(userId, slug), ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(new BeginEnrollMfaCommand(userId, slug), ct)
+            .ConfigureAwait(false);
         if (result.IsSuccess)
         {
             return Ok(result.Value);
         }
-        var status = result.ErrorCode == "auth.mfa_already_enrolled"
-            ? StatusCodes.Status409Conflict
-            : StatusCodes.Status401Unauthorized;
-        return StatusCode(status, new ProblemDetails
-        {
-            Title = result.Error,
-            Status = status,
-            Type = result.ErrorCode,
-        });
+        var status =
+            result.ErrorCode == "auth.mfa_already_enrolled"
+                ? StatusCodes.Status409Conflict
+                : StatusCodes.Status401Unauthorized;
+        return StatusCode(
+            status,
+            new ProblemDetails
+            {
+                Title = result.Error,
+                Status = status,
+                Type = result.ErrorCode,
+            }
+        );
     }
 
     [AllowAnonymous]
@@ -326,7 +392,8 @@ public sealed class AuthController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
     public async Task<IActionResult> VerifyEnrollMfa(
         [FromBody] VerifyEnrollMfaRequest? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (body is null || string.IsNullOrWhiteSpace(body.Otp))
         {
@@ -343,27 +410,33 @@ public sealed class AuthController : ControllerBase
         // pass Guid.Empty as a placeholder and let the handler decode.
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        var result = await _mediator.Send(
-            new VerifyEnrollMfaCommand(
-                UserId: Guid.Empty, // handler reads from challenge payload
-                TenantSlug: slugResult.Slug!,
-                EnrollmentToken: body.EnrollmentToken,
-                EnrollmentId: body.EnrollmentId,
-                Otp: body.Otp,
-                RememberMe: false,
-                SourceIp: clientIp,
-                UserAgent: userAgent,
-                CorrelationId: Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(
+                new VerifyEnrollMfaCommand(
+                    UserId: Guid.Empty, // handler reads from challenge payload
+                    TenantSlug: slugResult.Slug!,
+                    EnrollmentToken: body.EnrollmentToken,
+                    EnrollmentId: body.EnrollmentId,
+                    Otp: body.Otp,
+                    RememberMe: false,
+                    SourceIp: clientIp,
+                    UserAgent: userAgent,
+                    CorrelationId: Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         return result.IsSuccess
             ? Ok(result.Value)
-            : Unauthorized(new ProblemDetails
-            {
-                Title = result.Error,
-                Status = StatusCodes.Status401Unauthorized,
-                Type = result.ErrorCode,
-            });
+            : Unauthorized(
+                new ProblemDetails
+                {
+                    Title = result.Error,
+                    Status = StatusCodes.Status401Unauthorized,
+                    Type = result.ErrorCode,
+                }
+            );
     }
 
     [AllowAnonymous]
@@ -371,7 +444,10 @@ public sealed class AuthController : ControllerBase
     [EnableRateLimiting("auth-credentials")]
     [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
-    public async Task<IActionResult> VerifyMfa([FromBody] VerifyMfaRequest? body, CancellationToken ct)
+    public async Task<IActionResult> VerifyMfa(
+        [FromBody] VerifyMfaRequest? body,
+        CancellationToken ct
+    )
     {
         if (body is null || string.IsNullOrWhiteSpace(body.ChallengeToken))
         {
@@ -386,26 +462,41 @@ public sealed class AuthController : ControllerBase
 
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var ua = Request.Headers.UserAgent.ToString();
-        var result = await _mediator.Send(
-            new VerifyMfaCommand(
-                body.ChallengeToken, body.Otp, body.RecoveryCode, slugResult.Slug!, clientIp, ua, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(
+                new VerifyMfaCommand(
+                    body.ChallengeToken,
+                    body.Otp,
+                    body.RecoveryCode,
+                    slugResult.Slug!,
+                    clientIp,
+                    ua,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         return result.IsSuccess
             ? Ok(result.Value)
-            : Unauthorized(new ProblemDetails
-            {
-                Title = result.Error,
-                Status = StatusCodes.Status401Unauthorized,
-                Type = result.ErrorCode,
-            });
+            : Unauthorized(
+                new ProblemDetails
+                {
+                    Title = result.Error,
+                    Status = StatusCodes.Status401Unauthorized,
+                    Type = result.ErrorCode,
+                }
+            );
     }
 
     [Authorize]
     [HttpPost("mfa/disable")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> DisableMfa([FromBody] DisableMfaRequest? body, CancellationToken ct)
+    public async Task<IActionResult> DisableMfa(
+        [FromBody] DisableMfaRequest? body,
+        CancellationToken ct
+    )
     {
         if (body is null || string.IsNullOrWhiteSpace(body.CurrentPassword))
         {
@@ -418,23 +509,37 @@ public sealed class AuthController : ControllerBase
 
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        var result = await _mediator.Send(
-            new DisableMfaCommand(userId, slug, body.CurrentPassword, clientIp, userAgent, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(
+                new DisableMfaCommand(
+                    userId,
+                    slug,
+                    body.CurrentPassword,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         if (result.IsSuccess)
         {
             return NoContent();
         }
-        var status = result.ErrorCode == "auth.mfa_required_cannot_disable"
-            ? StatusCodes.Status422UnprocessableEntity
-            : StatusCodes.Status401Unauthorized;
-        return StatusCode(status, new ProblemDetails
-        {
-            Title = result.Error,
-            Status = status,
-            Type = result.ErrorCode,
-        });
+        var status =
+            result.ErrorCode == "auth.mfa_required_cannot_disable"
+                ? StatusCodes.Status422UnprocessableEntity
+                : StatusCodes.Status401Unauthorized;
+        return StatusCode(
+            status,
+            new ProblemDetails
+            {
+                Title = result.Error,
+                Status = status,
+                Type = result.ErrorCode,
+            }
+        );
     }
 
     [Authorize]
@@ -447,33 +552,42 @@ public sealed class AuthController : ControllerBase
         {
             return Unauthorized();
         }
-        var result = await _mediator.Send(
-            new GenerateRecoveryCodesCommand(userId, slug, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(new GenerateRecoveryCodesCommand(userId, slug, Guid.NewGuid()), ct)
+            .ConfigureAwait(false);
         return result.IsSuccess
             ? Ok(result.Value)
-            : StatusCode(StatusCodes.Status422UnprocessableEntity, new ProblemDetails
-            {
-                Title = result.Error,
-                Status = StatusCodes.Status422UnprocessableEntity,
-                Type = result.ErrorCode,
-            });
+            : StatusCode(
+                StatusCodes.Status422UnprocessableEntity,
+                new ProblemDetails
+                {
+                    Title = result.Error,
+                    Status = StatusCodes.Status422UnprocessableEntity,
+                    Type = result.ErrorCode,
+                }
+            );
     }
 
     // ───────────── Tenant resolution ─────────────
 
-    private async Task<TenantResolveResult> ResolveTenantAsync(string? bodyTenantSlug, CancellationToken ct)
+    private async Task<TenantResolveResult> ResolveTenantAsync(
+        string? bodyTenantSlug,
+        CancellationToken ct
+    )
     {
         var host = Request.Host.Host;
         if (!IsTrustedHost(host))
         {
             return TenantResolveResult.Error(
-                BadRequest(new ProblemDetails
-                {
-                    Title = "Untrusted host.",
-                    Status = StatusCodes.Status400BadRequest,
-                    Type = "host.untrusted",
-                }));
+                BadRequest(
+                    new ProblemDetails
+                    {
+                        Title = "Untrusted host.",
+                        Status = StatusCodes.Status400BadRequest,
+                        Type = "host.untrusted",
+                    }
+                )
+            );
         }
 
         var subdomain = ExtractSubdomain(host);
@@ -482,27 +596,37 @@ public sealed class AuthController : ControllerBase
             : bodyTenantSlug.Trim().ToLowerInvariant();
 
         string? candidate;
-        if (subdomain is not null && explicitSlug is not null && !string.Equals(subdomain, explicitSlug, StringComparison.Ordinal))
+        if (
+            subdomain is not null
+            && explicitSlug is not null
+            && !string.Equals(subdomain, explicitSlug, StringComparison.Ordinal)
+        )
         {
             return TenantResolveResult.Error(
-                BadRequest(new ProblemDetails
-                {
-                    Title = "Conflicting tenant sources.",
-                    Status = StatusCodes.Status400BadRequest,
-                    Type = "tenant.source_conflict",
-                }));
+                BadRequest(
+                    new ProblemDetails
+                    {
+                        Title = "Conflicting tenant sources.",
+                        Status = StatusCodes.Status400BadRequest,
+                        Type = "tenant.source_conflict",
+                    }
+                )
+            );
         }
         candidate = subdomain ?? explicitSlug;
 
         if (string.IsNullOrWhiteSpace(candidate))
         {
             return TenantResolveResult.Error(
-                BadRequest(new ProblemDetails
-                {
-                    Title = "Tenant required.",
-                    Status = StatusCodes.Status400BadRequest,
-                    Type = "tenant.required",
-                }));
+                BadRequest(
+                    new ProblemDetails
+                    {
+                        Title = "Tenant required.",
+                        Status = StatusCodes.Status400BadRequest,
+                        Type = "tenant.required",
+                    }
+                )
+            );
         }
 
         if (ReservedSlugs.IsReserved(candidate))
@@ -510,12 +634,15 @@ public sealed class AuthController : ControllerBase
             // Same shape as invalid_credentials to avoid enumeration of
             // the reserved list.
             return TenantResolveResult.Error(
-                Unauthorized(new ProblemDetails
-                {
-                    Title = "Invalid credentials.",
-                    Status = StatusCodes.Status401Unauthorized,
-                    Type = "auth.invalid_credentials",
-                }));
+                Unauthorized(
+                    new ProblemDetails
+                    {
+                        Title = "Invalid credentials.",
+                        Status = StatusCodes.Status401Unauthorized,
+                        Type = "auth.invalid_credentials",
+                    }
+                )
+            );
         }
 
         var tenant = await _tenantCatalog.LookupBySlugAsync(candidate, ct).ConfigureAwait(false);
@@ -525,12 +652,15 @@ public sealed class AuthController : ControllerBase
             // by returning the same shape login would have for any
             // wrong-user / wrong-password case.
             return TenantResolveResult.Error(
-                Unauthorized(new ProblemDetails
-                {
-                    Title = "Invalid credentials.",
-                    Status = StatusCodes.Status401Unauthorized,
-                    Type = "auth.invalid_credentials",
-                }));
+                Unauthorized(
+                    new ProblemDetails
+                    {
+                        Title = "Invalid credentials.",
+                        Status = StatusCodes.Status401Unauthorized,
+                        Type = "auth.invalid_credentials",
+                    }
+                )
+            );
         }
 
         _requestContext.Bind(tenant, HttpContext.TraceIdentifier, userId: null);
@@ -582,8 +712,8 @@ public sealed class AuthController : ControllerBase
         userId = Guid.Empty;
         var claims = User;
         var slugClaim = claims.FindFirst("tenant_slug")?.Value;
-        var subClaim = claims.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                       ?? claims.FindFirst("sub")?.Value;
+        var subClaim =
+            claims.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? claims.FindFirst("sub")?.Value;
         if (string.IsNullOrWhiteSpace(slugClaim) || !Guid.TryParse(subClaim, out var parsed))
         {
             return false;
@@ -593,7 +723,11 @@ public sealed class AuthController : ControllerBase
         return true;
     }
 
-    private readonly record struct TenantResolveResult(bool Success, string? Slug, IActionResult? ErrorResult)
+    private readonly record struct TenantResolveResult(
+        bool Success,
+        string? Slug,
+        IActionResult? ErrorResult
+    )
     {
         public static TenantResolveResult Ok(string slug) => new(true, slug, null);
 
@@ -607,11 +741,9 @@ public sealed record LoginRequestDto(
     string Email,
     string Password,
     bool RememberMe,
-    string? TenantSlug);
+    string? TenantSlug
+);
 
-public sealed record RefreshRequestDto(
-    string RefreshToken,
-    Guid UserId,
-    string? TenantSlug);
+public sealed record RefreshRequestDto(string RefreshToken, Guid UserId, string? TenantSlug);
 
 public sealed record LogoutRequestDto(string RefreshToken, bool AllDevices);

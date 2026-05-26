@@ -48,12 +48,7 @@ public sealed partial class InitialControlPlaneSchema : Migration
             constraints: table => table.PrimaryKey("pk_tenants", x => x.id)
         );
 
-        mb.CreateIndex(
-            name: "ux_tenants_slug",
-            table: "tenants",
-            column: "slug",
-            unique: true
-        );
+        mb.CreateIndex(name: "ux_tenants_slug", table: "tenants", column: "slug", unique: true);
 
         mb.CreateIndex(
             name: "ux_tenants_db_name",

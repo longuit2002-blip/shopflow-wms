@@ -21,4 +21,5 @@ public sealed record RefreshTokenCommand(
     string TenantSlug,
     string SourceIp,
     string UserAgent,
-    Guid CorrelationId) : IRequest<Result<RefreshResponse>>;
+    Guid CorrelationId
+) : IRequest<Result<RefreshResponse>>;

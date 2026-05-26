@@ -27,7 +27,12 @@ public sealed class PasswordResetToken
 
     private PasswordResetToken() { }
 
-    public static PasswordResetToken Issue(byte[] tokenHash, Guid userId, DateTime expiresAt, DateTime now)
+    public static PasswordResetToken Issue(
+        byte[] tokenHash,
+        Guid userId,
+        DateTime expiresAt,
+        DateTime now
+    )
     {
         ArgumentNullException.ThrowIfNull(tokenHash);
         if (tokenHash.Length == 0)

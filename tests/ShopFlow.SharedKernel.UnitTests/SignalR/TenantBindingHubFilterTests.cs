@@ -55,7 +55,10 @@ public sealed class TenantBindingHubFilterTests
         return caller;
     }
 
-    private static (IServiceScopeFactory scopeFactory, RequestContext requestContext) BuildScopeFactoryWithRequestContext()
+    private static (
+        IServiceScopeFactory scopeFactory,
+        RequestContext requestContext
+    ) BuildScopeFactoryWithRequestContext()
     {
         // Single shared RequestContext instance returned by the scope so
         // the test can assert what the filter bound after the call.
@@ -66,7 +69,10 @@ public sealed class TenantBindingHubFilterTests
         return (provider.GetRequiredService<IServiceScopeFactory>(), requestContext);
     }
 
-    private static (IGroupManager groups, List<(string ConnectionId, string GroupName)> calls) BuildGroupManager()
+    private static (
+        IGroupManager groups,
+        List<(string ConnectionId, string GroupName)> calls
+    ) BuildGroupManager()
     {
         var calls = new List<(string, string)>();
         var groups = Substitute.For<IGroupManager>();
@@ -82,10 +88,7 @@ public sealed class TenantBindingHubFilterTests
 
     private static TenantHub BuildHub(IGroupManager groups)
     {
-        return new TenantHub
-        {
-            Groups = groups,
-        };
+        return new TenantHub { Groups = groups };
     }
 
     private static HubLifetimeContext BuildLifetimeContext(
@@ -103,13 +106,7 @@ public sealed class TenantBindingHubFilterTests
         // Use a placeholder MethodInfo — Object.ToString() is safe; the
         // filter never invokes it (next() is mocked by the test caller).
         var method = typeof(object).GetMethod(nameof(object.ToString))!;
-        return new HubInvocationContext(
-            caller,
-            sp,
-            hub,
-            method,
-            Array.Empty<object?>()
-        );
+        return new HubInvocationContext(caller, sp, hub, method, Array.Empty<object?>());
     }
 
     [Fact]
@@ -117,9 +114,7 @@ public sealed class TenantBindingHubFilterTests
     {
         // Arrange
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupBySlugAsync(ValidSlug, Arg.Any<CancellationToken>())
-            .Returns(SampleTenant());
+        catalog.LookupBySlugAsync(ValidSlug, Arg.Any<CancellationToken>()).Returns(SampleTenant());
 
         var (scopeFactory, _) = BuildScopeFactoryWithRequestContext();
         var (groups, joinCalls) = BuildGroupManager();
@@ -137,16 +132,18 @@ public sealed class TenantBindingHubFilterTests
         var nextCalled = false;
 
         // Act
-        await filter.OnConnectedAsync(ctx, _ =>
-        {
-            nextCalled = true;
-            return Task.CompletedTask;
-        });
+        await filter.OnConnectedAsync(
+            ctx,
+            _ =>
+            {
+                nextCalled = true;
+                return Task.CompletedTask;
+            }
+        );
 
         // Assert
         nextCalled.Should().BeTrue();
-        joinCalls.Should().ContainSingle()
-            .Which.Should().Be(("conn-1", $"tenant:{ValidSlug}"));
+        joinCalls.Should().ContainSingle().Which.Should().Be(("conn-1", $"tenant:{ValidSlug}"));
         caller.DidNotReceive().Abort();
     }
 
@@ -170,11 +167,14 @@ public sealed class TenantBindingHubFilterTests
         var nextCalled = false;
 
         // Act
-        await filter.OnConnectedAsync(ctx, _ =>
-        {
-            nextCalled = true;
-            return Task.CompletedTask;
-        });
+        await filter.OnConnectedAsync(
+            ctx,
+            _ =>
+            {
+                nextCalled = true;
+                return Task.CompletedTask;
+            }
+        );
 
         // Assert
         nextCalled.Should().BeFalse();
@@ -190,9 +190,7 @@ public sealed class TenantBindingHubFilterTests
     {
         // Arrange
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupBySlugAsync("ghost", Arg.Any<CancellationToken>())
-            .Returns((TenantInfo?)null);
+        catalog.LookupBySlugAsync("ghost", Arg.Any<CancellationToken>()).Returns((TenantInfo?)null);
 
         var (scopeFactory, _) = BuildScopeFactoryWithRequestContext();
         var (groups, joinCalls) = BuildGroupManager();
@@ -209,11 +207,14 @@ public sealed class TenantBindingHubFilterTests
         var nextCalled = false;
 
         // Act
-        await filter.OnConnectedAsync(ctx, _ =>
-        {
-            nextCalled = true;
-            return Task.CompletedTask;
-        });
+        await filter.OnConnectedAsync(
+            ctx,
+            _ =>
+            {
+                nextCalled = true;
+                return Task.CompletedTask;
+            }
+        );
 
         // Assert
         nextCalled.Should().BeFalse();
@@ -245,11 +246,14 @@ public sealed class TenantBindingHubFilterTests
         var nextCalled = false;
 
         // Act
-        await filter.OnConnectedAsync(ctx, _ =>
-        {
-            nextCalled = true;
-            return Task.CompletedTask;
-        });
+        await filter.OnConnectedAsync(
+            ctx,
+            _ =>
+            {
+                nextCalled = true;
+                return Task.CompletedTask;
+            }
+        );
 
         // Assert
         nextCalled.Should().BeFalse();
@@ -262,15 +266,17 @@ public sealed class TenantBindingHubFilterTests
     {
         // Arrange
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog
-            .LookupBySlugAsync(ValidSlug, Arg.Any<CancellationToken>())
-            .Returns(SampleTenant());
+        catalog.LookupBySlugAsync(ValidSlug, Arg.Any<CancellationToken>()).Returns(SampleTenant());
 
         var (scopeFactory, requestContext) = BuildScopeFactoryWithRequestContext();
         var (groups, _) = BuildGroupManager();
         var hub = BuildHub(groups);
         var caller = BuildCallerContext(PrincipalWithSlug(ValidSlug), connectionId: "conn-1");
-        var ctx = BuildInvocationContext(caller, hub, new ServiceCollection().BuildServiceProvider());
+        var ctx = BuildInvocationContext(
+            caller,
+            hub,
+            new ServiceCollection().BuildServiceProvider()
+        );
 
         var filter = new TenantBindingHubFilter(
             scopeFactory,
@@ -282,13 +288,16 @@ public sealed class TenantBindingHubFilterTests
         string? observedSlugInsideNext = null;
 
         // Act
-        var result = await filter.InvokeMethodAsync(ctx, _ =>
-        {
-            // RequestContext must be bound by the time next runs.
-            observedTenantIdInsideNext = requestContext.TenantId;
-            observedSlugInsideNext = requestContext.TenantSlug;
-            return ValueTask.FromResult<object?>("ok");
-        });
+        var result = await filter.InvokeMethodAsync(
+            ctx,
+            _ =>
+            {
+                // RequestContext must be bound by the time next runs.
+                observedTenantIdInsideNext = requestContext.TenantId;
+                observedSlugInsideNext = requestContext.TenantSlug;
+                return ValueTask.FromResult<object?>("ok");
+            }
+        );
 
         // Assert
         result.Should().Be("ok");

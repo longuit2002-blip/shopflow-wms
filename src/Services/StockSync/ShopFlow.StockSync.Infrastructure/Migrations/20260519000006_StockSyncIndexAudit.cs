@@ -35,10 +35,12 @@ public sealed partial class StockSyncIndexAudit : Migration
         ArgumentNullException.ThrowIfNull(mb);
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_stock_sync_push_log_channel_occurred_at "
-            + "ON stock_sync_push_log (channel_id, occurred_at DESC);");
+                + "ON stock_sync_push_log (channel_id, occurred_at DESC);"
+        );
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_sku_flags_updated_at "
-            + "ON sku_flags (updated_at DESC);");
+                + "ON sku_flags (updated_at DESC);"
+        );
     }
 
     protected override void Down(MigrationBuilder mb)

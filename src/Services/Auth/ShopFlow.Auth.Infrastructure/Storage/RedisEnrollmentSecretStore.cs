@@ -42,7 +42,12 @@ public sealed class RedisEnrollmentSecretStore : IEnrollmentSecretStore
         _redis = redis;
     }
 
-    public async Task<Guid> StoreAsync(string tenantSlug, Guid userId, byte[] secret, CancellationToken ct)
+    public async Task<Guid> StoreAsync(
+        string tenantSlug,
+        Guid userId,
+        byte[] secret,
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
         ArgumentNullException.ThrowIfNull(secret);
@@ -54,9 +59,7 @@ public sealed class RedisEnrollmentSecretStore : IEnrollmentSecretStore
         var enrollmentId = Guid.NewGuid();
         var key = BuildKey(tenantSlug, userId, enrollmentId);
         var db = _redis.GetDatabase();
-        await db
-            .StringSetAsync(key, secret, Ttl)
-            .ConfigureAwait(false);
+        await db.StringSetAsync(key, secret, Ttl).ConfigureAwait(false);
         return enrollmentId;
     }
 
@@ -64,16 +67,14 @@ public sealed class RedisEnrollmentSecretStore : IEnrollmentSecretStore
         string tenantSlug,
         Guid userId,
         Guid enrollmentId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
 
         var key = BuildKey(tenantSlug, userId, enrollmentId);
         var db = _redis.GetDatabase();
-        var result = await db
-            .ScriptEvaluateAsync(
-                ConsumeScript,
-                new RedisKey[] { key })
+        var result = await db.ScriptEvaluateAsync(ConsumeScript, new RedisKey[] { key })
             .ConfigureAwait(false);
 
         if (result.IsNull)

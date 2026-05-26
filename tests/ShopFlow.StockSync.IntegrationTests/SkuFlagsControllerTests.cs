@@ -26,8 +26,10 @@ namespace ShopFlow.StockSync.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class SkuFlagsControllerTests
 {
-    [Fact(Skip = "U8 wires AddStockSyncModule + UseTenantRouting; "
-        + "controller HTTP shape covered then. See plan U7 → U8 hand-off.")]
+    [Fact(
+        Skip = "U8 wires AddStockSyncModule + UseTenantRouting; "
+            + "controller HTTP shape covered then. See plan U7 → U8 hand-off."
+    )]
     public void PlaceholderUntilU8Composition()
     {
         // U8 will replace this with WebApplicationFactory<Program> tests:

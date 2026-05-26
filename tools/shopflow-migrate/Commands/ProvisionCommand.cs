@@ -77,7 +77,7 @@ public sealed class ProvisionCommand : ICommand
         {
             Console.Error.WriteLine(
                 $"Slug '{tenantSlug}' is reserved and cannot be provisioned. "
-                + "See SharedKernel.Infrastructure.ReservedSlugs for the full list."
+                    + "See SharedKernel.Infrastructure.ReservedSlugs for the full list."
             );
             return 2;
         }
@@ -100,7 +100,8 @@ public sealed class ProvisionCommand : ICommand
         var tenantConnString = _options.ControlPlane.TenantTemplate.Replace(
             "{db}",
             _options.Migrate.DbNamePrefix + tenantSlug!.Trim().ToLowerInvariant(),
-            StringComparison.Ordinal);
+            StringComparison.Ordinal
+        );
         var ownerEmail = ResolveOwnerEmail(args, tenantSlug!);
         var explicitPwd = ResolveExplicitPassword(args);
 
@@ -112,9 +113,7 @@ public sealed class ProvisionCommand : ICommand
 
         // Sprint-9 U12 — RolePermissionsSeed runs after OwnerSeed.
         // Idempotent: re-runs against a populated table are safe.
-        await _rolePermissionsSeed
-            .SeedAsync(tenantConnString, ct)
-            .ConfigureAwait(false);
+        await _rolePermissionsSeed.SeedAsync(tenantConnString, ct).ConfigureAwait(false);
 
         return 0;
     }
@@ -143,7 +142,8 @@ public sealed class ProvisionCommand : ICommand
         if (string.IsNullOrWhiteSpace(value))
         {
             throw new InvalidOperationException(
-                $"--owner-password-from-env={envVar} is empty/unset. Provide a value or omit the flag.");
+                $"--owner-password-from-env={envVar} is empty/unset. Provide a value or omit the flag."
+            );
         }
         return value;
     }
@@ -153,24 +153,28 @@ public sealed class ProvisionCommand : ICommand
         if (seedResult.Outcome == OwnerSeedOutcome.AlreadySeeded)
         {
             Console.Out.WriteLine(
-                $"Owner '{seedResult.OwnerEmail}' already exists in tenant DB; seed skipped.");
+                $"Owner '{seedResult.OwnerEmail}' already exists in tenant DB; seed skipped."
+            );
             return;
         }
 
         if (passwordWasExplicit || seedResult.GeneratedPassword is null)
         {
             Console.Out.WriteLine(
-                $"Created {seedResult.OwnerEmail} — password set from explicit input (not echoed).");
+                $"Created {seedResult.OwnerEmail} — password set from explicit input (not echoed)."
+            );
             return;
         }
 
         Console.Out.WriteLine(
-            $"Created {seedResult.OwnerEmail} — temporary password: {seedResult.GeneratedPassword}");
+            $"Created {seedResult.OwnerEmail} — temporary password: {seedResult.GeneratedPassword}"
+        );
     }
 
     private async Task<int> ProvisionCatalogAsync(CancellationToken ct)
     {
-        var catalogDbName = _catalogDb.Database.GetDbConnection().Database
+        var catalogDbName =
+            _catalogDb.Database.GetDbConnection().Database
             ?? throw new InvalidOperationException(
                 "control-plane connection string is missing a database name."
             );

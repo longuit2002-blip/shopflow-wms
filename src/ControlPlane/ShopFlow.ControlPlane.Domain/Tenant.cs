@@ -43,7 +43,6 @@ public sealed class Tenant : BaseEntity
     /// </summary>
     public uint RowVersion { get; private set; }
 
-
     /// <summary>
     /// URL-safe short identifier, unique per cluster. Drives PgBouncer pool
     /// keys, subdomain routing, and the <c>shopflow_t_&lt;slug&gt;</c>

@@ -58,8 +58,14 @@ public static class OpaqueCursor
                 return null;
             return payload;
         }
-        catch (FormatException) { return null; }
-        catch (JsonException) { return null; }
+        catch (FormatException)
+        {
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static string Base64UrlEncode(byte[] data)
@@ -73,8 +79,12 @@ public static class OpaqueCursor
         var s = urlSafe.Replace('-', '+').Replace('_', '/');
         switch (s.Length % 4)
         {
-            case 2: s += "=="; break;
-            case 3: s += "="; break;
+            case 2:
+                s += "==";
+                break;
+            case 3:
+                s += "=";
+                break;
         }
         return Convert.FromBase64String(s);
     }

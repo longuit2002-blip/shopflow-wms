@@ -32,7 +32,8 @@ public sealed class SkuFlashSaleChangedConsumer : IConsumer<SkuFlashSaleChangedV
 
     public SkuFlashSaleChangedConsumer(
         ISkuFlagRepository skuFlagRepo,
-        ILogger<SkuFlashSaleChangedConsumer> logger)
+        ILogger<SkuFlashSaleChangedConsumer> logger
+    )
     {
         ArgumentNullException.ThrowIfNull(skuFlagRepo);
         ArgumentNullException.ThrowIfNull(logger);
@@ -51,16 +52,18 @@ public sealed class SkuFlashSaleChangedConsumer : IConsumer<SkuFlashSaleChangedV
                 sku: msg.Sku,
                 isFlashSale: msg.IsFlashSale,
                 occurredAt: msg.OccurredAt,
-                ct: context.CancellationToken)
+                ct: context.CancellationToken
+            )
             .ConfigureAwait(false);
 
         if (!applied)
         {
             _logger.LogDebug(
-                "SkuFlashSaleChangedConsumer: stale event dropped (sku={Sku}, " +
-                "occurredAt={OccurredAt}); stored UpdatedAt newer.",
+                "SkuFlashSaleChangedConsumer: stale event dropped (sku={Sku}, "
+                    + "occurredAt={OccurredAt}); stored UpdatedAt newer.",
                 msg.Sku,
-                msg.OccurredAt);
+                msg.OccurredAt
+            );
         }
     }
 }

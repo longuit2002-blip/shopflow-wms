@@ -63,9 +63,7 @@ public sealed class HybridProductMappingService : IProductMappingService
 
         // Tier 2: in-process fuzzy match over the channel's known mappings.
         // For catalogue sizes ≤ 5k this stays well within sub-100ms p99.
-        var candidates = await _repo
-            .ReadAllByChannelAsync(channelId, ct)
-            .ConfigureAwait(false);
+        var candidates = await _repo.ReadAllByChannelAsync(channelId, ct).ConfigureAwait(false);
         if (candidates.Count == 0)
         {
             return null;
@@ -125,8 +123,10 @@ public sealed class HybridProductMappingService : IProductMappingService
     /// </summary>
     public static int Levenshtein(string a, string b)
     {
-        if (a.Length == 0) return b.Length;
-        if (b.Length == 0) return a.Length;
+        if (a.Length == 0)
+            return b.Length;
+        if (b.Length == 0)
+            return a.Length;
 
         // Make the inner loop the shorter string to bound allocation.
         if (a.Length > b.Length)
@@ -148,10 +148,7 @@ public sealed class HybridProductMappingService : IProductMappingService
             for (var i = 1; i <= a.Length; i++)
             {
                 var cost = a[i - 1] == b[j - 1] ? 0 : 1;
-                curr[i] = Math.Min(
-                    Math.Min(curr[i - 1] + 1, prev[i] + 1),
-                    prev[i - 1] + cost
-                );
+                curr[i] = Math.Min(Math.Min(curr[i - 1] + 1, prev[i] + 1), prev[i - 1] + cost);
             }
             prev.Clear();
             curr.CopyTo(prev);

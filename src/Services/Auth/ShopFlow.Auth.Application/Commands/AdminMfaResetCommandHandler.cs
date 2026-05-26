@@ -31,7 +31,8 @@ public sealed class AdminMfaResetCommandHandler : IRequestHandler<AdminMfaResetC
         ITotpSecretRepository secrets,
         IRecoveryCodeRepository recoveryCodes,
         IAuthAuditLogRepository auditLog,
-        ILogger<AdminMfaResetCommandHandler> logger)
+        ILogger<AdminMfaResetCommandHandler> logger
+    )
     {
         _users = users;
         _secrets = secrets;
@@ -54,7 +55,8 @@ public sealed class AdminMfaResetCommandHandler : IRequestHandler<AdminMfaResetC
         {
             return Result.Failure(
                 "Cannot reset MFA on an Owner role user — Owner MFA is invariant.",
-                InvariantOwner);
+                InvariantOwner
+            );
         }
 
         await _secrets.DeleteAsync(target.Id, ct).ConfigureAwait(false);
@@ -65,16 +67,19 @@ public sealed class AdminMfaResetCommandHandler : IRequestHandler<AdminMfaResetC
         // Audit row's userId is the ACTOR (Owner performing the reset),
         // metadata.targetUserId identifies the subject. Mirrors
         // RolePermissionsChanged's actor-vs-target separation.
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.MfaResetByOwner,
-            request.ActorUserId,
-            request.SourceIp,
-            request.UserAgent,
-            new { targetUserId = request.TargetUserId.ToString() },
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.MfaResetByOwner,
+                request.ActorUserId,
+                request.SourceIp,
+                request.UserAgent,
+                new { targetUserId = request.TargetUserId.ToString() },
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

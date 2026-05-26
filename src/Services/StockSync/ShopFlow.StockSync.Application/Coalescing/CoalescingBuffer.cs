@@ -68,8 +68,10 @@ public sealed class CoalescingBuffer : ICoalescingBuffer
             // The value moved on between our snapshot and the remove —
             // try once with the current value so the latest reading still
             // flushes this tick.
-            if (_entries.TryGetValue(kv.Key, out var current)
-                && _entries.TryRemove(new KeyValuePair<CoalesceKey, CoalesceEntry>(kv.Key, current)))
+            if (
+                _entries.TryGetValue(kv.Key, out var current)
+                && _entries.TryRemove(new KeyValuePair<CoalesceKey, CoalesceEntry>(kv.Key, current))
+            )
             {
                 result.Add(new KeyValuePair<CoalesceKey, CoalesceEntry>(kv.Key, current));
             }

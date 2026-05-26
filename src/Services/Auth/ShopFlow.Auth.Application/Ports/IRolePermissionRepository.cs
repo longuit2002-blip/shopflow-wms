@@ -38,5 +38,9 @@ public interface IRolePermissionRepository
     /// Unknown keys (not in <see cref="ShopFlow.SharedKernel.Authorization.PermissionKeys.All"/>)
     /// are rejected with code <c>auth.role_permissions_unknown_key</c>.
     /// </summary>
-    Task<Result> UpdateForRoleAsync(UserRole role, IReadOnlyList<string> permissionKeys, CancellationToken ct);
+    Task<Result> UpdateForRoleAsync(
+        UserRole role,
+        IReadOnlyList<string> permissionKeys,
+        CancellationToken ct
+    );
 }

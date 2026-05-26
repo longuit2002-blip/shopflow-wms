@@ -58,12 +58,14 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
                 _options.RecoveryCode.MemorySizeKib,
                 _options.RecoveryCode.Iterations,
                 _options.RecoveryCode.DegreeOfParallelism,
-                _options.RecoveryCode.HashLengthBytes),
+                _options.RecoveryCode.HashLengthBytes
+            ),
             _ => (
                 _options.MemorySizeKib,
                 _options.Iterations,
                 _options.DegreeOfParallelism,
-                _options.HashLengthBytes),
+                _options.HashLengthBytes
+            ),
         };
 
         var salt = RandomNumberGenerator.GetBytes(SaltLengthBytes);
@@ -71,7 +73,8 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
 
         return string.Create(
             System.Globalization.CultureInfo.InvariantCulture,
-            $"${Algorithm}$v={Version}$m={memoryKib},t={iterations},p={parallelism}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}");
+            $"${Algorithm}$v={Version}$m={memoryKib},t={iterations},p={parallelism}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}"
+        );
     }
 
     public bool Verify(string plaintext, string phcHash)
@@ -94,7 +97,8 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
                 parsed.MemoryKib,
                 parsed.Iterations,
                 parsed.Parallelism,
-                parsed.Hash.Length);
+                parsed.Hash.Length
+            );
 
             return CryptographicOperations.FixedTimeEquals(computed, parsed.Hash);
         }
@@ -108,7 +112,13 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
     }
 
     private static byte[] ComputeHash(
-        string plaintext, byte[] salt, int memoryKib, int iterations, int parallelism, int hashLengthBytes)
+        string plaintext,
+        byte[] salt,
+        int memoryKib,
+        int iterations,
+        int parallelism,
+        int hashLengthBytes
+    )
     {
         using var argon2 = new Argon2id(Encoding.UTF8.GetBytes(plaintext))
         {
@@ -138,10 +148,16 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
             return false;
         }
 
-        if (!parts[2].StartsWith("v=", StringComparison.Ordinal)
-            || !int.TryParse(parts[2].AsSpan(2), System.Globalization.NumberStyles.Integer,
-                System.Globalization.CultureInfo.InvariantCulture, out var version)
-            || version != Version)
+        if (
+            !parts[2].StartsWith("v=", StringComparison.Ordinal)
+            || !int.TryParse(
+                parts[2].AsSpan(2),
+                System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var version
+            )
+            || version != Version
+        )
         {
             return false;
         }
@@ -191,18 +207,31 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
             {
                 return false;
             }
-            if (!int.TryParse(kv[1], System.Globalization.NumberStyles.Integer,
-                System.Globalization.CultureInfo.InvariantCulture, out var value)
-                || value <= 0)
+            if (
+                !int.TryParse(
+                    kv[1],
+                    System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var value
+                )
+                || value <= 0
+            )
             {
                 return false;
             }
             switch (kv[0])
             {
-                case "m": mem = value; break;
-                case "t": iter = value; break;
-                case "p": par = value; break;
-                default: return false;
+                case "m":
+                    mem = value;
+                    break;
+                case "t":
+                    iter = value;
+                    break;
+                case "p":
+                    par = value;
+                    break;
+                default:
+                    return false;
             }
         }
 
@@ -214,5 +243,6 @@ public sealed class Argon2idPasswordHasher : IPasswordHasher
         int Iterations,
         int Parallelism,
         byte[] Salt,
-        byte[] Hash);
+        byte[] Hash
+    );
 }

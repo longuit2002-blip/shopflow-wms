@@ -24,7 +24,8 @@ public sealed class AuthAuditLogRepository : IAuthAuditLogRepository
         string userAgent,
         string metadataJson,
         Guid correlationId,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
         var entry = AuthAuditLogEntry.Record(
@@ -34,7 +35,8 @@ public sealed class AuthAuditLogRepository : IAuthAuditLogRepository
             userAgent,
             metadataJson,
             correlationId,
-            DateTime.UtcNow);
+            DateTime.UtcNow
+        );
         await _db.AuthAuditLog.AddAsync(entry, ct).ConfigureAwait(false);
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
     }

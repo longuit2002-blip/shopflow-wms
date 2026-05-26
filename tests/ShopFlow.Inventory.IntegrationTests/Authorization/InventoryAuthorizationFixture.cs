@@ -63,8 +63,8 @@ public sealed class InventoryAuthorizationFixture : IAsyncLifetime
     public NarrowedJwtBuilder JwtBuilder { get; private set; } = default!;
 
     /// <summary>The booted <see cref="WebApplicationFactory{TEntryPoint}"/> for Inventory.Api.</summary>
-    public WebApplicationFactory<Program> Factory => _factory
-        ?? throw new InvalidOperationException("Fixture not initialized.");
+    public WebApplicationFactory<Program> Factory =>
+        _factory ?? throw new InvalidOperationException("Fixture not initialized.");
 
     /// <summary>Configured HttpClient against the in-process Inventory.Api host.</summary>
     public HttpClient HttpClient => Factory.CreateClient();
@@ -106,7 +106,10 @@ public sealed class InventoryAuthorizationFixture : IAsyncLifetime
             b.UseSetting("ControlPlane:ConnectionString", ControlPlaneConnectionString);
             b.UseSetting(
                 "ControlPlane:TenantTemplate",
-                new NpgsqlConnectionStringBuilder(admin) { Database = "{Database}" }.ConnectionString
+                new NpgsqlConnectionStringBuilder(admin)
+                {
+                    Database = "{Database}",
+                }.ConnectionString
             );
         });
     }
@@ -122,7 +125,8 @@ public sealed class InventoryAuthorizationFixture : IAsyncLifetime
 }
 
 [CollectionDefinition(Name)]
-public sealed class InventoryAuthorizationCollection : ICollectionFixture<InventoryAuthorizationFixture>
+public sealed class InventoryAuthorizationCollection
+    : ICollectionFixture<InventoryAuthorizationFixture>
 {
     public const string Name = "InventoryAuthorization";
 }

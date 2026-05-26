@@ -95,18 +95,22 @@ public sealed class MultiTenantScaleGateTests
         // production hardware in CI re-validates the absolute numbers.
         foreach (var run in runs)
         {
-            run.OversoldCount.Should().Be(
-                0,
-                because: "no oversell under any concurrency load — Sprint-1-redux R1 invariant"
-            );
-            (run.SuccessCount + run.OversoldCount + run.OtherFailureCount).Should().Be(
-                ReservationsPerTenant,
-                because: "every issued reservation must resolve to a definite outcome (success, oversold, or transient failure)"
-            );
-            run.SuccessCount.Should().BeLessThanOrEqualTo(
-                ReservationsPerTenant,
-                because: "ledger row count cannot exceed the stock_items.available the tenant was seeded with"
-            );
+            run.OversoldCount.Should()
+                .Be(
+                    0,
+                    because: "no oversell under any concurrency load — Sprint-1-redux R1 invariant"
+                );
+            (run.SuccessCount + run.OversoldCount + run.OtherFailureCount)
+                .Should()
+                .Be(
+                    ReservationsPerTenant,
+                    because: "every issued reservation must resolve to a definite outcome (success, oversold, or transient failure)"
+                );
+            run.SuccessCount.Should()
+                .BeLessThanOrEqualTo(
+                    ReservationsPerTenant,
+                    because: "ledger row count cannot exceed the stock_items.available the tenant was seeded with"
+                );
         }
 
         // Cross-tenant isolation — successful reservations land in the right
@@ -114,10 +118,12 @@ public sealed class MultiTenantScaleGateTests
         for (var i = 0; i < tenants.Count; i++)
         {
             var ledgerCount = await CountReservationsAsync(tenants[i]);
-            ledgerCount.Should().Be(
-                runs[i].SuccessCount,
-                because: "successful reservations land in their tenant's ledger and only there"
-            );
+            ledgerCount
+                .Should()
+                .Be(
+                    runs[i].SuccessCount,
+                    because: "successful reservations land in their tenant's ledger and only there"
+                );
         }
 
         // Fairness floor — min(p99) / max(p99) ≥ 0.85. This is the W3
@@ -162,15 +168,15 @@ public sealed class MultiTenantScaleGateTests
         // 1 stock unit (no oversell). The remaining 99 callers either get
         // OVERSOLD (the canonical path) or a transient failure (lock wait /
         // connection blip) — neither is an oversell, so the invariant holds.
-        run.SuccessCount.Should().Be(
-            1,
-            because: "exactly one of 100 callers can claim the single available unit"
-        );
+        run.SuccessCount.Should()
+            .Be(1, because: "exactly one of 100 callers can claim the single available unit");
         run.OversoldCount.Should().BeLessThanOrEqualTo(99);
-        (run.OversoldCount + run.OtherFailureCount).Should().Be(
-            99,
-            because: "every losing caller resolves either as OVERSOLD or as a transient failure — none silently succeed"
-        );
+        (run.OversoldCount + run.OtherFailureCount)
+            .Should()
+            .Be(
+                99,
+                because: "every losing caller resolves either as OVERSOLD or as a transient failure — none silently succeed"
+            );
     }
 
     /// <summary>

@@ -23,7 +23,8 @@ public class RolePermissionsSeedTests
     [Fact]
     public void PickerBaseline_Contains_OutboundOrdersRead()
     {
-        RolePermissionsSeed.PickerBaseline.Should()
+        RolePermissionsSeed
+            .PickerBaseline.Should()
             .Contain(PermissionKeys.OutboundOrdersRead)
             .And.Contain("outbound.orders.read");
     }
@@ -31,7 +32,8 @@ public class RolePermissionsSeedTests
     [Fact]
     public void PickerBaseline_Contains_OutboundOrdersPickConfirm()
     {
-        RolePermissionsSeed.PickerBaseline.Should()
+        RolePermissionsSeed
+            .PickerBaseline.Should()
             .Contain(PermissionKeys.OutboundOrdersPickConfirm)
             .And.Contain("outbound.orders.pick-confirm");
     }
@@ -39,7 +41,8 @@ public class RolePermissionsSeedTests
     [Fact]
     public void PickerBaseline_Contains_InventoryRead()
     {
-        RolePermissionsSeed.PickerBaseline.Should()
+        RolePermissionsSeed
+            .PickerBaseline.Should()
             .Contain(PermissionKeys.InventoryRead)
             .And.Contain("inventory.read");
     }
@@ -47,7 +50,8 @@ public class RolePermissionsSeedTests
     [Fact]
     public void PickerBaseline_Contains_HubConnect()
     {
-        RolePermissionsSeed.PickerBaseline.Should()
+        RolePermissionsSeed
+            .PickerBaseline.Should()
             .Contain(PermissionKeys.HubConnect)
             .And.Contain("hub.connect");
     }
@@ -57,8 +61,8 @@ public class RolePermissionsSeedTests
     {
         // Picker must never carry Owner-critical admin keys — those are
         // the keys KTD13 server-side guard locks on the Owner row.
-        RolePermissionsSeed.PickerBaseline
-            .Intersect(PermissionKeys.OwnerCritical)
+        RolePermissionsSeed
+            .PickerBaseline.Intersect(PermissionKeys.OwnerCritical)
             .Should()
             .BeEmpty();
     }
@@ -69,14 +73,18 @@ public class RolePermissionsSeedTests
         // Picker is a read + single-action role (pick-confirm). It must
         // not carry generic write keys — those belong to Owner or to
         // post-Sprint-11 Dispatcher.
-        RolePermissionsSeed.PickerBaseline.Should().NotContain(new[]
-        {
-            PermissionKeys.InventoryAdjust,
-            PermissionKeys.InventorySkusWrite,
-            PermissionKeys.OutboundOrdersWrite,
-            PermissionKeys.OutboundOrdersCancel,
-            PermissionKeys.InboundPosWrite,
-        });
+        RolePermissionsSeed
+            .PickerBaseline.Should()
+            .NotContain(
+                new[]
+                {
+                    PermissionKeys.InventoryAdjust,
+                    PermissionKeys.InventorySkusWrite,
+                    PermissionKeys.OutboundOrdersWrite,
+                    PermissionKeys.OutboundOrdersCancel,
+                    PermissionKeys.InboundPosWrite,
+                }
+            );
     }
 
     [Fact]
@@ -86,8 +94,7 @@ public class RolePermissionsSeedTests
         // a typo here would mint a key the policy engine never
         // registers, silently producing a permission claim that never
         // gates anything.
-        RolePermissionsSeed.PickerBaseline.Should()
-            .BeSubsetOf(PermissionKeys.All);
+        RolePermissionsSeed.PickerBaseline.Should().BeSubsetOf(PermissionKeys.All);
     }
 
     // ── Sprint-12 U1 — Dispatcher baseline ────────────────────────────
@@ -101,7 +108,8 @@ public class RolePermissionsSeedTests
     [Fact]
     public void DispatcherBaseline_Contains_OutboundOrdersRead()
     {
-        RolePermissionsSeed.DispatcherBaseline.Should()
+        RolePermissionsSeed
+            .DispatcherBaseline.Should()
             .Contain(PermissionKeys.OutboundOrdersRead)
             .And.Contain("outbound.orders.read");
     }
@@ -109,7 +117,8 @@ public class RolePermissionsSeedTests
     [Fact]
     public void DispatcherBaseline_Contains_OutboundOrdersShipConfirm()
     {
-        RolePermissionsSeed.DispatcherBaseline.Should()
+        RolePermissionsSeed
+            .DispatcherBaseline.Should()
             .Contain(PermissionKeys.OutboundOrdersShipConfirm)
             .And.Contain("outbound.orders.ship-confirm");
     }
@@ -117,7 +126,8 @@ public class RolePermissionsSeedTests
     [Fact]
     public void DispatcherBaseline_Contains_HubConnect()
     {
-        RolePermissionsSeed.DispatcherBaseline.Should()
+        RolePermissionsSeed
+            .DispatcherBaseline.Should()
             .Contain(PermissionKeys.HubConnect)
             .And.Contain("hub.connect");
     }
@@ -127,8 +137,8 @@ public class RolePermissionsSeedTests
     {
         // Dispatcher must never carry Owner-critical admin keys — the
         // KTD13 server-side guard locks those on the Owner row.
-        RolePermissionsSeed.DispatcherBaseline
-            .Intersect(PermissionKeys.OwnerCritical)
+        RolePermissionsSeed
+            .DispatcherBaseline.Intersect(PermissionKeys.OwnerCritical)
             .Should()
             .BeEmpty();
     }
@@ -139,7 +149,8 @@ public class RolePermissionsSeedTests
         // Dispatcher owns ship-confirm only. Pick-confirm is Picker's
         // transition; cross-contamination would break the role-confusion
         // proof Sprint-12 exists to land.
-        RolePermissionsSeed.DispatcherBaseline.Should()
+        RolePermissionsSeed
+            .DispatcherBaseline.Should()
             .NotContain(PermissionKeys.OutboundOrdersPickConfirm);
     }
 
@@ -148,7 +159,8 @@ public class RolePermissionsSeedTests
     {
         // Sprint-12 design — Pack stays Owner-only (no Packer fourth
         // role). Dispatcher owns ship-confirm only.
-        RolePermissionsSeed.DispatcherBaseline.Should()
+        RolePermissionsSeed
+            .DispatcherBaseline.Should()
             .NotContain(PermissionKeys.OutboundOrdersPackConfirm);
     }
 
@@ -161,7 +173,8 @@ public class RolePermissionsSeedTests
         // contract (KTD1) preserves operator-added overlaps, but this
         // test ensures the baseline doesn't ship pre-overlapped (which
         // would silently grant carrier-cost capability to Picker).
-        RolePermissionsSeed.PickerBaseline.Should()
+        RolePermissionsSeed
+            .PickerBaseline.Should()
             .NotContain(PermissionKeys.OutboundOrdersShipConfirm);
     }
 
@@ -169,7 +182,6 @@ public class RolePermissionsSeedTests
     public void DispatcherBaseline_Keys_Are_All_In_PermissionKeys_All()
     {
         // Every baseline key must be a canonical PermissionKeys entry.
-        RolePermissionsSeed.DispatcherBaseline.Should()
-            .BeSubsetOf(PermissionKeys.All);
+        RolePermissionsSeed.DispatcherBaseline.Should().BeSubsetOf(PermissionKeys.All);
     }
 }

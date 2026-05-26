@@ -32,10 +32,7 @@ public sealed class PurchaseOrderLine : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
-            return Result<PurchaseOrderLine>.Failure(
-                "sku is required.",
-                "po_line.sku_required"
-            );
+            return Result<PurchaseOrderLine>.Failure("sku is required.", "po_line.sku_required");
         }
         if (expectedQty <= 0)
         {
@@ -67,10 +64,7 @@ public sealed class PurchaseOrderLine : BaseEntity
     {
         if (actualQty < 0)
         {
-            return Result.Failure(
-                "actual_qty must be >= 0.",
-                "po_line.actual_qty_negative"
-            );
+            return Result.Failure("actual_qty must be >= 0.", "po_line.actual_qty_negative");
         }
         ReceivedQty = checked(ReceivedQty + actualQty);
         UpdatedAt = now;

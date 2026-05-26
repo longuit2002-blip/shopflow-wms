@@ -19,7 +19,8 @@ public sealed class ListOrdersHandlerTests
         string externalId,
         string? currentSagaState = "Reserved",
         DateTime? lastTransitionAt = null,
-        int lineCount = 1)
+        int lineCount = 1
+    )
     {
         return new OrderListRow(
             Id: Guid.NewGuid(),
@@ -28,7 +29,8 @@ public sealed class ListOrdersHandlerTests
             LineCount: lineCount,
             CurrentSagaState: currentSagaState,
             CreatedAt: Now,
-            LastTransitionAt: lastTransitionAt);
+            LastTransitionAt: lastTransitionAt
+        );
     }
 
     private static (ListOrdersHandler handler, IOrderRepository repo) BuildSut()
@@ -41,75 +43,109 @@ public sealed class ListOrdersHandlerTests
     public async Task Handle_FiltersStatus_ForwardsToRepository()
     {
         var (handler, repo) = BuildSut();
-        repo.ListAsync(Arg.Any<OrderListFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new OrderListPageResult(
-                new[] { BuildRow("SHOPEE_42"), BuildRow("SHOPEE_43") },
-                2));
+        repo.ListAsync(
+                Arg.Any<OrderListFilter>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new OrderListPageResult(new[] { BuildRow("SHOPEE_42"), BuildRow("SHOPEE_43") }, 2)
+            );
 
         var result = await handler.Handle(
             new ListOrdersQuery(new OrderListFilter(Status: "Reserved"), Skip: 0, Take: 50),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
         result.TotalCount.Should().Be(2);
         result.Items.Should().HaveCount(2);
-        await repo.Received(1).ListAsync(
-            Arg.Is<OrderListFilter>(f => f.Status == "Reserved"),
-            0, 50, Arg.Any<CancellationToken>());
+        await repo.Received(1)
+            .ListAsync(
+                Arg.Is<OrderListFilter>(f => f.Status == "Reserved"),
+                0,
+                50,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
     public async Task Handle_PaginationClamp_AppliesSkipAndTake()
     {
         var (handler, repo) = BuildSut();
-        repo.ListAsync(Arg.Any<OrderListFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+        repo.ListAsync(
+                Arg.Any<OrderListFilter>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(new OrderListPageResult(Array.Empty<OrderListRow>(), 0));
 
         // Skip < 0 → clamp to 0; Take > MaxTake → clamp to MaxTake (200).
         await handler.Handle(
             new ListOrdersQuery(new OrderListFilter(), Skip: -5, Take: 500),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
-        await repo.Received(1).ListAsync(
-            Arg.Any<OrderListFilter>(),
-            0,
-            ListOrdersHandler.MaxTake,
-            Arg.Any<CancellationToken>());
+        await repo.Received(1)
+            .ListAsync(
+                Arg.Any<OrderListFilter>(),
+                0,
+                ListOrdersHandler.MaxTake,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
     public async Task Handle_TakeBelowMinimum_ClampsToOne()
     {
         var (handler, repo) = BuildSut();
-        repo.ListAsync(Arg.Any<OrderListFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+        repo.ListAsync(
+                Arg.Any<OrderListFilter>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(new OrderListPageResult(Array.Empty<OrderListRow>(), 0));
 
         await handler.Handle(
             new ListOrdersQuery(new OrderListFilter(), Skip: 0, Take: 0),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
-        await repo.Received(1).ListAsync(
-            Arg.Any<OrderListFilter>(),
-            0, 1, Arg.Any<CancellationToken>());
+        await repo.Received(1)
+            .ListAsync(Arg.Any<OrderListFilter>(), 0, 1, Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Handle_SearchFilter_ForwardsSubstringSearch()
     {
         var (handler, repo) = BuildSut();
-        repo.ListAsync(Arg.Any<OrderListFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new OrderListPageResult(
-                new[] { BuildRow("SHOPEE_match-42") },
-                1));
+        repo.ListAsync(
+                Arg.Any<OrderListFilter>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new OrderListPageResult(new[] { BuildRow("SHOPEE_match-42") }, 1));
 
         var result = await handler.Handle(
             new ListOrdersQuery(new OrderListFilter(Search: "match"), Skip: 0, Take: 50),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
-        result.Items.Should().ContainSingle()
-            .Which.ChannelExternalOrderId.Should().Be("SHOPEE_match-42");
-        await repo.Received(1).ListAsync(
-            Arg.Is<OrderListFilter>(f => f.Search == "match"),
-            0, 50, Arg.Any<CancellationToken>());
+        result
+            .Items.Should()
+            .ContainSingle()
+            .Which.ChannelExternalOrderId.Should()
+            .Be("SHOPEE_match-42");
+        await repo.Received(1)
+            .ListAsync(
+                Arg.Is<OrderListFilter>(f => f.Search == "match"),
+                0,
+                50,
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -117,18 +153,27 @@ public sealed class ListOrdersHandlerTests
     {
         var (handler, repo) = BuildSut();
         var transitionTime = Now.AddMinutes(5);
-        repo.ListAsync(Arg.Any<OrderListFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new OrderListPageResult(
-                new[]
-                {
-                    BuildRow("SHOPEE_1", lastTransitionAt: transitionTime),
-                    BuildRow("SHOPEE_2", lastTransitionAt: null),
-                },
-                2));
+        repo.ListAsync(
+                Arg.Any<OrderListFilter>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                new OrderListPageResult(
+                    new[]
+                    {
+                        BuildRow("SHOPEE_1", lastTransitionAt: transitionTime),
+                        BuildRow("SHOPEE_2", lastTransitionAt: null),
+                    },
+                    2
+                )
+            );
 
         var result = await handler.Handle(
             new ListOrdersQuery(new OrderListFilter(), Skip: 0, Take: 50),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
         result.Items[0].LastTransitionAt.Should().Be(transitionTime);
         result.Items[1].LastTransitionAt.Should().BeNull();
@@ -143,14 +188,18 @@ public sealed class ListOrdersHandlerTests
     public async Task Handle_ChannelDisplay_ParsedFromPrefix(string externalId, string expected)
     {
         var (handler, repo) = BuildSut();
-        repo.ListAsync(Arg.Any<OrderListFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(new OrderListPageResult(
-                new[] { BuildRow(externalId) },
-                1));
+        repo.ListAsync(
+                Arg.Any<OrderListFilter>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new OrderListPageResult(new[] { BuildRow(externalId) }, 1));
 
         var result = await handler.Handle(
             new ListOrdersQuery(new OrderListFilter(), Skip: 0, Take: 50),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
         result.Items.Should().ContainSingle().Which.Channel.Should().Be(expected);
     }
@@ -159,12 +208,18 @@ public sealed class ListOrdersHandlerTests
     public async Task Handle_EmptyResult_ReturnsEmptyPage()
     {
         var (handler, repo) = BuildSut();
-        repo.ListAsync(Arg.Any<OrderListFilter>(), Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>())
+        repo.ListAsync(
+                Arg.Any<OrderListFilter>(),
+                Arg.Any<int>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>()
+            )
             .Returns(new OrderListPageResult(Array.Empty<OrderListRow>(), 0));
 
         var result = await handler.Handle(
             new ListOrdersQuery(new OrderListFilter(Status: "DoesNotMatch"), Skip: 0, Take: 50),
-            CancellationToken.None);
+            CancellationToken.None
+        );
 
         result.TotalCount.Should().Be(0);
         result.Items.Should().BeEmpty();

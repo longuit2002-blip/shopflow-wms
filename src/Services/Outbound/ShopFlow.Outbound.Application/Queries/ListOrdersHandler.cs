@@ -44,7 +44,8 @@ public sealed class ListOrdersHandler : IRequestHandler<ListOrdersQuery, OrderLi
 
     public async Task<OrderListPageResult> Handle(
         ListOrdersQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 

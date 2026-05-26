@@ -19,20 +19,21 @@ namespace ShopFlow.Inventory.Infrastructure.Queries;
 /// </remarks>
 public sealed class GetInventorySummaryQueryHandler(
     InventoryDbContext db,
-    ISkuRepository skuRepository)
-    : IRequestHandler<GetInventorySummaryQuery, InventorySummaryDto>
+    ISkuRepository skuRepository
+) : IRequestHandler<GetInventorySummaryQuery, InventorySummaryDto>
 {
     private readonly InventoryDbContext db = db;
     private readonly ISkuRepository skuRepository = skuRepository;
 
     public async Task<InventorySummaryDto> Handle(
         GetInventorySummaryQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var rows = await this.db.StockItems
-            .AsNoTracking()
+        var rows = await this
+            .db.StockItems.AsNoTracking()
             .Select(s => new
             {
                 Sku = s.Sku.Value,
@@ -47,8 +48,8 @@ public sealed class GetInventorySummaryQueryHandler(
             return new InventorySummaryDto(0, 0, 0, 0, 0);
         }
 
-        var thresholds = await this.skuRepository
-            .GetAllThresholdsAsync(cancellationToken)
+        var thresholds = await this
+            .skuRepository.GetAllThresholdsAsync(cancellationToken)
             .ConfigureAwait(false);
 
         long totalAvailable = 0;
@@ -60,7 +61,8 @@ public sealed class GetInventorySummaryQueryHandler(
         {
             totalAvailable += r.Available;
             totalReserved += r.Reserved;
-            if (r.Reserved > r.Available) oversellRisk += 1;
+            if (r.Reserved > r.Available)
+                oversellRisk += 1;
 
             if (thresholds.TryGetValue(r.Sku, out var t) && r.Available < t)
             {
@@ -73,6 +75,7 @@ public sealed class GetInventorySummaryQueryHandler(
             TotalAvailable: totalAvailable,
             TotalReserved: totalReserved,
             BelowThresholdCount: belowThreshold,
-            OversellRiskCount: oversellRisk);
+            OversellRiskCount: oversellRisk
+        );
     }
 }

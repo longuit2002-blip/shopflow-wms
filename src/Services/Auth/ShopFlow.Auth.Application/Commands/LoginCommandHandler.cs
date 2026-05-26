@@ -61,7 +61,8 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<L
         ILogger<LoginCommandHandler> logger,
         TimeProvider clock,
         IOptions<AuthLockoutOptions> lockout,
-        IRequestContext requestContext)
+        IRequestContext requestContext
+    )
     {
         _users = users;
         _hasher = hasher;
@@ -114,50 +115,61 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<L
                 _clock,
                 _lockout.MaxAttempts,
                 TimeSpan.FromMinutes(_lockout.WindowMinutes),
-                TimeSpan.FromMinutes(_lockout.DurationMinutes));
+                TimeSpan.FromMinutes(_lockout.DurationMinutes)
+            );
             await _users.UpdateAsync(user, ct).ConfigureAwait(false);
 
             if (triggeredLockout && user.LockedUntil is not null)
             {
-                await _outbox.AppendAsync(
-                    typeof(AccountLockedV1).FullName!,
-                    new AccountLockedV1(
-                        _requestContext.TenantId,
-                        user.Id,
-                        user.Email,
-                        user.FailedLoginCount,
-                        user.LockedUntil.Value,
-                        "unknown", // source IP filled by the controller in U9
-                        now,
-                        Guid.NewGuid()),
-                    ct).ConfigureAwait(false);
+                await _outbox
+                    .AppendAsync(
+                        typeof(AccountLockedV1).FullName!,
+                        new AccountLockedV1(
+                            _requestContext.TenantId,
+                            user.Id,
+                            user.Email,
+                            user.FailedLoginCount,
+                            user.LockedUntil.Value,
+                            "unknown", // source IP filled by the controller in U9
+                            now,
+                            Guid.NewGuid()
+                        ),
+                        ct
+                    )
+                    .ConfigureAwait(false);
 
                 // Sprint-12.5 U1 — auth.login.locked fires once at the
                 // lockout boundary, alongside AccountLockedV1. The
                 // wrong-password attempt that crossed the threshold
                 // gets BOTH rows (failed + locked) per plan U1 test
                 // scenario.
-                await AuthAuditWriter.TryAppendAsync(
-                    _auditLog,
-                    _logger,
-                    AuthAuditEventTypes.LoginFailed,
-                    user.Id,
-                    request.SourceIp,
-                    request.UserAgent,
-                    new { reason = InvalidCredentials, submittedEmail = request.Email },
-                    request.CorrelationId,
-                    ct).ConfigureAwait(false);
+                await AuthAuditWriter
+                    .TryAppendAsync(
+                        _auditLog,
+                        _logger,
+                        AuthAuditEventTypes.LoginFailed,
+                        user.Id,
+                        request.SourceIp,
+                        request.UserAgent,
+                        new { reason = InvalidCredentials, submittedEmail = request.Email },
+                        request.CorrelationId,
+                        ct
+                    )
+                    .ConfigureAwait(false);
 
-                await AuthAuditWriter.TryAppendAsync(
-                    _auditLog,
-                    _logger,
-                    AuthAuditEventTypes.LoginLocked,
-                    user.Id,
-                    request.SourceIp,
-                    request.UserAgent,
-                    new { lockedUntil = user.LockedUntil.Value.ToString("O") },
-                    request.CorrelationId,
-                    ct).ConfigureAwait(false);
+                await AuthAuditWriter
+                    .TryAppendAsync(
+                        _auditLog,
+                        _logger,
+                        AuthAuditEventTypes.LoginLocked,
+                        user.Id,
+                        request.SourceIp,
+                        request.UserAgent,
+                        new { lockedUntil = user.LockedUntil.Value.ToString("O") },
+                        request.CorrelationId,
+                        ct
+                    )
+                    .ConfigureAwait(false);
             }
             else
             {
@@ -175,21 +187,37 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<L
         if (user.MfaRequired && user.MfaEnrolled)
         {
             var challengeToken = _mfaCodec.Issue(
-                user.Id, request.TenantSlug, request.RememberMe, MfaChallengeIntent.Challenge, now);
-            return Result<LoginResponse>.Success(new LoginResponse(
-                MfaRequired: true,
-                MfaChallengeToken: challengeToken,
-                MfaChallengeExpiresAt: now.AddMinutes(5)));
+                user.Id,
+                request.TenantSlug,
+                request.RememberMe,
+                MfaChallengeIntent.Challenge,
+                now
+            );
+            return Result<LoginResponse>.Success(
+                new LoginResponse(
+                    MfaRequired: true,
+                    MfaChallengeToken: challengeToken,
+                    MfaChallengeExpiresAt: now.AddMinutes(5)
+                )
+            );
         }
 
         if (user.MfaRequired && !user.MfaEnrolled)
         {
             var enrollmentToken = _mfaCodec.Issue(
-                user.Id, request.TenantSlug, request.RememberMe, MfaChallengeIntent.Enrollment, now);
-            return Result<LoginResponse>.Success(new LoginResponse(
-                MfaEnrollmentRequired: true,
-                MfaEnrollmentToken: enrollmentToken,
-                MfaEnrollmentExpiresAt: now.AddMinutes(5)));
+                user.Id,
+                request.TenantSlug,
+                request.RememberMe,
+                MfaChallengeIntent.Enrollment,
+                now
+            );
+            return Result<LoginResponse>.Success(
+                new LoginResponse(
+                    MfaEnrollmentRequired: true,
+                    MfaEnrollmentToken: enrollmentToken,
+                    MfaEnrollmentExpiresAt: now.AddMinutes(5)
+                )
+            );
         }
 
         // Happy path — issue access + refresh token pair.
@@ -204,24 +232,30 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<L
             .ConfigureAwait(false);
         var refreshExpiresAt = now.AddDays(request.RememberMe ? 30 : 7);
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.LoginSuccess,
-            user.Id,
-            request.SourceIp,
-            request.UserAgent,
-            new { tenantSlug = request.TenantSlug, rememberMe = request.RememberMe },
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.LoginSuccess,
+                user.Id,
+                request.SourceIp,
+                request.UserAgent,
+                new { tenantSlug = request.TenantSlug, rememberMe = request.RememberMe },
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
-        return Result<LoginResponse>.Success(new LoginResponse(
-            AccessToken: accessToken.Jwt,
-            AccessTokenExpiresAt: accessToken.ExpiresAt,
-            RefreshToken: refreshToken,
-            RefreshTokenExpiresAt: refreshExpiresAt,
-            Role: user.Role.ToString(),
-            Email: user.Email));
+        return Result<LoginResponse>.Success(
+            new LoginResponse(
+                AccessToken: accessToken.Jwt,
+                AccessTokenExpiresAt: accessToken.ExpiresAt,
+                RefreshToken: refreshToken,
+                RefreshTokenExpiresAt: refreshExpiresAt,
+                Role: user.Role.ToString(),
+                Email: user.Email
+            )
+        );
     }
 
     private Task EmitLoginFailedAsync(Guid? userId, LoginCommand request, CancellationToken ct) =>
@@ -234,5 +268,6 @@ public sealed class LoginCommandHandler : IRequestHandler<LoginCommand, Result<L
             request.UserAgent,
             new { reason = InvalidCredentials, submittedEmail = request.Email ?? string.Empty },
             request.CorrelationId,
-            ct);
+            ct
+        );
 }

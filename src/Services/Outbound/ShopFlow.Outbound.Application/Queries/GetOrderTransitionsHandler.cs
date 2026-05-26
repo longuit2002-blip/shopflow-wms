@@ -29,7 +29,8 @@ public sealed class GetOrderTransitionsHandler
 
     public async Task<IReadOnlyList<OrderTransitionReadModel>> Handle(
         GetOrderTransitionsQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -40,14 +41,17 @@ public sealed class GetOrderTransitionsHandler
         var models = new List<OrderTransitionReadModel>(rows.Count);
         foreach (var row in rows)
         {
-            models.Add(new OrderTransitionReadModel(
-                Id: row.Id,
-                OrderId: row.OrderId,
-                FromState: row.FromState,
-                ToState: row.ToState,
-                OccurredAt: row.OccurredAt,
-                EventType: row.EventType,
-                CorrelationId: row.CorrelationId));
+            models.Add(
+                new OrderTransitionReadModel(
+                    Id: row.Id,
+                    OrderId: row.OrderId,
+                    FromState: row.FromState,
+                    ToState: row.ToState,
+                    OccurredAt: row.OccurredAt,
+                    EventType: row.EventType,
+                    CorrelationId: row.CorrelationId
+                )
+            );
         }
 
         return models;

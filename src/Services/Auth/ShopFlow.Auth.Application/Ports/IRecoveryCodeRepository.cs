@@ -34,7 +34,12 @@ public interface IRecoveryCodeRepository
     /// transaction — a brute-force attacker still has to defeat
     /// Argon2id RecoveryCode-profile work-factor per code.
     /// </summary>
-    Task<bool> TryConsumeAsync(Guid userId, string plaintext, IPasswordHasher hasher, CancellationToken ct);
+    Task<bool> TryConsumeAsync(
+        Guid userId,
+        string plaintext,
+        IPasswordHasher hasher,
+        CancellationToken ct
+    );
 
     /// <summary>
     /// Count of active (non-consumed, non-expired) recovery codes for

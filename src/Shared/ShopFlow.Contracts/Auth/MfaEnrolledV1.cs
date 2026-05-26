@@ -11,4 +11,5 @@ public sealed record MfaEnrolledV1(
     Guid UserId,
     string UserEmail,
     DateTime OccurredAtUtc,
-    Guid CorrelationId);
+    Guid CorrelationId
+);

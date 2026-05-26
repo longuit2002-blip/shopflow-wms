@@ -54,7 +54,8 @@ public sealed class AuthAdminController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> CreateUser(
         [FromBody] CreateUserRequest? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (body is null)
         {
@@ -75,12 +76,15 @@ public sealed class AuthAdminController : ControllerBase
             "auth.email_in_use" => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status400BadRequest,
         };
-        return StatusCode(status, new ProblemDetails
-        {
-            Title = result.Error,
-            Status = status,
-            Type = result.ErrorCode,
-        });
+        return StatusCode(
+            status,
+            new ProblemDetails
+            {
+                Title = result.Error,
+                Status = status,
+                Type = result.ErrorCode,
+            }
+        );
     }
 
     [HttpGet("users")]
@@ -89,7 +93,8 @@ public sealed class AuthAdminController : ControllerBase
     public async Task<IActionResult> ListUsers(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var result = await _mediator
             .Send(new ListUsersQuery(page, pageSize), ct)
@@ -106,7 +111,8 @@ public sealed class AuthAdminController : ControllerBase
     public async Task<IActionResult> SetRole(
         Guid userId,
         [FromBody] UpdateUserRequest? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         if (body is null || string.IsNullOrWhiteSpace(body.NewRole))
         {
@@ -119,7 +125,15 @@ public sealed class AuthAdminController : ControllerBase
         }
 
         var result = await _mediator
-            .Send(new UpdateUserCommand(userId, UpdateUserOperation.SetRole, body.NewRole, tenantSlug), ct)
+            .Send(
+                new UpdateUserCommand(
+                    userId,
+                    UpdateUserOperation.SetRole,
+                    body.NewRole,
+                    tenantSlug
+                ),
+                ct
+            )
             .ConfigureAwait(false);
 
         return MapUpdateResult(result);
@@ -137,7 +151,10 @@ public sealed class AuthAdminController : ControllerBase
         }
 
         var result = await _mediator
-            .Send(new UpdateUserCommand(userId, UpdateUserOperation.ResetPassword, null, tenantSlug), ct)
+            .Send(
+                new UpdateUserCommand(userId, UpdateUserOperation.ResetPassword, null, tenantSlug),
+                ct
+            )
             .ConfigureAwait(false);
 
         if (result.IsSuccess && result.Value!.ResetPassword is not null)
@@ -159,13 +176,18 @@ public sealed class AuthAdminController : ControllerBase
         }
 
         var result = await _mediator
-            .Send(new UpdateUserCommand(userId, UpdateUserOperation.Deactivate, null, tenantSlug), ct)
+            .Send(
+                new UpdateUserCommand(userId, UpdateUserOperation.Deactivate, null, tenantSlug),
+                ct
+            )
             .ConfigureAwait(false);
 
         return MapUpdateResult(result);
     }
 
-    private IActionResult MapUpdateResult(ShopFlow.SharedKernel.Domain.Result<UpdateUserResult> result)
+    private IActionResult MapUpdateResult(
+        ShopFlow.SharedKernel.Domain.Result<UpdateUserResult> result
+    )
     {
         if (result.IsSuccess)
         {
@@ -176,12 +198,15 @@ public sealed class AuthAdminController : ControllerBase
             "users.not_found" => StatusCodes.Status404NotFound,
             _ => StatusCodes.Status400BadRequest,
         };
-        return StatusCode(status, new ProblemDetails
-        {
-            Title = result.Error,
-            Status = status,
-            Type = result.ErrorCode,
-        });
+        return StatusCode(
+            status,
+            new ProblemDetails
+            {
+                Title = result.Error,
+                Status = status,
+                Type = result.ErrorCode,
+            }
+        );
     }
 
     private bool TryReadTenantSlug(out string slug)
@@ -204,21 +229,37 @@ public sealed class AuthAdminController : ControllerBase
         }
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        var result = await _mediator.Send(
-            new AdminMfaResetCommand(actorId, userId, slug, clientIp, userAgent, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(
+                new AdminMfaResetCommand(
+                    actorId,
+                    userId,
+                    slug,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         if (result.IsSuccess)
         {
             return NoContent();
         }
-        var status = result.ErrorCode == "auth.mfa_required_invariant_owner"
-            ? StatusCodes.Status422UnprocessableEntity
-            : StatusCodes.Status404NotFound;
-        return StatusCode(status, new ProblemDetails
-        {
-            Title = result.Error, Status = status, Type = result.ErrorCode,
-        });
+        var status =
+            result.ErrorCode == "auth.mfa_required_invariant_owner"
+                ? StatusCodes.Status422UnprocessableEntity
+                : StatusCodes.Status404NotFound;
+        return StatusCode(
+            status,
+            new ProblemDetails
+            {
+                Title = result.Error,
+                Status = status,
+                Type = result.ErrorCode,
+            }
+        );
     }
 
     [HttpPost("users/{userId:guid}/unlock")]
@@ -233,24 +274,43 @@ public sealed class AuthAdminController : ControllerBase
         }
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        var result = await _mediator.Send(
-            new AdminUnlockAccountCommand(actorId, userId, slug, clientIp, userAgent, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(
+                new AdminUnlockAccountCommand(
+                    actorId,
+                    userId,
+                    slug,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         return result.IsSuccess
             ? NoContent()
-            : StatusCode(StatusCodes.Status404NotFound, new ProblemDetails
-            {
-                Title = result.Error, Status = StatusCodes.Status404NotFound, Type = result.ErrorCode,
-            });
+            : StatusCode(
+                StatusCodes.Status404NotFound,
+                new ProblemDetails
+                {
+                    Title = result.Error,
+                    Status = StatusCodes.Status404NotFound,
+                    Type = result.ErrorCode,
+                }
+            );
     }
 
     [HttpGet("role-permissions")]
     [Authorize(Policy = PermissionKeys.AuthAdminRolePermissionsRead)]
-    [ProducesResponseType(typeof(IDictionary<string, IReadOnlyList<string>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(
+        typeof(IDictionary<string, IReadOnlyList<string>>),
+        StatusCodes.Status200OK
+    )]
     public async Task<IActionResult> GetRolePermissions(
         [FromServices] IRolePermissionRepository repo,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         var all = await repo.ListAllAsync(ct).ConfigureAwait(false);
         var wire = all.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value);
@@ -263,9 +323,14 @@ public sealed class AuthAdminController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> UpdateRolePermissions(
         [FromBody] RolePermissionsUpdateRequest? body,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
-        if (body is null || string.IsNullOrWhiteSpace(body.Role) || string.IsNullOrWhiteSpace(body.Operation))
+        if (
+            body is null
+            || string.IsNullOrWhiteSpace(body.Role)
+            || string.IsNullOrWhiteSpace(body.Operation)
+        )
         {
             return ValidationProblem("role + operation are required.");
         }
@@ -284,11 +349,21 @@ public sealed class AuthAdminController : ControllerBase
 
         var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
         var userAgent = Request.Headers.UserAgent.ToString();
-        var result = await _mediator.Send(
-            new RolePermissionsCommand(
-                actorId, targetRole, op, body.PermissionKey, body.Permissions,
-                clientIp, userAgent, Guid.NewGuid()),
-            ct).ConfigureAwait(false);
+        var result = await _mediator
+            .Send(
+                new RolePermissionsCommand(
+                    actorId,
+                    targetRole,
+                    op,
+                    body.PermissionKey,
+                    body.Permissions,
+                    clientIp,
+                    userAgent,
+                    Guid.NewGuid()
+                ),
+                ct
+            )
+            .ConfigureAwait(false);
 
         if (result.IsSuccess)
         {
@@ -296,20 +371,25 @@ public sealed class AuthAdminController : ControllerBase
         }
         var status = result.ErrorCode switch
         {
-            "auth.role_permissions_owner_critical_locked" => StatusCodes.Status422UnprocessableEntity,
+            "auth.role_permissions_owner_critical_locked" =>
+                StatusCodes.Status422UnprocessableEntity,
             "auth.role_permissions_unknown_key" => StatusCodes.Status400BadRequest,
             _ => StatusCodes.Status400BadRequest,
         };
-        return StatusCode(status, new ProblemDetails
-        {
-            Title = result.Error, Status = status, Type = result.ErrorCode,
-        });
+        return StatusCode(
+            status,
+            new ProblemDetails
+            {
+                Title = result.Error,
+                Status = status,
+                Type = result.ErrorCode,
+            }
+        );
     }
 
     private bool TryReadActorId(out Guid actorId)
     {
-        var sub = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                  ?? User.FindFirst("sub")?.Value;
+        var sub = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
         return Guid.TryParse(sub, out actorId);
     }
 }
@@ -318,4 +398,5 @@ public sealed record RolePermissionsUpdateRequest(
     string Role,
     string Operation,
     string? PermissionKey,
-    IReadOnlyList<string>? Permissions);
+    IReadOnlyList<string>? Permissions
+);

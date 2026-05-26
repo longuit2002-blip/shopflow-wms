@@ -18,7 +18,9 @@ namespace ShopFlow.Notification.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class HappyPathDeliveryFlowTests
 {
-    [Fact(Skip = "Sprint-9.5 U4: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon")]
+    [Fact(
+        Skip = "Sprint-9.5 U4: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon"
+    )]
     public Task PasswordResetRequested_HappyPath_DeliversOneEmailViaMailpit()
     {
         // Covers F1 + the dispatcher's success path. Given Auth emits a

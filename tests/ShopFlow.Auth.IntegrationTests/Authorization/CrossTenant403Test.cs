@@ -87,10 +87,7 @@ public sealed class CrossTenant403Test
         // role_permissions row matching the claim). NEVER 200.
         response
             .StatusCode.Should()
-            .BeOneOf(
-                HttpStatusCode.Unauthorized,
-                HttpStatusCode.Forbidden
-            );
+            .BeOneOf(HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden);
         response.StatusCode.Should().NotBe(HttpStatusCode.OK);
     }
 }

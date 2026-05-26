@@ -30,7 +30,8 @@ public sealed record LoginResponse(
     DateTime? MfaChallengeExpiresAt = null,
     bool MfaEnrollmentRequired = false,
     string? MfaEnrollmentToken = null,
-    DateTime? MfaEnrollmentExpiresAt = null);
+    DateTime? MfaEnrollmentExpiresAt = null
+);
 
 public sealed record RefreshRequest(string RefreshToken);
 
@@ -38,7 +39,8 @@ public sealed record RefreshResponse(
     string AccessToken,
     DateTime AccessTokenExpiresAt,
     string RefreshToken,
-    DateTime RefreshTokenExpiresAt);
+    DateTime RefreshTokenExpiresAt
+);
 
 /// <summary>
 /// Logout payload — single-token revocation. <c>AllDevices=true</c>
@@ -84,7 +86,8 @@ public sealed record BeginEnrollMfaResponse(
     Guid EnrollmentId,
     string ProvisioningUri,
     string SecretBase32,
-    DateTime ExpiresAt);
+    DateTime ExpiresAt
+);
 
 /// <summary>
 /// MFA verify request — used both for login challenge
@@ -96,17 +99,15 @@ public sealed record BeginEnrollMfaResponse(
 public sealed record VerifyMfaRequest(
     string ChallengeToken,
     string? Otp = null,
-    string? RecoveryCode = null);
+    string? RecoveryCode = null
+);
 
 /// <summary>
 /// Enroll-verify request — carries the 6-digit OTP the user typed
 /// from the authenticator app + the enrollment id from the
 /// begin-enroll response.
 /// </summary>
-public sealed record VerifyEnrollMfaRequest(
-    string EnrollmentToken,
-    Guid EnrollmentId,
-    string Otp);
+public sealed record VerifyEnrollMfaRequest(string EnrollmentToken, Guid EnrollmentId, string Otp);
 
 /// <summary>
 /// Returned ONCE at enrollment-verify success + on

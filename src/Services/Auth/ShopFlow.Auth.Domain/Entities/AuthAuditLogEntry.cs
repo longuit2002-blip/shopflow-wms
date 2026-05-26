@@ -34,7 +34,8 @@ public sealed class AuthAuditLogEntry
         string userAgent,
         string metadataJson,
         Guid correlationId,
-        DateTime now)
+        DateTime now
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
         return new AuthAuditLogEntry

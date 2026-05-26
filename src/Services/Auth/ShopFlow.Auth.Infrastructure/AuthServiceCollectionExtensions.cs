@@ -61,9 +61,10 @@ public static class AuthServiceCollectionExtensions
             var options = new DbContextOptionsBuilder<AuthDbContext>()
                 .UseNpgsql(
                     ctx.DbConnectionString,
-                    npg => npg.MigrationsAssembly(
-                        typeof(AuthServiceCollectionExtensions).Assembly.GetName().Name
-                    )
+                    npg =>
+                        npg.MigrationsAssembly(
+                            typeof(AuthServiceCollectionExtensions).Assembly.GetName().Name
+                        )
                 )
                 .Options;
             return new AuthDbContext(options);
@@ -84,7 +85,8 @@ public static class AuthServiceCollectionExtensions
         // from the Auth:Argon2 config section; OWASP 2026 baseline
         // defaults if unset. Singleton because the hasher is
         // stateless + each Hash call generates its own salt.
-        services.AddOptions<Argon2Options>()
+        services
+            .AddOptions<Argon2Options>()
             .Bind(configuration.GetSection(Argon2Options.SectionName));
         services.AddSingleton<IPasswordHasher, Argon2idPasswordHasher>();
 
@@ -98,7 +100,8 @@ public static class AuthServiceCollectionExtensions
         // ConnectionMultiplexer is registered as a singleton per
         // StackExchange.Redis best practice; the store layer above is
         // also singleton because Redis is its only state.
-        services.AddOptions<RefreshTokenOptions>()
+        services
+            .AddOptions<RefreshTokenOptions>()
             .Bind(configuration.GetSection(RefreshTokenOptions.SectionName))
             .PostConfigure(opts =>
             {
@@ -125,7 +128,8 @@ public static class AuthServiceCollectionExtensions
         // Current value MUST be set in appsettings.Development.json /
         // env-var or AesTotpSecretCipher throws at construction.
         services.AddSingleton<ITotpProvider, OtpNetTotpProvider>();
-        services.AddOptions<TotpKekOptions>()
+        services
+            .AddOptions<TotpKekOptions>()
             .Bind(configuration.GetSection(TotpKekOptions.SectionName));
         services.AddSingleton<ITotpSecretCipher, AesTotpSecretCipher>();
         services.AddSingleton<IEnrollmentSecretStore, RedisEnrollmentSecretStore>();
@@ -153,9 +157,11 @@ public static class AuthServiceCollectionExtensions
 
         // Sprint-9 U8 — handler-side option blocks (lockout sliding-window
         // params + password-reset cooldown + synthetic-hash sentinel).
-        services.AddOptions<AuthLockoutOptions>()
+        services
+            .AddOptions<AuthLockoutOptions>()
             .Bind(configuration.GetSection(AuthLockoutOptions.SectionName));
-        services.AddOptions<AuthPasswordResetOptions>()
+        services
+            .AddOptions<AuthPasswordResetOptions>()
             .Bind(configuration.GetSection(AuthPasswordResetOptions.SectionName));
 
         // Sprint-9 U8 — TimeProvider for the lockout + reset cooldown +
@@ -168,7 +174,8 @@ public static class AuthServiceCollectionExtensions
         // (AddShopFlowDefaults) reads — single source of truth keeps
         // issuance + validation coordinated (KTD5). Singleton because
         // the handler + signing key are immutable per-process.
-        services.AddOptions<JwtIssuerOptions>()
+        services
+            .AddOptions<JwtIssuerOptions>()
             .Bind(configuration.GetSection(JwtIssuerOptions.SectionName));
         services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
 

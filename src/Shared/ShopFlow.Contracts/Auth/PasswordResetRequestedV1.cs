@@ -18,4 +18,5 @@ public sealed record PasswordResetRequestedV1(
     string ResetLinkUrl,
     DateTime ExpiresAtUtc,
     DateTime OccurredAtUtc,
-    Guid CorrelationId);
+    Guid CorrelationId
+);

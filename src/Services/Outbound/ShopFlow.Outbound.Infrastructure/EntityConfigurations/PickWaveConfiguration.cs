@@ -27,11 +27,7 @@ internal sealed class PickWaveConfiguration : IEntityTypeConfiguration<PickWave>
             .HasMaxLength(64)
             .IsRequired();
 
-        builder
-            .Property(w => w.PickerId)
-            .HasColumnName("picker_id")
-            .HasMaxLength(64)
-            .IsRequired();
+        builder.Property(w => w.PickerId).HasColumnName("picker_id").HasMaxLength(64).IsRequired();
 
         builder.Property(w => w.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(w => w.UpdatedAt).HasColumnName("updated_at");

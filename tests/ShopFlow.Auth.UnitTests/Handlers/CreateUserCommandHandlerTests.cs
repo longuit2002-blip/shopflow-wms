@@ -29,32 +29,41 @@ public sealed class CreateUserCommandHandlerTests
     [Fact]
     public async Task Happy_CreatesUserAndReturnsTemporaryPassword()
     {
-        _users.AddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>())
+        _users
+            .AddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>())
             .Returns(call => Result<User>.Success(call.Arg<User>()));
 
-        var result = await BuildHandler().Handle(
-            new CreateUserCommand("invitee@example.com", "Picker"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(new CreateUserCommand("invitee@example.com", "Picker"), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Email.Should().Be("invitee@example.com");
         result.Value.Role.Should().Be("Picker");
         result.Value.TemporaryPassword.Should().Be(TempPassword);
-        await _users.Received(1).AddAsync(
-            Arg.Is<User>(u => u.PasswordHash == HashOut && u.Role == UserRole.Picker),
-            Arg.Any<CancellationToken>());
+        await _users
+            .Received(1)
+            .AddAsync(
+                Arg.Is<User>(u => u.PasswordHash == HashOut && u.Role == UserRole.Picker),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
     public async Task DuplicateEmail_ReturnsAuthEmailInUseFromRepoResult()
     {
-        _users.AddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(Result<User>.Failure(
-                "A user with that email already exists.", "auth.email_in_use")));
+        _users
+            .AddAsync(Arg.Any<User>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(
+                    Result<User>.Failure(
+                        "A user with that email already exists.",
+                        "auth.email_in_use"
+                    )
+                )
+            );
 
-        var result = await BuildHandler().Handle(
-            new CreateUserCommand("dup@example.com", "Owner"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(new CreateUserCommand("dup@example.com", "Owner"), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.email_in_use");
@@ -63,9 +72,8 @@ public sealed class CreateUserCommandHandlerTests
     [Fact]
     public async Task InvalidEmail_ReturnsUsersEmailInvalid()
     {
-        var result = await BuildHandler().Handle(
-            new CreateUserCommand("not-an-email", "Owner"),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(new CreateUserCommand("not-an-email", "Owner"), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("users.email_invalid");
@@ -73,14 +81,13 @@ public sealed class CreateUserCommandHandlerTests
     }
 
     [Theory]
-    [InlineData("owner")]      // lowercase
-    [InlineData("ADMIN")]      // unknown
+    [InlineData("owner")] // lowercase
+    [InlineData("ADMIN")] // unknown
     [InlineData("")]
     public async Task InvalidRole_ReturnsUsersRoleInvalid(string role)
     {
-        var result = await BuildHandler().Handle(
-            new CreateUserCommand("user@example.com", role),
-            CancellationToken.None);
+        var result = await BuildHandler()
+            .Handle(new CreateUserCommand("user@example.com", role), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("users.role_invalid");

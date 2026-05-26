@@ -196,7 +196,7 @@ public sealed class CrossTenantRoutingTests : IAsyncLifetime
         await using var cmd = conn.CreateCommand();
         cmd.CommandText =
             "INSERT INTO stock_items (sku, available, reserved, created_at) "
-                + "VALUES (@sku, @avail, 0, @now)";
+            + "VALUES (@sku, @avail, 0, @now)";
         cmd.Parameters.AddWithValue("sku", sku);
         cmd.Parameters.AddWithValue("avail", available);
         cmd.Parameters.AddWithValue("now", DateTime.UtcNow);

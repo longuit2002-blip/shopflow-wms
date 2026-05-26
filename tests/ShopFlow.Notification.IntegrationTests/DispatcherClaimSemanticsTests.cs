@@ -10,7 +10,9 @@ namespace ShopFlow.Notification.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class DispatcherClaimSemanticsTests
 {
-    [Fact(Skip = "Sprint-9.5 U4: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon")]
+    [Fact(
+        Skip = "Sprint-9.5 U4: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon"
+    )]
     public Task ConcurrentDispatchers_ClaimDisjointRows()
     {
         // Given two NotificationDeliveryDispatcher instances polling the

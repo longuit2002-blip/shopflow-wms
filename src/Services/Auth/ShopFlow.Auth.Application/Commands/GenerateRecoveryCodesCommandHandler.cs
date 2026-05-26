@@ -18,8 +18,7 @@ public sealed class GenerateRecoveryCodesCommandHandler
     private const string NotEnrolled = "auth.mfa_not_enrolled";
     private const int RecoveryCodeCount = 10;
     private const int RecoveryCodeLength = 10;
-    private static readonly char[] Alphabet =
-        "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".ToCharArray();
+    private static readonly char[] Alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789".ToCharArray();
 
     private readonly IUserRepository _users;
     private readonly IRecoveryCodeRepository _recoveryCodes;
@@ -28,14 +27,18 @@ public sealed class GenerateRecoveryCodesCommandHandler
     public GenerateRecoveryCodesCommandHandler(
         IUserRepository users,
         IRecoveryCodeRepository recoveryCodes,
-        IPasswordHasher hasher)
+        IPasswordHasher hasher
+    )
     {
         _users = users;
         _recoveryCodes = recoveryCodes;
         _hasher = hasher;
     }
 
-    public async Task<Result<RecoveryCodeView>> Handle(GenerateRecoveryCodesCommand request, CancellationToken ct)
+    public async Task<Result<RecoveryCodeView>> Handle(
+        GenerateRecoveryCodesCommand request,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -51,7 +54,8 @@ public sealed class GenerateRecoveryCodesCommandHandler
 
         await _recoveryCodes.DeleteAllAsync(user.Id, ct).ConfigureAwait(false);
 
-        var plaintexts = Enumerable.Range(0, RecoveryCodeCount)
+        var plaintexts = Enumerable
+            .Range(0, RecoveryCodeCount)
             .Select(_ => GenerateCode())
             .ToList();
         var hashes = plaintexts.Select(p => _hasher.Hash(p, Argon2Profile.RecoveryCode)).ToList();

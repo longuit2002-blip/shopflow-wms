@@ -13,4 +13,5 @@ namespace ShopFlow.Auth.Application.Commands;
 public sealed record GenerateRecoveryCodesCommand(
     Guid UserId,
     string TenantSlug,
-    Guid CorrelationId) : IRequest<Result<RecoveryCodeView>>;
+    Guid CorrelationId
+) : IRequest<Result<RecoveryCodeView>>;

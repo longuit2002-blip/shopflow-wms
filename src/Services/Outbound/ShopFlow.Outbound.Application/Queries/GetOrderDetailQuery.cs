@@ -50,7 +50,8 @@ public sealed record OrderDetailReadModel(
     Guid? PickWaveId,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
-    IReadOnlyList<OrderLineReadModel> Lines);
+    IReadOnlyList<OrderLineReadModel> Lines
+);
 
 /// <summary>
 /// One row in <see cref="OrderDetailReadModel.Lines"/>. Mirrors the
@@ -60,8 +61,4 @@ public sealed record OrderDetailReadModel(
 /// <param name="Sku">SKU reserved on this line.</param>
 /// <param name="Qty">Reservation quantity.</param>
 /// <param name="ExpectedWeight">Per-unit expected weight; null when not declared.</param>
-public sealed record OrderLineReadModel(
-    Guid Id,
-    string Sku,
-    int Qty,
-    int? ExpectedWeight);
+public sealed record OrderLineReadModel(Guid Id, string Sku, int Qty, int? ExpectedWeight);

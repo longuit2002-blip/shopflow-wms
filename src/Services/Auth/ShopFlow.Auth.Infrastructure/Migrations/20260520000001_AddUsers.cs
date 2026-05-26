@@ -70,10 +70,7 @@ public sealed partial class AddUsers : Migration
         // UNIQUE index on lower(email) — case-insensitive uniqueness.
         // Postgres supports expression indexes; EF's fluent API does
         // not, so we drop to raw SQL.
-        mb.Sql(
-            "CREATE UNIQUE INDEX ux_users_email_lower "
-            + "ON users (lower(email));"
-        );
+        mb.Sql("CREATE UNIQUE INDEX ux_users_email_lower " + "ON users (lower(email));");
 
         // CHECK constraint pinned to the UserRole enum string values.
         // Adding a 4th role in Sprint-9+ requires extending this
@@ -81,16 +78,13 @@ public sealed partial class AddUsers : Migration
         // enum + updating downstream consumers of UserRoleChangedEvent.
         mb.Sql(
             "ALTER TABLE users "
-            + "ADD CONSTRAINT chk_users_role "
-            + "CHECK (role IN ('Owner', 'Picker', 'Dispatcher'));"
+                + "ADD CONSTRAINT chk_users_role "
+                + "CHECK (role IN ('Owner', 'Picker', 'Dispatcher'));"
         );
 
         // Partial index supporting "list active users of role R" — the
         // Owner-only admin surface in U8 and likely successors.
-        mb.Sql(
-            "CREATE INDEX ix_users_role_active "
-            + "ON users (role) WHERE is_active = TRUE;"
-        );
+        mb.Sql("CREATE INDEX ix_users_role_active " + "ON users (role) WHERE is_active = TRUE;");
     }
 
     protected override void Down(MigrationBuilder mb)

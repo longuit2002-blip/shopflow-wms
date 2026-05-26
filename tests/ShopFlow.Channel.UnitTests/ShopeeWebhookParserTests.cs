@@ -88,7 +88,8 @@ public sealed class ShopeeWebhookParserTests
     [Fact]
     public void Parse_TrimsEventIdAndType()
     {
-        var body = "{ \"event_id\": \"  e-1  \", \"event_type\": \"  order.created  \", "
+        var body =
+            "{ \"event_id\": \"  e-1  \", \"event_type\": \"  order.created  \", "
             + "\"shop_id\": 1, \"timestamp\": 1 }";
 
         var result = _parser.Parse(ChannelId, ToBytes(body));
@@ -106,17 +107,27 @@ public sealed class ChannelAdapterFactoryTests
 {
     private sealed class FakeAdapter : ShopFlow.Channel.Application.Adapters.IChannelAdapter
     {
-        public FakeAdapter(string channelType) { ChannelType = channelType; }
+        public FakeAdapter(string channelType)
+        {
+            ChannelType = channelType;
+        }
+
         public string ChannelType { get; }
-        public ShopFlow.SharedKernel.Domain.Result<ShopFlow.Channel.Application.Webhooks.WebhookEnvelope>
-            ParseWebhook(Guid channelId, ReadOnlySpan<byte> body, IReadOnlyDictionary<string, string> headers) =>
-                throw new NotSupportedException();
-        public ShopFlow.SharedKernel.Domain.Result<ShopFlow.Channel.Application.Webhooks.ExternalOrderDraft>
-            ParseOrderCreated(ShopFlow.Channel.Application.Webhooks.WebhookEnvelope envelope) =>
-                throw new NotSupportedException();
+
+        public ShopFlow.SharedKernel.Domain.Result<ShopFlow.Channel.Application.Webhooks.WebhookEnvelope> ParseWebhook(
+            Guid channelId,
+            ReadOnlySpan<byte> body,
+            IReadOnlyDictionary<string, string> headers
+        ) => throw new NotSupportedException();
+
+        public ShopFlow.SharedKernel.Domain.Result<ShopFlow.Channel.Application.Webhooks.ExternalOrderDraft> ParseOrderCreated(
+            ShopFlow.Channel.Application.Webhooks.WebhookEnvelope envelope
+        ) => throw new NotSupportedException();
+
         public Task<ShopFlow.SharedKernel.Domain.Result> PushStockUpdateAsync(
-            ShopFlow.Channel.Application.Adapters.StockUpdateRequest request, CancellationToken ct) =>
-                throw new NotSupportedException();
+            ShopFlow.Channel.Application.Adapters.StockUpdateRequest request,
+            CancellationToken ct
+        ) => throw new NotSupportedException();
     }
 
     [Fact]
@@ -137,7 +148,8 @@ public sealed class ChannelAdapterFactoryTests
 
         act.Should()
             .Throw<ShopFlow.Channel.Application.Adapters.UnknownChannelTypeException>()
-            .Which.ChannelType.Should().Be("lazada");
+            .Which.ChannelType.Should()
+            .Be("lazada");
     }
 
     [Fact]

@@ -31,7 +31,10 @@ namespace ShopFlow.StockSync.Infrastructure.Breaker;
 /// </remarks>
 public sealed class TenantChannelBreakerRegistry
 {
-    private readonly ConcurrentDictionary<(Guid TenantId, string ChannelType), PushPipelineBundle> _bundles = new();
+    private readonly ConcurrentDictionary<
+        (Guid TenantId, string ChannelType),
+        PushPipelineBundle
+    > _bundles = new();
     private readonly PushPipelineFactory _factory;
 
     public TenantChannelBreakerRegistry(PushPipelineFactory factory)

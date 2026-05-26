@@ -58,7 +58,8 @@ public sealed class NarrowedJwtBuilder
         string devSecret,
         string issuer = "shopflow-dev",
         string audience = "shopflow-api",
-        TimeSpan? accessTokenTtl = null)
+        TimeSpan? accessTokenTtl = null
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(devSecret);
         ArgumentException.ThrowIfNullOrWhiteSpace(issuer);
@@ -69,8 +70,9 @@ public sealed class NarrowedJwtBuilder
         {
             throw new InvalidOperationException(
                 "Auth:DevSecret must be at least 32 bytes (UTF-8) for HS256. "
-                + "The kernel JwtBearer validator enforces the same minimum; "
-                + "an undersize key here would silently produce tokens the validator rejects.");
+                    + "The kernel JwtBearer validator enforces the same minimum; "
+                    + "an undersize key here would silently produce tokens the validator rejects."
+            );
         }
 
         _devSecret = devSecret;
@@ -110,7 +112,8 @@ public sealed class NarrowedJwtBuilder
         Guid userId,
         IReadOnlyCollection<string> includeKeys,
         string? email = null,
-        string role = "Owner")
+        string role = "Owner"
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantSlug);
         ArgumentNullException.ThrowIfNull(includeKeys);
@@ -146,9 +149,7 @@ public sealed class NarrowedJwtBuilder
             NotBefore = issuedAt,
             Expires = expiresAt,
             Subject = new ClaimsIdentity(claims),
-            SigningCredentials = new SigningCredentials(
-                _signingKey,
-                SecurityAlgorithms.HmacSha256),
+            SigningCredentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256),
         };
 
         return _handler.CreateToken(descriptor);

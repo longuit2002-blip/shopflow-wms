@@ -16,7 +16,9 @@ public sealed class MfaEnrolledConsumerTests
 {
     private static readonly Guid AnyTenant = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid AnyUser = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly Guid AnyCorrelation = Guid.Parse("33333333-3333-3333-3333-333333333333");
+    private static readonly Guid AnyCorrelation = Guid.Parse(
+        "33333333-3333-3333-3333-333333333333"
+    );
 
     private static MfaEnrolledV1 NewMessage(string email = "alice@example.com") =>
         new(
@@ -31,7 +33,8 @@ public sealed class MfaEnrolledConsumerTests
     public async Task Consume_HappyPath_InsertsSingleOutboxRowToUserThemselves()
     {
         var outbox = Substitute.For<INotificationOutboxRepository>();
-        outbox.InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
+        outbox
+            .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ => Guid.NewGuid());
 
         await using var sp = BuildServiceProvider(outbox);
@@ -43,7 +46,8 @@ public sealed class MfaEnrolledConsumerTests
         var consumerHarness = harness.GetConsumerHarness<MfaEnrolledConsumer>();
         (await consumerHarness.Consumed.Any<MfaEnrolledV1>()).Should().BeTrue();
 
-        await outbox.Received(1)
+        await outbox
+            .Received(1)
             .InsertAsync(
                 Arg.Is<NotificationOutboxEntry>(e =>
                     e.RecipientEmail == "alice@example.com"
@@ -70,7 +74,8 @@ public sealed class MfaEnrolledConsumerTests
         var consumerHarness = harness.GetConsumerHarness<MfaEnrolledConsumer>();
         (await consumerHarness.Consumed.Any<MfaEnrolledV1>()).Should().BeTrue();
 
-        await outbox.DidNotReceive()
+        await outbox
+            .DidNotReceive()
             .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>());
 
         await harness.Stop();
@@ -84,7 +89,8 @@ public sealed class MfaEnrolledConsumerTests
         // hypothetical Owner users available in the tenant, the consumer
         // only writes 1 outbox row addressed to msg.UserEmail.
         var outbox = Substitute.For<INotificationOutboxRepository>();
-        outbox.InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
+        outbox
+            .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ => Guid.NewGuid());
 
         await using var sp = BuildServiceProvider(outbox);
@@ -97,7 +103,8 @@ public sealed class MfaEnrolledConsumerTests
         (await consumerHarness.Consumed.Any<MfaEnrolledV1>()).Should().BeTrue();
 
         // Exactly 1 outbox call, recipient = the user themselves.
-        await outbox.Received(1)
+        await outbox
+            .Received(1)
             .InsertAsync(
                 Arg.Is<NotificationOutboxEntry>(e => e.RecipientEmail == "alice@example.com"),
                 Arg.Any<CancellationToken>()

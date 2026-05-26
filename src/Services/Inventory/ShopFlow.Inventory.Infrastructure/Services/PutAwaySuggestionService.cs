@@ -78,7 +78,9 @@ public sealed class PutAwaySuggestionService : IPutAwaySuggestionService
              LIMIT @p_top;
             """;
         cmd.Parameters.Add(new NpgsqlParameter("p_sku", NpgsqlDbType.Varchar) { Value = sku });
-        cmd.Parameters.Add(new NpgsqlParameter("p_qty", NpgsqlDbType.Integer) { Value = requestedQty });
+        cmd.Parameters.Add(
+            new NpgsqlParameter("p_qty", NpgsqlDbType.Integer) { Value = requestedQty }
+        );
         cmd.Parameters.Add(new NpgsqlParameter("p_top", NpgsqlDbType.Integer) { Value = topK });
 
         var candidates = new List<PutAwayCandidate>();

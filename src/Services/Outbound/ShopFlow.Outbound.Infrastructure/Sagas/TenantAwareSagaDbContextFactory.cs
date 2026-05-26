@@ -85,7 +85,10 @@ public sealed class TenantAwareSagaDbContextFactory : ISagaDbContextFactory<Fulf
             );
 
         var tenantHeader = context.Headers.Get<string>(TenantBindingSagaFilter<T>.TenantIdHeader);
-        if (string.IsNullOrWhiteSpace(tenantHeader) || !Guid.TryParse(tenantHeader, out var tenantId))
+        if (
+            string.IsNullOrWhiteSpace(tenantHeader)
+            || !Guid.TryParse(tenantHeader, out var tenantId)
+        )
         {
             throw new InvalidOperationException(
                 $"Cannot create per-tenant OutboundDbContext: missing or invalid '{TenantBindingSagaFilter<T>.TenantIdHeader}' header."
@@ -93,7 +96,8 @@ public sealed class TenantAwareSagaDbContextFactory : ISagaDbContextFactory<Fulf
         }
 
         var catalog = serviceProvider.GetRequiredService<ITenantCatalog>();
-        var tenant = catalog.LookupByIdAsync(tenantId, context.CancellationToken).GetAwaiter().GetResult()
+        var tenant =
+            catalog.LookupByIdAsync(tenantId, context.CancellationToken).GetAwaiter().GetResult()
             ?? throw new InvalidOperationException($"Tenant '{tenantId}' not found in catalog.");
 
         var requestContext = serviceProvider.GetRequiredService<RequestContext>();

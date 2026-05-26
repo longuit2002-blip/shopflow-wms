@@ -48,7 +48,8 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
         int? threshold = null,
         string? barcode = null,
         bool isFlashSale = false,
-        string? category = null)
+        string? category = null
+    )
     {
         var result = Sku.Create(
             code: SkuCode.Create(code),
@@ -88,7 +89,9 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
         result.Sku.Threshold.Should().Be(10);
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var row = await verify.Skus.AsNoTracking().FirstOrDefaultAsync(s => s.Code == SkuCode.Create("SKU-INS"));
+        var row = await verify
+            .Skus.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Code == SkuCode.Create("SKU-INS"));
         row.Should().NotBeNull();
         row!.Name.Should().Be("Inserted");
         row.Threshold.Should().Be(10);
@@ -98,10 +101,8 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
     public async Task UpsertAsync_ExistingModified_UpdatesAndReturnsChanged()
     {
         await using var db1 = new InventoryDbContext(_tenant.Options);
-        await BuildRepo(db1).UpsertAsync(
-            NewSku("SKU-MOD", name: "Old", threshold: 5),
-            CancellationToken.None
-        );
+        await BuildRepo(db1)
+            .UpsertAsync(NewSku("SKU-MOD", name: "Old", threshold: 5), CancellationToken.None);
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
         var repo = BuildRepo(db2);
@@ -114,7 +115,9 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
         result.Changed.Should().BeTrue();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var row = await verify.Skus.AsNoTracking().FirstAsync(s => s.Code == SkuCode.Create("SKU-MOD"));
+        var row = await verify
+            .Skus.AsNoTracking()
+            .FirstAsync(s => s.Code == SkuCode.Create("SKU-MOD"));
         row.Name.Should().Be("New");
         row.Threshold.Should().Be(8);
     }
@@ -123,10 +126,8 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
     public async Task UpsertAsync_ExistingUnchanged_ReturnsNotChanged()
     {
         await using var db1 = new InventoryDbContext(_tenant.Options);
-        await BuildRepo(db1).UpsertAsync(
-            NewSku("SKU-NOOP", name: "Same", threshold: 5),
-            CancellationToken.None
-        );
+        await BuildRepo(db1)
+            .UpsertAsync(NewSku("SKU-NOOP", name: "Same", threshold: 5), CancellationToken.None);
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
         var repo = BuildRepo(db2);
@@ -146,11 +147,8 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
         await BuildRepo(db1).UpsertAsync(NewSku("SKU-FS"), CancellationToken.None);
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
-        var result = await BuildRepo(db2).UpdateFlashSaleAsync(
-            SkuCode.Create("SKU-FS"),
-            active: true,
-            CancellationToken.None
-        );
+        var result = await BuildRepo(db2)
+            .UpdateFlashSaleAsync(SkuCode.Create("SKU-FS"), active: true, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Changed.Should().BeTrue();
@@ -161,17 +159,12 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
     public async Task UpdateFlashSaleAsync_AlreadyAtRequestedValue_ReportsNotChanged()
     {
         await using var db1 = new InventoryDbContext(_tenant.Options);
-        await BuildRepo(db1).UpsertAsync(
-            NewSku("SKU-FS2", isFlashSale: true),
-            CancellationToken.None
-        );
+        await BuildRepo(db1)
+            .UpsertAsync(NewSku("SKU-FS2", isFlashSale: true), CancellationToken.None);
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
-        var result = await BuildRepo(db2).UpdateFlashSaleAsync(
-            SkuCode.Create("SKU-FS2"),
-            active: true,
-            CancellationToken.None
-        );
+        var result = await BuildRepo(db2)
+            .UpdateFlashSaleAsync(SkuCode.Create("SKU-FS2"), active: true, CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         // U5 reads Changed=false to skip the outbox emit on idempotent retries.
@@ -183,18 +176,21 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
     {
         await using var db = new InventoryDbContext(_tenant.Options);
 
-        var result = await BuildRepo(db).UpdateFlashSaleAsync(
-            SkuCode.Create("SKU-NEW-FS"),
-            active: true,
-            CancellationToken.None
-        );
+        var result = await BuildRepo(db)
+            .UpdateFlashSaleAsync(
+                SkuCode.Create("SKU-NEW-FS"),
+                active: true,
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Changed.Should().BeTrue();
         result.Value.Sku.IsFlashSale.Should().BeTrue();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var row = await verify.Skus.AsNoTracking().FirstOrDefaultAsync(s => s.Code == SkuCode.Create("SKU-NEW-FS"));
+        var row = await verify
+            .Skus.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Code == SkuCode.Create("SKU-NEW-FS"));
         row.Should().NotBeNull();
         row!.Name.Should().Be("SKU-NEW-FS");
         row.IsFlashSale.Should().BeTrue();
@@ -205,17 +201,20 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
     {
         await using var db = new InventoryDbContext(_tenant.Options);
 
-        var result = await BuildRepo(db).UpdateThresholdAsync(
-            SkuCode.Create("SKU-NEW-T"),
-            threshold: 5,
-            CancellationToken.None
-        );
+        var result = await BuildRepo(db)
+            .UpdateThresholdAsync(
+                SkuCode.Create("SKU-NEW-T"),
+                threshold: 5,
+                CancellationToken.None
+            );
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.Changed.Should().BeTrue();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var row = await verify.Skus.AsNoTracking().FirstOrDefaultAsync(s => s.Code == SkuCode.Create("SKU-NEW-T"));
+        var row = await verify
+            .Skus.AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Code == SkuCode.Create("SKU-NEW-T"));
         row!.Threshold.Should().Be(5);
     }
 
@@ -223,11 +222,13 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
     public async Task PartialUniqueBarcode_TwoNullBarcodes_BothAccepted()
     {
         await using var db1 = new InventoryDbContext(_tenant.Options);
-        var a = await BuildRepo(db1).UpsertAsync(NewSku("BC-A", barcode: null), CancellationToken.None);
+        var a = await BuildRepo(db1)
+            .UpsertAsync(NewSku("BC-A", barcode: null), CancellationToken.None);
         a.Changed.Should().BeTrue();
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
-        var b = await BuildRepo(db2).UpsertAsync(NewSku("BC-B", barcode: null), CancellationToken.None);
+        var b = await BuildRepo(db2)
+            .UpsertAsync(NewSku("BC-B", barcode: null), CancellationToken.None);
         b.Changed.Should().BeTrue();
     }
 
@@ -238,10 +239,9 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
         await BuildRepo(db1).UpsertAsync(NewSku("BC-X", barcode: "1234"), CancellationToken.None);
 
         await using var db2 = new InventoryDbContext(_tenant.Options);
-        var act = async () => await BuildRepo(db2).UpsertAsync(
-            NewSku("BC-Y", barcode: "1234"),
-            CancellationToken.None
-        );
+        var act = async () =>
+            await BuildRepo(db2)
+                .UpsertAsync(NewSku("BC-Y", barcode: "1234"), CancellationToken.None);
 
         var ex = await act.Should().ThrowAsync<DbUpdateException>();
         var pg = ex.Which.InnerException as PostgresException;
@@ -254,14 +254,18 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
     {
         await using var db = new InventoryDbContext(_tenant.Options);
         var repo = BuildRepo(db);
-        await repo.UpsertAsync(NewSku("BLK-1", name: "n1", category: "c1", threshold: 5), CancellationToken.None);
-        await repo.UpsertAsync(NewSku("BLK-2", name: "n2", isFlashSale: true), CancellationToken.None);
-
-        await using var db2 = new InventoryDbContext(_tenant.Options);
-        var meta = await BuildRepo(db2).GetListMetadataAsync(
-            new[] { "BLK-1", "BLK-2", "BLK-MISS" },
+        await repo.UpsertAsync(
+            NewSku("BLK-1", name: "n1", category: "c1", threshold: 5),
             CancellationToken.None
         );
+        await repo.UpsertAsync(
+            NewSku("BLK-2", name: "n2", isFlashSale: true),
+            CancellationToken.None
+        );
+
+        await using var db2 = new InventoryDbContext(_tenant.Options);
+        var meta = await BuildRepo(db2)
+            .GetListMetadataAsync(new[] { "BLK-1", "BLK-2", "BLK-MISS" }, CancellationToken.None);
 
         meta.Should().HaveCount(2);
         meta["BLK-1"].Threshold.Should().Be(5);
@@ -335,10 +339,14 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
             }
         }
 
-        defs["ix_skus_is_flash_sale"].Should().Contain("WHERE", "is_flash_sale partial index must carry a predicate");
+        defs["ix_skus_is_flash_sale"]
+            .Should()
+            .Contain("WHERE", "is_flash_sale partial index must carry a predicate");
         defs["ix_skus_is_flash_sale"].ToLowerInvariant().Should().Contain("is_flash_sale");
         defs["ux_skus_barcode"].ToLowerInvariant().Should().Contain("barcode");
-        defs["ux_skus_barcode"].Should().Contain("WHERE", "barcode partial UNIQUE must carry a predicate");
+        defs["ux_skus_barcode"]
+            .Should()
+            .Contain("WHERE", "barcode partial UNIQUE must carry a predicate");
     }
 
     [Fact]
@@ -356,7 +364,11 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
         for (var i = 0; i < 1200; i++)
         {
             await repo.UpsertAsync(
-                NewSku($"BULK-{i:D5}", name: $"Item {i}", category: categories[i % categories.Length]),
+                NewSku(
+                    $"BULK-{i:D5}",
+                    name: $"Item {i}",
+                    category: categories[i % categories.Length]
+                ),
                 CancellationToken.None
             );
         }
@@ -386,6 +398,8 @@ public sealed class SkuRepositoryTests : IAsyncLifetime
         }
 
         var planText = plan.ToString();
-        planText.Should().Contain("ix_skus_category", "category filter must use the btree index, not seq-scan");
+        planText
+            .Should()
+            .Contain("ix_skus_category", "category filter must use the btree index, not seq-scan");
     }
 }

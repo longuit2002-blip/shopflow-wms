@@ -17,29 +17,15 @@ internal sealed class RecoveryCodeConfiguration : IEntityTypeConfiguration<Recov
 
         builder.ToTable("user_recovery_codes");
 
-        builder
-            .HasKey(c => new { c.UserId, c.CodeHash })
-            .HasName("pk_user_recovery_codes");
+        builder.HasKey(c => new { c.UserId, c.CodeHash }).HasName("pk_user_recovery_codes");
 
-        builder
-            .Property(c => c.UserId)
-            .HasColumnName("user_id")
-            .IsRequired();
+        builder.Property(c => c.UserId).HasColumnName("user_id").IsRequired();
 
-        builder
-            .Property(c => c.CodeHash)
-            .HasColumnName("code_hash")
-            .HasMaxLength(256)
-            .IsRequired();
+        builder.Property(c => c.CodeHash).HasColumnName("code_hash").HasMaxLength(256).IsRequired();
 
-        builder
-            .Property(c => c.CreatedAt)
-            .HasColumnName("created_at")
-            .IsRequired();
+        builder.Property(c => c.CreatedAt).HasColumnName("created_at").IsRequired();
 
-        builder
-            .Property(c => c.UsedAt)
-            .HasColumnName("used_at");
+        builder.Property(c => c.UsedAt).HasColumnName("used_at");
 
         builder
             .HasIndex(c => c.UserId)

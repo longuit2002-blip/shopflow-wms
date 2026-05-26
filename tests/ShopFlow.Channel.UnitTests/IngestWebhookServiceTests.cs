@@ -34,9 +34,11 @@ public sealed class IngestWebhookServiceTests
         var uow = Substitute.For<IUnitOfWork>();
 
         repo.TryInsertAsync(Arg.Any<WebhookEvent>(), Arg.Any<CancellationToken>())
-            .Returns(Result<TryInsertWebhookResult>.Success(
-                new TryInsertWebhookResult(Guid.NewGuid(), IsDuplicate: false)
-            ));
+            .Returns(
+                Result<TryInsertWebhookResult>.Success(
+                    new TryInsertWebhookResult(Guid.NewGuid(), IsDuplicate: false)
+                )
+            );
 
         var sut = new IngestWebhookService(repo, outbox, uow);
 
@@ -50,7 +52,9 @@ public sealed class IngestWebhookServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value!.IsDuplicate.Should().BeFalse();
 
-        await outbox.Received(1).AppendAsync("X.Y.Z", Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await outbox
+            .Received(1)
+            .AppendAsync("X.Y.Z", Arg.Any<object>(), Arg.Any<CancellationToken>());
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -63,9 +67,11 @@ public sealed class IngestWebhookServiceTests
         var uow = Substitute.For<IUnitOfWork>();
 
         repo.TryInsertAsync(Arg.Any<WebhookEvent>(), Arg.Any<CancellationToken>())
-            .Returns(Result<TryInsertWebhookResult>.Success(
-                new TryInsertWebhookResult(existingId, IsDuplicate: true)
-            ));
+            .Returns(
+                Result<TryInsertWebhookResult>.Success(
+                    new TryInsertWebhookResult(existingId, IsDuplicate: true)
+                )
+            );
 
         var sut = new IngestWebhookService(repo, outbox, uow);
 
@@ -80,9 +86,9 @@ public sealed class IngestWebhookServiceTests
         result.Value!.EventId.Should().Be(existingId);
         result.Value!.IsDuplicate.Should().BeTrue();
 
-        await outbox.DidNotReceive().AppendAsync(
-            Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
         await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -105,8 +111,11 @@ public sealed class IngestWebhookServiceTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("webhook.provider_event_id_required");
 
-        await repo.DidNotReceive().TryInsertAsync(Arg.Any<WebhookEvent>(), Arg.Any<CancellationToken>());
-        await outbox.DidNotReceive().AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await repo.DidNotReceive()
+            .TryInsertAsync(Arg.Any<WebhookEvent>(), Arg.Any<CancellationToken>());
+        await outbox
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -131,7 +140,9 @@ public sealed class IngestWebhookServiceTests
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("db.fail");
 
-        await outbox.DidNotReceive().AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
+        await outbox
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
         await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
     }
 
@@ -144,8 +155,7 @@ public sealed class IngestWebhookServiceTests
             Substitute.For<IUnitOfWork>()
         );
 
-        var act = async () =>
-            await sut.IngestAsync(null!, "X.Y.Z", new { }, default);
+        var act = async () => await sut.IngestAsync(null!, "X.Y.Z", new { }, default);
 
         await act.Should().ThrowAsync<ArgumentNullException>();
     }
@@ -159,8 +169,7 @@ public sealed class IngestWebhookServiceTests
             Substitute.For<IUnitOfWork>()
         );
 
-        var act = async () =>
-            await sut.IngestAsync(NewEnvelope(), "   ", new { }, default);
+        var act = async () => await sut.IngestAsync(NewEnvelope(), "   ", new { }, default);
 
         await act.Should().ThrowAsync<ArgumentException>();
     }

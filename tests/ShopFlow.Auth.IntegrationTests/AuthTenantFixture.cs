@@ -42,7 +42,8 @@ public sealed class AuthTenantFixture : IAsyncLifetime
     /// </summary>
     public async Task<ProvisionedAuthTenant> ProvisionTenantAsync(
         string slug,
-        CancellationToken ct = default)
+        CancellationToken ct = default
+    )
     {
         var dbName = $"shopflow_auth_{slug}_{Guid.NewGuid().ToString("N")[..8]}";
         await using (var admin = new NpgsqlConnection(AdminConnectionString))
@@ -87,4 +88,5 @@ public sealed class AuthTenantCollection : ICollectionFixture<AuthTenantFixture>
 public sealed record ProvisionedAuthTenant(
     string Slug,
     string ConnectionString,
-    DbContextOptions<AuthDbContext> Options);
+    DbContextOptions<AuthDbContext> Options
+);

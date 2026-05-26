@@ -39,7 +39,8 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
         IPasswordHasher hasher,
         IRefreshTokenStore refreshStore,
         IAuthAuditLogRepository auditLog,
-        ILogger<ChangePasswordCommandHandler> logger)
+        ILogger<ChangePasswordCommandHandler> logger
+    )
     {
         _users = users;
         _hasher = hasher;
@@ -52,12 +53,15 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(request.NewPassword)
-            || request.NewPassword.Length < MinPasswordLength)
+        if (
+            string.IsNullOrWhiteSpace(request.NewPassword)
+            || request.NewPassword.Length < MinPasswordLength
+        )
         {
             return Result.Failure(
                 $"New password must be at least {MinPasswordLength} characters.",
-                PasswordTooShort);
+                PasswordTooShort
+            );
         }
 
         var user = await _users.GetByIdAsync(request.UserId, ct).ConfigureAwait(false);
@@ -80,16 +84,19 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
             .RevokeAllForUserAsync(request.TenantSlug, request.UserId, ct)
             .ConfigureAwait(false);
 
-        await AuthAuditWriter.TryAppendAsync(
-            _auditLog,
-            _logger,
-            AuthAuditEventTypes.PasswordChanged,
-            request.UserId,
-            request.SourceIp,
-            request.UserAgent,
-            metadata: null,
-            request.CorrelationId,
-            ct).ConfigureAwait(false);
+        await AuthAuditWriter
+            .TryAppendAsync(
+                _auditLog,
+                _logger,
+                AuthAuditEventTypes.PasswordChanged,
+                request.UserId,
+                request.SourceIp,
+                request.UserAgent,
+                metadata: null,
+                request.CorrelationId,
+                ct
+            )
+            .ConfigureAwait(false);
 
         return Result.Success();
     }

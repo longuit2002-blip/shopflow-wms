@@ -41,7 +41,8 @@ public sealed class AesTotpSecretCipher : ITotpSecretCipher
         if (string.IsNullOrWhiteSpace(opts.Current))
         {
             throw new InvalidOperationException(
-                "Auth:TotpKek:Current is required — generate via 'openssl rand -base64 32'.");
+                "Auth:TotpKek:Current is required — generate via 'openssl rand -base64 32'."
+            );
         }
         _currentKey = DecodeKey(opts.Current);
         _previousKey = string.IsNullOrWhiteSpace(opts.Previous) ? null : DecodeKey(opts.Previous);
@@ -119,7 +120,8 @@ public sealed class AesTotpSecretCipher : ITotpSecretCipher
         if (raw.Length != KeyLength)
         {
             throw new InvalidOperationException(
-                $"TOTP KEK must be exactly {KeyLength} bytes (256 bits) after base64 decode; got {raw.Length}.");
+                $"TOTP KEK must be exactly {KeyLength} bytes (256 bits) after base64 decode; got {raw.Length}."
+            );
         }
         return raw;
     }

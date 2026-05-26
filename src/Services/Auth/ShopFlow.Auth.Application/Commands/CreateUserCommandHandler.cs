@@ -34,7 +34,8 @@ public sealed class CreateUserCommandHandler
     public CreateUserCommandHandler(
         IUserRepository users,
         IPasswordHasher hasher,
-        IPasswordGenerator generator)
+        IPasswordGenerator generator
+    )
     {
         _users = users;
         _hasher = hasher;
@@ -42,15 +43,21 @@ public sealed class CreateUserCommandHandler
     }
 
     public async Task<Result<CreateUserResponse>> Handle(
-        CreateUserCommand request, CancellationToken ct)
+        CreateUserCommand request,
+        CancellationToken ct
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (!Enum.TryParse<UserRole>(request.Role, ignoreCase: false, out var role)
-            || !Enum.IsDefined(role))
+        if (
+            !Enum.TryParse<UserRole>(request.Role, ignoreCase: false, out var role)
+            || !Enum.IsDefined(role)
+        )
         {
             return Result<CreateUserResponse>.Failure(
-                $"Unknown role '{request.Role}'.", RoleInvalidCode);
+                $"Unknown role '{request.Role}'.",
+                RoleInvalidCode
+            );
         }
 
         var temporaryPassword = _generator.Generate();
@@ -71,13 +78,17 @@ public sealed class CreateUserCommandHandler
         {
             return Result<CreateUserResponse>.Failure(
                 addResult.Error ?? "Email already in use.",
-                addResult.ErrorCode ?? EmailInUseCode);
+                addResult.ErrorCode ?? EmailInUseCode
+            );
         }
 
-        return Result<CreateUserResponse>.Success(new CreateUserResponse(
-            UserId: newUser.Id,
-            Email: newUser.Email,
-            Role: newUser.Role.ToString(),
-            TemporaryPassword: temporaryPassword));
+        return Result<CreateUserResponse>.Success(
+            new CreateUserResponse(
+                UserId: newUser.Id,
+                Email: newUser.Email,
+                Role: newUser.Role.ToString(),
+                TemporaryPassword: temporaryPassword
+            )
+        );
     }
 }

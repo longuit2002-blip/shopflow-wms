@@ -13,7 +13,9 @@ namespace ShopFlow.Auth.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class AuthCrossTenantTests
 {
-    [Fact(Skip = "Sprint-9.5 U9: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon")]
+    [Fact(
+        Skip = "Sprint-9.5 U9: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon"
+    )]
     public Task SameTenantAuth_Works_JwtCarriesTenantSlug()
     {
         // R32a — Login against tenantA's resolved Auth.Api → JWT carries

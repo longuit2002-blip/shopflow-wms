@@ -19,9 +19,10 @@ public sealed class RefreshReuseDetectedConsumerTests
 {
     private static readonly Guid AnyTenant = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid AnyUser = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly Guid AnyCorrelation = Guid.Parse("33333333-3333-3333-3333-333333333333");
-    private const string DummyHash =
-        "$argon2id$v=19$m=65536,t=4,p=4$ZHVtbXk$ZHVtbXk";
+    private static readonly Guid AnyCorrelation = Guid.Parse(
+        "33333333-3333-3333-3333-333333333333"
+    );
+    private const string DummyHash = "$argon2id$v=19$m=65536,t=4,p=4$ZHVtbXk$ZHVtbXk";
 
     private static RefreshReuseDetectedV1 NewMessage() =>
         new(
@@ -40,16 +41,20 @@ public sealed class RefreshReuseDetectedConsumerTests
     public async Task Consume_TenantWith3Owners_InsertsThreeOutboxRows()
     {
         var users = Substitute.For<IUserRepository>();
-        users.ListByRoleAsync(UserRole.Owner, Arg.Any<CancellationToken>())
-            .Returns(new List<User>
-            {
-                User.Create("owner1@tenant-a.com", DummyHash, UserRole.Owner),
-                User.Create("owner2@tenant-a.com", DummyHash, UserRole.Owner),
-                User.Create("owner3@tenant-a.com", DummyHash, UserRole.Owner),
-            });
+        users
+            .ListByRoleAsync(UserRole.Owner, Arg.Any<CancellationToken>())
+            .Returns(
+                new List<User>
+                {
+                    User.Create("owner1@tenant-a.com", DummyHash, UserRole.Owner),
+                    User.Create("owner2@tenant-a.com", DummyHash, UserRole.Owner),
+                    User.Create("owner3@tenant-a.com", DummyHash, UserRole.Owner),
+                }
+            );
 
         var outbox = Substitute.For<INotificationOutboxRepository>();
-        outbox.InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
+        outbox
+            .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ => Guid.NewGuid());
 
         await using var sp = BuildServiceProvider(outbox, users);
@@ -61,7 +66,8 @@ public sealed class RefreshReuseDetectedConsumerTests
         var consumerHarness = harness.GetConsumerHarness<RefreshReuseDetectedConsumer>();
         (await consumerHarness.Consumed.Any<RefreshReuseDetectedV1>()).Should().BeTrue();
 
-        await outbox.Received(3)
+        await outbox
+            .Received(3)
             .InsertAsync(
                 Arg.Is<NotificationOutboxEntry>(e =>
                     e.NotificationKind == "RefreshReuse"
@@ -78,7 +84,8 @@ public sealed class RefreshReuseDetectedConsumerTests
     public async Task Consume_TenantWithZeroOwners_InsertsZeroRows()
     {
         var users = Substitute.For<IUserRepository>();
-        users.ListByRoleAsync(UserRole.Owner, Arg.Any<CancellationToken>())
+        users
+            .ListByRoleAsync(UserRole.Owner, Arg.Any<CancellationToken>())
             .Returns(new List<User>());
 
         var outbox = Substitute.For<INotificationOutboxRepository>();
@@ -92,7 +99,8 @@ public sealed class RefreshReuseDetectedConsumerTests
         var consumerHarness = harness.GetConsumerHarness<RefreshReuseDetectedConsumer>();
         (await consumerHarness.Consumed.Any<RefreshReuseDetectedV1>()).Should().BeTrue();
 
-        await outbox.DidNotReceive()
+        await outbox
+            .DidNotReceive()
             .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>());
 
         await harness.Stop();
@@ -106,11 +114,13 @@ public sealed class RefreshReuseDetectedConsumerTests
         inactiveOwner.Deactivate();
 
         var users = Substitute.For<IUserRepository>();
-        users.ListByRoleAsync(UserRole.Owner, Arg.Any<CancellationToken>())
+        users
+            .ListByRoleAsync(UserRole.Owner, Arg.Any<CancellationToken>())
             .Returns(new List<User> { activeOwner, inactiveOwner });
 
         var outbox = Substitute.For<INotificationOutboxRepository>();
-        outbox.InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
+        outbox
+            .InsertAsync(Arg.Any<NotificationOutboxEntry>(), Arg.Any<CancellationToken>())
             .Returns(_ => Guid.NewGuid());
 
         await using var sp = BuildServiceProvider(outbox, users);
@@ -122,16 +132,16 @@ public sealed class RefreshReuseDetectedConsumerTests
         var consumerHarness = harness.GetConsumerHarness<RefreshReuseDetectedConsumer>();
         (await consumerHarness.Consumed.Any<RefreshReuseDetectedV1>()).Should().BeTrue();
 
-        await outbox.Received(1)
+        await outbox
+            .Received(1)
             .InsertAsync(
                 Arg.Is<NotificationOutboxEntry>(e => e.RecipientEmail == "active@tenant-a.com"),
                 Arg.Any<CancellationToken>()
             );
-        await outbox.DidNotReceive()
+        await outbox
+            .DidNotReceive()
             .InsertAsync(
-                Arg.Is<NotificationOutboxEntry>(e =>
-                    e.RecipientEmail == "inactive@tenant-a.com"
-                ),
+                Arg.Is<NotificationOutboxEntry>(e => e.RecipientEmail == "inactive@tenant-a.com"),
                 Arg.Any<CancellationToken>()
             );
 
@@ -149,9 +159,7 @@ public sealed class RefreshReuseDetectedConsumerTests
         services.AddSingleton<ITemplateRenderer, SimpleTemplateRenderer>();
         services.AddSingleton<TemplateResourceLoader>();
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
-        services.AddMassTransitTestHarness(cfg =>
-            cfg.AddConsumer<RefreshReuseDetectedConsumer>()
-        );
+        services.AddMassTransitTestHarness(cfg => cfg.AddConsumer<RefreshReuseDetectedConsumer>());
         return services.BuildServiceProvider(validateScopes: true);
     }
 }

@@ -79,8 +79,8 @@ public sealed class PickerFixture : IAsyncLifetime
 
     public string PickerEmail => $"picker@{TenantSlug}.test";
 
-    public WebApplicationFactory<Program> Factory => _factory
-        ?? throw new InvalidOperationException("Fixture not initialized.");
+    public WebApplicationFactory<Program> Factory =>
+        _factory ?? throw new InvalidOperationException("Fixture not initialized.");
 
     public HttpClient HttpClient => Factory.CreateClient();
 
@@ -147,7 +147,10 @@ public sealed class PickerFixture : IAsyncLifetime
             b.UseSetting("ControlPlane:ConnectionString", ControlPlaneConnectionString);
             b.UseSetting(
                 "ControlPlane:TenantTemplate",
-                new NpgsqlConnectionStringBuilder(admin) { Database = "{Database}" }.ConnectionString
+                new NpgsqlConnectionStringBuilder(admin)
+                {
+                    Database = "{Database}",
+                }.ConnectionString
             );
         });
     }

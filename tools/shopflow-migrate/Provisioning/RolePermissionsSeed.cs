@@ -116,7 +116,8 @@ public sealed class RolePermissionsSeed
             "RolePermissionsSeed: ensured Owner row has {OwnerCount} permission keys, Picker row has {PickerCount} baseline keys, Dispatcher row has {DispatcherCount} baseline keys.",
             PermissionKeys.All.Count,
             PickerBaseline.Count,
-            DispatcherBaseline.Count);
+            DispatcherBaseline.Count
+        );
     }
 
     private static async Task InsertAsync(
@@ -124,7 +125,8 @@ public sealed class RolePermissionsSeed
         NpgsqlTransaction tx,
         string role,
         string key,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         await using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;

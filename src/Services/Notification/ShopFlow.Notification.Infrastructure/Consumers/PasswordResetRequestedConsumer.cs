@@ -17,8 +17,7 @@ namespace ShopFlow.Notification.Infrastructure.Consumers;
 /// background dispatcher picks the row up and ships it via
 /// <c>IMailerProvider</c>.
 /// </summary>
-public sealed class PasswordResetRequestedConsumer
-    : IConsumer<PasswordResetRequestedV1>
+public sealed class PasswordResetRequestedConsumer : IConsumer<PasswordResetRequestedV1>
 {
     private readonly INotificationOutboxRepository _outbox;
     private readonly ITemplateRenderer _renderer;

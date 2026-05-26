@@ -35,16 +35,20 @@ public sealed class JwtTokenIssuerTests
 
     private static JwtTokenIssuer BuildIssuer(
         int ttlMinutes = 15,
-        IRolePermissionRepository? rolePerms = null) =>
+        IRolePermissionRepository? rolePerms = null
+    ) =>
         new(
-            Options.Create(new JwtIssuerOptions
-            {
-                DevSecret = TestSecret,
-                Issuer = TestIssuer,
-                Audience = TestAudience,
-                AccessTokenTtlMinutes = ttlMinutes,
-            }),
-            rolePerms ?? BuildRolePerms());
+            Options.Create(
+                new JwtIssuerOptions
+                {
+                    DevSecret = TestSecret,
+                    Issuer = TestIssuer,
+                    Audience = TestAudience,
+                    AccessTokenTtlMinutes = ttlMinutes,
+                }
+            ),
+            rolePerms ?? BuildRolePerms()
+        );
 
     private static User BuildUser(UserRole role = UserRole.Owner) =>
         User.Create("owner@example.com", ValidHash, role);
@@ -67,7 +71,11 @@ public sealed class JwtTokenIssuerTests
         var issuer = BuildIssuer();
         var user = BuildUser(UserRole.Picker);
 
-        var token = await issuer.IssueAccessTokenAsync(user, "yensaokhanhhoa", CancellationToken.None);
+        var token = await issuer.IssueAccessTokenAsync(
+            user,
+            "yensaokhanhhoa",
+            CancellationToken.None
+        );
         var handler = new JsonWebTokenHandler();
         var jwt = handler.ReadJsonWebToken(token.Jwt);
 
@@ -146,7 +154,8 @@ public sealed class JwtTokenIssuerTests
             ValidAudience = TestAudience,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes("WRONG-secret-32-bytes-or-more-AAAAAAAA")),
+                Encoding.UTF8.GetBytes("WRONG-secret-32-bytes-or-more-AAAAAAAA")
+            ),
         };
         var handler = new JsonWebTokenHandler();
         var result = await handler.ValidateTokenAsync(token.Jwt, wrongSecretParams);
@@ -174,18 +183,21 @@ public sealed class JwtTokenIssuerTests
     [Fact]
     public void Construct_RejectsUnderSize32ByteSecret()
     {
-        var act = () => new JwtTokenIssuer(
-            Options.Create(new JwtIssuerOptions
-            {
-                DevSecret = "too-short",
-                Issuer = TestIssuer,
-                Audience = TestAudience,
-                AccessTokenTtlMinutes = 15,
-            }),
-            BuildRolePerms());
+        var act = () =>
+            new JwtTokenIssuer(
+                Options.Create(
+                    new JwtIssuerOptions
+                    {
+                        DevSecret = "too-short",
+                        Issuer = TestIssuer,
+                        Audience = TestAudience,
+                        AccessTokenTtlMinutes = 15,
+                    }
+                ),
+                BuildRolePerms()
+            );
 
-        act.Should().Throw<InvalidOperationException>()
-            .WithMessage("*32 bytes*");
+        act.Should().Throw<InvalidOperationException>().WithMessage("*32 bytes*");
     }
 
     [Fact]
@@ -207,7 +219,8 @@ public sealed class JwtTokenIssuerTests
         var rolePerms = BuildRolePerms(
             "inventory.read",
             "inventory.adjust",
-            "outbound.orders.read");
+            "outbound.orders.read"
+        );
         var issuer = BuildIssuer(rolePerms: rolePerms);
         var user = BuildUser(UserRole.Picker);
 
@@ -217,11 +230,18 @@ public sealed class JwtTokenIssuerTests
         // JsonWebTokenHandler flattens N same-type claims into a JSON
         // array under the claim name).
         var payloadBase64 = token.Jwt.Split('.')[1];
-        var padded = payloadBase64.PadRight(payloadBase64.Length + (4 - payloadBase64.Length % 4) % 4, '=');
-        var json = Encoding.UTF8.GetString(Convert.FromBase64String(padded.Replace('-', '+').Replace('_', '/')));
+        var padded = payloadBase64.PadRight(
+            payloadBase64.Length + (4 - payloadBase64.Length % 4) % 4,
+            '='
+        );
+        var json = Encoding.UTF8.GetString(
+            Convert.FromBase64String(padded.Replace('-', '+').Replace('_', '/'))
+        );
         using var doc = JsonDocument.Parse(json);
         var permEl = doc.RootElement.GetProperty("perm");
-        permEl.ValueKind.Should().Be(JsonValueKind.Array, "perm claim MUST be a JSON array, not space-delimited string");
+        permEl
+            .ValueKind.Should()
+            .Be(JsonValueKind.Array, "perm claim MUST be a JSON array, not space-delimited string");
         permEl.GetArrayLength().Should().Be(3);
     }
 
@@ -242,9 +262,7 @@ public sealed class JwtTokenIssuerTests
     [Fact]
     public async Task IssueAccessToken_RoundTripsThroughKernelValidator_AndPermClaimsSurfaceInClaimsPrincipal()
     {
-        var rolePerms = BuildRolePerms(
-            "auth.admin.users.list",
-            "auth.admin.users.create");
+        var rolePerms = BuildRolePerms("auth.admin.users.list", "auth.admin.users.create");
         var issuer = BuildIssuer(rolePerms: rolePerms);
         var user = BuildUser(UserRole.Owner);
         var token = await issuer.IssueAccessTokenAsync(user, "tenant1", CancellationToken.None);
@@ -265,10 +283,8 @@ public sealed class JwtTokenIssuerTests
         result.IsValid.Should().BeTrue();
         var principal = result.ClaimsIdentity!;
         var permValues = principal.FindAll("perm").Select(c => c.Value).ToHashSet();
-        permValues.Should().BeEquivalentTo(new[]
-        {
-            "auth.admin.users.list",
-            "auth.admin.users.create",
-        });
+        permValues
+            .Should()
+            .BeEquivalentTo(new[] { "auth.admin.users.list", "auth.admin.users.create" });
     }
 }

@@ -58,8 +58,7 @@ public sealed class FulfillmentSagaTests
 
         services.AddMassTransitTestHarness(cfg =>
         {
-            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .InMemoryRepository();
+            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>().InMemoryRepository();
         });
 
         var sp = services.BuildServiceProvider(true);
@@ -72,8 +71,9 @@ public sealed class FulfillmentSagaTests
     {
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -124,8 +124,9 @@ public sealed class FulfillmentSagaTests
         // transient.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
         var queue = sp.GetRequiredService<IPickQueue>();
 
         var orderId = Guid.NewGuid();
@@ -166,7 +167,10 @@ public sealed class FulfillmentSagaTests
 
         // U5 — the PickRequestV1 envelope landed on the tenant's queue.
         var reader = queue.GetReader(tenantId);
-        reader.TryRead(out var item).Should().BeTrue("the saga must write a PickRequestV1 to the queue");
+        reader
+            .TryRead(out var item)
+            .Should()
+            .BeTrue("the saga must write a PickRequestV1 to the queue");
         item!.OrderId.Should().Be(orderId);
         item.TenantId.Should().Be(tenantId);
         item.ShippingProfile.Should().Be("standard");
@@ -187,8 +191,9 @@ public sealed class FulfillmentSagaTests
         // because the saga has nothing to wait for.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -211,10 +216,7 @@ public sealed class FulfillmentSagaTests
         );
         await harness.Bus.Publish(failed);
 
-        var cancelled = await sagaHarness.Exists(
-            orderId,
-            sagaHarness.StateMachine.Cancelled
-        );
+        var cancelled = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Cancelled);
         cancelled
             .Should()
             .NotBeNull(
@@ -227,8 +229,9 @@ public sealed class FulfillmentSagaTests
     {
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         await harness.Bus.Publish(
@@ -264,8 +267,9 @@ public sealed class FulfillmentSagaTests
         // and the saga stays put.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();

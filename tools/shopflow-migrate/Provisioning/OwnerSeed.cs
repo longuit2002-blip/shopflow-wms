@@ -43,7 +43,8 @@ public sealed class OwnerSeed
         string tenantConnectionString,
         string ownerEmail,
         string? explicitPassword,
-        CancellationToken ct)
+        CancellationToken ct
+    )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantConnectionString);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerEmail);
@@ -62,7 +63,9 @@ public sealed class OwnerSeed
             if (count > 0)
             {
                 _logger.LogInformation(
-                    "Owner '{Email}' already exists in tenant DB; seed is a no-op.", normalizedEmail);
+                    "Owner '{Email}' already exists in tenant DB; seed is a no-op.",
+                    normalizedEmail
+                );
                 return new OwnerSeedResult(OwnerSeedOutcome.AlreadySeeded, normalizedEmail, null);
             }
         }
@@ -92,11 +95,11 @@ public sealed class OwnerSeed
         return new OwnerSeedResult(
             OwnerSeedOutcome.Seeded,
             normalizedEmail,
-            passwordWasGenerated ? plaintext : null);
+            passwordWasGenerated ? plaintext : null
+        );
     }
 
-    private static Argon2idPasswordHasher BuildHasher() =>
-        new(Options.Create(new Argon2Options()));
+    private static Argon2idPasswordHasher BuildHasher() => new(Options.Create(new Argon2Options()));
 }
 
 /// <summary>
@@ -109,7 +112,8 @@ public sealed class OwnerSeed
 public sealed record OwnerSeedResult(
     OwnerSeedOutcome Outcome,
     string OwnerEmail,
-    string? GeneratedPassword);
+    string? GeneratedPassword
+);
 
 public enum OwnerSeedOutcome
 {

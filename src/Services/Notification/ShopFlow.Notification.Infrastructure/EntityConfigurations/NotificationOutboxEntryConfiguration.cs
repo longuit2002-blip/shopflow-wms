@@ -43,14 +43,8 @@ internal sealed class NotificationOutboxEntryConfiguration
             .HasColumnName("rendered_subject")
             .HasMaxLength(998)
             .IsRequired();
-        builder
-            .Property(o => o.RenderedBodyText)
-            .HasColumnName("rendered_body_text")
-            .IsRequired();
-        builder
-            .Property(o => o.RenderedBodyHtml)
-            .HasColumnName("rendered_body_html")
-            .IsRequired();
+        builder.Property(o => o.RenderedBodyText).HasColumnName("rendered_body_text").IsRequired();
+        builder.Property(o => o.RenderedBodyHtml).HasColumnName("rendered_body_html").IsRequired();
         builder
             .Property(o => o.Status)
             .HasColumnName("status")
@@ -63,10 +57,7 @@ internal sealed class NotificationOutboxEntryConfiguration
             .HasDefaultValue(0)
             .IsRequired();
         builder.Property(o => o.LastAttemptAt).HasColumnName("last_attempt_at");
-        builder
-            .Property(o => o.LastErrorCode)
-            .HasColumnName("last_error_code")
-            .HasMaxLength(128);
+        builder.Property(o => o.LastErrorCode).HasColumnName("last_error_code").HasMaxLength(128);
         builder.Property(o => o.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at").IsRequired();
 

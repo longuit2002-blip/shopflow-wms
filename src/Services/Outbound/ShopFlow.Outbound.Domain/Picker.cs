@@ -32,10 +32,6 @@ public sealed class Picker
         {
             throw new ArgumentException("display_name is required.", nameof(displayName));
         }
-        return new Picker
-        {
-            PickerId = pickerId.Trim(),
-            DisplayName = displayName.Trim(),
-        };
+        return new Picker { PickerId = pickerId.Trim(), DisplayName = displayName.Trim() };
     }
 }

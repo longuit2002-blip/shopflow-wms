@@ -38,10 +38,12 @@ public sealed partial class OutboundIndexAudit : Migration
         ArgumentNullException.ThrowIfNull(mb);
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_outbound_orders_status_created_at "
-            + "ON outbound_orders (status, created_at DESC);");
+                + "ON outbound_orders (status, created_at DESC);"
+        );
         mb.Sql(
             "CREATE INDEX IF NOT EXISTS ix_outbound_order_lines_order_id "
-            + "ON outbound_order_lines (order_id);");
+                + "ON outbound_order_lines (order_id);"
+        );
     }
 
     protected override void Down(MigrationBuilder mb)

@@ -11,11 +11,7 @@ public sealed class SimpleTemplateRendererTests
     public void RenderText_HappyPath_SubstitutesAllPlaceholders()
     {
         var template = "Hello {name}, your link: {url}";
-        var vars = new Dictionary<string, string>
-        {
-            ["name"] = "Alice",
-            ["url"] = "https://x.com",
-        };
+        var vars = new Dictionary<string, string> { ["name"] = "Alice", ["url"] = "https://x.com" };
 
         var rendered = _renderer.RenderText(template, vars);
 
@@ -32,7 +28,9 @@ public sealed class SimpleTemplateRendererTests
 
         act.Should()
             .Throw<TemplateRenderException>()
-            .Where(ex => ex.MissingKey == "url" && ex.Message.Contains("url", StringComparison.Ordinal));
+            .Where(ex =>
+                ex.MissingKey == "url" && ex.Message.Contains("url", StringComparison.Ordinal)
+            );
     }
 
     [Fact]
@@ -43,9 +41,7 @@ public sealed class SimpleTemplateRendererTests
 
         var rendered = _renderer.RenderHtml(template, vars);
 
-        rendered
-            .Should()
-            .Be("<p>Hello &lt;script&gt;alert(1)&lt;/script&gt;, welcome!</p>");
+        rendered.Should().Be("<p>Hello &lt;script&gt;alert(1)&lt;/script&gt;, welcome!</p>");
     }
 
     [Fact]

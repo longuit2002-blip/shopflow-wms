@@ -181,9 +181,9 @@ public static class OutboundServiceCollectionExtensions
                 )
                 .Build()
         );
-        services.AddSingleton<IMockShippingProvider>(sp =>
-            new MockShippingProvider(sp.GetRequiredService<ResiliencePipeline>())
-        );
+        services.AddSingleton<IMockShippingProvider>(sp => new MockShippingProvider(
+            sp.GetRequiredService<ResiliencePipeline>()
+        ));
 
         // U6 — ChannelTrackingConsumer auto-registered via AddConsumers(asm)
         // in the kernel-wide AddShopFlowDefaults MassTransit configuration

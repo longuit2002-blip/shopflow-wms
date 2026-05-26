@@ -46,7 +46,9 @@ public sealed class UserRoleTests
         // First-declared member sits at 0 — and Owner is the privileged role
         // that the first-tenant-user seed (U10 seed-owner) provisions. Pin it
         // so an enum re-order can't silently demote a freshly-seeded admin.
-        ((int)UserRole.Owner).Should().Be(0);
+        ((int)UserRole.Owner)
+            .Should()
+            .Be(0);
         default(UserRole).Should().Be(UserRole.Owner);
     }
 

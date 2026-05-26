@@ -48,8 +48,8 @@ public sealed class InboundAuthorizationFixture : IAsyncLifetime
     public string ControlPlaneConnectionString { get; private set; } = string.Empty;
     public NarrowedJwtBuilder JwtBuilder { get; private set; } = default!;
 
-    public WebApplicationFactory<Program> Factory => _factory
-        ?? throw new InvalidOperationException("Fixture not initialized.");
+    public WebApplicationFactory<Program> Factory =>
+        _factory ?? throw new InvalidOperationException("Fixture not initialized.");
 
     public HttpClient HttpClient => Factory.CreateClient();
 
@@ -85,7 +85,10 @@ public sealed class InboundAuthorizationFixture : IAsyncLifetime
             b.UseSetting("ControlPlane:ConnectionString", ControlPlaneConnectionString);
             b.UseSetting(
                 "ControlPlane:TenantTemplate",
-                new NpgsqlConnectionStringBuilder(admin) { Database = "{Database}" }.ConnectionString
+                new NpgsqlConnectionStringBuilder(admin)
+                {
+                    Database = "{Database}",
+                }.ConnectionString
             );
         });
     }

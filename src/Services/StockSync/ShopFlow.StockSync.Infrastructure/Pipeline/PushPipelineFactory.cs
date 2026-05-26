@@ -93,52 +93,54 @@ public sealed class PushPipelineFactory
         var manualControl = new CircuitBreakerManualControl();
 
         var pipeline = new ResiliencePipelineBuilder<Result>()
-            .AddCircuitBreaker(new CircuitBreakerStrategyOptions<Result>
-            {
-                // FailureRatio = 1.0 turns the breaker into a pure
-                // consecutive-failure detector inside the sampling
-                // window: every action must fail for the breaker to
-                // trip. Combined with MinimumThroughput = 5 this means
-                // 5 back-to-back failures inside SamplingDuration =
-                // Open.
-                FailureRatio = 1.0,
-                MinimumThroughput = _settings.MinimumThroughput,
-                BreakDuration = TimeSpan.FromSeconds(_settings.BreakDurationSeconds),
-                SamplingDuration = TimeSpan.FromSeconds(_settings.SamplingDurationSeconds),
-                StateProvider = stateProvider,
-                ManualControl = manualControl,
-                ShouldHandle = new PredicateBuilder<Result>()
-                    .Handle<Exception>()
-                    .HandleResult(static r => r is not null && !r.IsSuccess),
-                OnOpened = args =>
+            .AddCircuitBreaker(
+                new CircuitBreakerStrategyOptions<Result>
                 {
-                    _logger.LogWarning(
-                        "Circuit breaker OPENED for tenant {TenantId} channel {ChannelType} (break duration {BreakSeconds}s).",
-                        tenantId,
-                        channelType,
-                        (int)args.BreakDuration.TotalSeconds
-                    );
-                    return ValueTask.CompletedTask;
-                },
-                OnClosed = args =>
-                {
-                    _logger.LogInformation(
-                        "Circuit breaker CLOSED for tenant {TenantId} channel {ChannelType}.",
-                        tenantId,
-                        channelType
-                    );
-                    return ValueTask.CompletedTask;
-                },
-                OnHalfOpened = args =>
-                {
-                    _logger.LogInformation(
-                        "Circuit breaker HALF-OPEN probe for tenant {TenantId} channel {ChannelType}.",
-                        tenantId,
-                        channelType
-                    );
-                    return ValueTask.CompletedTask;
-                },
-            })
+                    // FailureRatio = 1.0 turns the breaker into a pure
+                    // consecutive-failure detector inside the sampling
+                    // window: every action must fail for the breaker to
+                    // trip. Combined with MinimumThroughput = 5 this means
+                    // 5 back-to-back failures inside SamplingDuration =
+                    // Open.
+                    FailureRatio = 1.0,
+                    MinimumThroughput = _settings.MinimumThroughput,
+                    BreakDuration = TimeSpan.FromSeconds(_settings.BreakDurationSeconds),
+                    SamplingDuration = TimeSpan.FromSeconds(_settings.SamplingDurationSeconds),
+                    StateProvider = stateProvider,
+                    ManualControl = manualControl,
+                    ShouldHandle = new PredicateBuilder<Result>()
+                        .Handle<Exception>()
+                        .HandleResult(static r => r is not null && !r.IsSuccess),
+                    OnOpened = args =>
+                    {
+                        _logger.LogWarning(
+                            "Circuit breaker OPENED for tenant {TenantId} channel {ChannelType} (break duration {BreakSeconds}s).",
+                            tenantId,
+                            channelType,
+                            (int)args.BreakDuration.TotalSeconds
+                        );
+                        return ValueTask.CompletedTask;
+                    },
+                    OnClosed = args =>
+                    {
+                        _logger.LogInformation(
+                            "Circuit breaker CLOSED for tenant {TenantId} channel {ChannelType}.",
+                            tenantId,
+                            channelType
+                        );
+                        return ValueTask.CompletedTask;
+                    },
+                    OnHalfOpened = args =>
+                    {
+                        _logger.LogInformation(
+                            "Circuit breaker HALF-OPEN probe for tenant {TenantId} channel {ChannelType}.",
+                            tenantId,
+                            channelType
+                        );
+                        return ValueTask.CompletedTask;
+                    },
+                }
+            )
             .Build();
 
         return new PushPipelineBundle(pipeline, stateProvider);

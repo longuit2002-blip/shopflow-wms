@@ -86,9 +86,7 @@ public sealed class PickWaveGenerationFlowTests : IAsyncLifetime
         // Assert: one pick_waves row + 50 pick_assignments + all orders
         // carry the same pick_wave_id.
         await using var verify = new OutboundDbContext(_tenant.Options);
-        var waves = await verify
-            .PickWaves.Include(w => w.Assignments)
-            .ToListAsync();
+        var waves = await verify.PickWaves.Include(w => w.Assignments).ToListAsync();
         waves.Should().HaveCount(1, "one wave per (tenant, profile) flush");
         var wave = waves.Single();
         wave.Assignments.Should().HaveCount(50);
@@ -108,15 +106,11 @@ public sealed class PickWaveGenerationFlowTests : IAsyncLifetime
 
         await using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText =
-                "SELECT COUNT(*) FROM orders WHERE pick_wave_id = @wid";
+            cmd.CommandText = "SELECT COUNT(*) FROM orders WHERE pick_wave_id = @wid";
             cmd.Parameters.AddWithValue("wid", wave.Id);
             ((long)(await cmd.ExecuteScalarAsync())!)
                 .Should()
-                .Be(
-                    50,
-                    "every seeded order should have its pick_wave_id updated to the new wave"
-                );
+                .Be(50, "every seeded order should have its pick_wave_id updated to the new wave");
         }
     }
 
@@ -220,11 +214,9 @@ public sealed class PickWaveGenerationFlowTests : IAsyncLifetime
         var orderIds = new List<Guid>();
         for (var i = 0; i < count; i++)
         {
-            var order = Order.Create(
-                $"ext-flow-{i:000}",
-                profile,
-                new[] { ("SKU-X", 1, (int?)1) }
-            ).Value!;
+            var order = Order
+                .Create($"ext-flow-{i:000}", profile, new[] { ("SKU-X", 1, (int?)1) })
+                .Value!;
             ctx.Orders.Add(order);
             orderIds.Add(order.Id);
         }

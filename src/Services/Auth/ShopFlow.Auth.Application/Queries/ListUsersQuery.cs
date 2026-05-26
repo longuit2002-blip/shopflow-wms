@@ -9,5 +9,4 @@ namespace ShopFlow.Auth.Application.Queries;
 /// authorization filter on the U9 endpoint enforces the Owner-only
 /// invariant before this query reaches the handler.
 /// </summary>
-public sealed record ListUsersQuery(int Page, int PageSize)
-    : IRequest<Result<ListUsersResponse>>;
+public sealed record ListUsersQuery(int Page, int PageSize) : IRequest<Result<ListUsersResponse>>;

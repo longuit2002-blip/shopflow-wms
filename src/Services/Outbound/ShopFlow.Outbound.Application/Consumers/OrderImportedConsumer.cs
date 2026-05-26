@@ -109,9 +109,7 @@ public sealed class OrderImportedConsumer : IConsumer<OrderImportedV1>
                 .ToArray(),
             OccurredAt: placedAt
         );
-        await _outbox
-            .AppendAsync(OrderPlacedV1EventType, placedPayload, ct)
-            .ConfigureAwait(false);
+        await _outbox.AppendAsync(OrderPlacedV1EventType, placedPayload, ct).ConfigureAwait(false);
 
         await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
 

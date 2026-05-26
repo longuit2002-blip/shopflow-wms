@@ -43,8 +43,7 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private static RolePermissionsSeed BuildSeed() =>
-        new(NullLogger<RolePermissionsSeed>.Instance);
+    private static RolePermissionsSeed BuildSeed() => new(NullLogger<RolePermissionsSeed>.Instance);
 
     [Fact]
     public async Task SeedAsync_FreshTenant_Inserts_Owner_Picker_And_Dispatcher_Baseline_Rows()
@@ -66,21 +65,24 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
         total.Should().Be(expectedTotal);
 
         var pickerKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Picker");
-        pickerKeys.Should().BeEquivalentTo(new[]
-        {
-            "outbound.orders.read",
-            "outbound.orders.pick-confirm",
-            "inventory.read",
-            "hub.connect",
-        });
+        pickerKeys
+            .Should()
+            .BeEquivalentTo(
+                new[]
+                {
+                    "outbound.orders.read",
+                    "outbound.orders.pick-confirm",
+                    "inventory.read",
+                    "hub.connect",
+                }
+            );
 
         var dispatcherKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Dispatcher");
-        dispatcherKeys.Should().BeEquivalentTo(new[]
-        {
-            "outbound.orders.read",
-            "outbound.orders.ship-confirm",
-            "hub.connect",
-        });
+        dispatcherKeys
+            .Should()
+            .BeEquivalentTo(
+                new[] { "outbound.orders.read", "outbound.orders.ship-confirm", "hub.connect" }
+            );
 
         var ownerKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Owner");
         ownerKeys.Should().BeEquivalentTo(PermissionKeys.All);
@@ -102,20 +104,29 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
         await InsertRoleKeyAsync(
             _tenant.ConnectionString,
             "Picker",
-            PermissionKeys.OutboundOrdersShipConfirm);
+            PermissionKeys.OutboundOrdersShipConfirm
+        );
 
         // Sprint-12 re-runs provisioning.
         await seed.SeedAsync(_tenant.ConnectionString, CancellationToken.None);
 
         var pickerKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Picker");
         pickerKeys.Should().HaveCount(5);
-        pickerKeys.Should().Contain(PermissionKeys.OutboundOrdersShipConfirm,
-            because: "KTD1 additive-only — Owner addition on Picker survives re-seed");
+        pickerKeys
+            .Should()
+            .Contain(
+                PermissionKeys.OutboundOrdersShipConfirm,
+                because: "KTD1 additive-only — Owner addition on Picker survives re-seed"
+            );
 
         var dispatcherKeys = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Dispatcher");
         dispatcherKeys.Should().HaveCount(3);
-        dispatcherKeys.Should().BeEquivalentTo(RolePermissionsSeed.DispatcherBaseline,
-            because: "Dispatcher baseline writes cleanly alongside the preserved Picker grant");
+        dispatcherKeys
+            .Should()
+            .BeEquivalentTo(
+                RolePermissionsSeed.DispatcherBaseline,
+                because: "Dispatcher baseline writes cleanly alongside the preserved Picker grant"
+            );
     }
 
     [Fact]
@@ -152,8 +163,12 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
         await DeleteRoleKeyAsync(_tenant.ConnectionString, "Picker", PermissionKeys.InventoryRead);
 
         var afterDelete = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Picker");
-        afterDelete.Should().NotContain(PermissionKeys.InventoryRead,
-            because: "the manual DELETE removed the baseline row");
+        afterDelete
+            .Should()
+            .NotContain(
+                PermissionKeys.InventoryRead,
+                because: "the manual DELETE removed the baseline row"
+            );
         afterDelete.Should().HaveCount(3);
 
         // Re-seed — the baseline INSERT path must re-insert the
@@ -163,8 +178,12 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
 
         var afterReseed = await ReadPermissionKeysAsync(_tenant.ConnectionString, "Picker");
         afterReseed.Should().HaveCount(4);
-        afterReseed.Should().Contain(PermissionKeys.InventoryRead,
-            because: "the re-seed re-inserted the deleted baseline key");
+        afterReseed
+            .Should()
+            .Contain(
+                PermissionKeys.InventoryRead,
+                because: "the re-seed re-inserted the deleted baseline key"
+            );
         afterReseed.Should().BeEquivalentTo(RolePermissionsSeed.PickerBaseline);
     }
 
@@ -187,10 +206,18 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
         await seed.SeedAsync(_tenant.ConnectionString, CancellationToken.None);
 
         var secondSnapshot = await ReadRowSnapshotAsync(_tenant.ConnectionString);
-        secondSnapshot.Should().HaveCount(expectedTotal,
-            because: "re-seed must not produce duplicate rows on the composite PK");
-        secondSnapshot.Should().BeEquivalentTo(firstSnapshot,
-            because: "ON CONFLICT DO NOTHING must leave existing created_at values untouched");
+        secondSnapshot
+            .Should()
+            .HaveCount(
+                expectedTotal,
+                because: "re-seed must not produce duplicate rows on the composite PK"
+            );
+        secondSnapshot
+            .Should()
+            .BeEquivalentTo(
+                firstSnapshot,
+                because: "ON CONFLICT DO NOTHING must leave existing created_at values untouched"
+            );
     }
 
     // ---- helpers ----
@@ -222,7 +249,9 @@ public sealed class RolePermissionsSeedIntegrationTests : IAsyncLifetime
         return keys;
     }
 
-    private static async Task<List<(string Role, string Key, DateTime CreatedAt)>> ReadRowSnapshotAsync(string connStr)
+    private static async Task<
+        List<(string Role, string Key, DateTime CreatedAt)>
+    > ReadRowSnapshotAsync(string connStr)
     {
         await using var conn = new NpgsqlConnection(connStr);
         await conn.OpenAsync();

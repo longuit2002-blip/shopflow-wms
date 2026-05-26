@@ -26,4 +26,5 @@ public sealed record InventorySummaryDto(
     long TotalAvailable,
     long TotalReserved,
     int BelowThresholdCount,
-    int OversellRiskCount);
+    int OversellRiskCount
+);

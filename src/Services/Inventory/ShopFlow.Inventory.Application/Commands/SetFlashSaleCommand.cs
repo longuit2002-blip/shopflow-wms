@@ -10,7 +10,5 @@ namespace ShopFlow.Inventory.Application.Commands;
 /// the handler now lives in its own file (<c>SetFlashSaleCommandHandler.cs</c>)
 /// alongside <c>SetThresholdCommandHandler.cs</c>.
 /// </summary>
-public sealed record SetFlashSaleCommand(
-    string Sku,
-    bool Active,
-    string? IdempotencyKey) : IRequest<Result>;
+public sealed record SetFlashSaleCommand(string Sku, bool Active, string? IdempotencyKey)
+    : IRequest<Result>;

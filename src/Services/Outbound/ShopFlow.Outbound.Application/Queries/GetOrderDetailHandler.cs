@@ -23,7 +23,8 @@ public sealed class GetOrderDetailHandler
 
     public async Task<Result<OrderDetailReadModel>> Handle(
         GetOrderDetailQuery request,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken
+    )
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -35,19 +36,21 @@ public sealed class GetOrderDetailHandler
         {
             return Result<OrderDetailReadModel>.Failure(
                 $"order {request.OrderId} not found.",
-                "order.not_found");
+                "order.not_found"
+            );
         }
 
         var currentSagaState = await _orderRepo
             .GetCurrentSagaStateAsync(request.OrderId, cancellationToken)
             .ConfigureAwait(false);
 
-        var lines = order.Lines
-            .Select(l => new OrderLineReadModel(
+        var lines = order
+            .Lines.Select(l => new OrderLineReadModel(
                 Id: l.Id,
                 Sku: l.Sku,
                 Qty: l.Qty,
-                ExpectedWeight: l.ExpectedWeight))
+                ExpectedWeight: l.ExpectedWeight
+            ))
             .ToList();
 
         var detail = new OrderDetailReadModel(
@@ -64,7 +67,8 @@ public sealed class GetOrderDetailHandler
             PickWaveId: order.PickWaveId,
             CreatedAt: order.CreatedAt,
             UpdatedAt: order.UpdatedAt,
-            Lines: lines);
+            Lines: lines
+        );
 
         return Result<OrderDetailReadModel>.Success(detail);
     }

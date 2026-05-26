@@ -51,7 +51,9 @@ public sealed class SkuFlagsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
-            return BadRequest(new { error = "sku must be non-empty", code = "stocksync.sku.empty" });
+            return BadRequest(
+                new { error = "sku must be non-empty", code = "stocksync.sku.empty" }
+            );
         }
 
         if (body is null)

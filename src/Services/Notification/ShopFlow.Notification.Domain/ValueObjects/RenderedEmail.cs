@@ -57,7 +57,10 @@ public sealed class RenderedEmail
     {
         if (string.IsNullOrWhiteSpace(subject))
         {
-            throw new ArgumentException("RenderedEmail subject must be non-empty.", nameof(subject));
+            throw new ArgumentException(
+                "RenderedEmail subject must be non-empty.",
+                nameof(subject)
+            );
         }
 
         var trimmedSubject = subject.Trim();
