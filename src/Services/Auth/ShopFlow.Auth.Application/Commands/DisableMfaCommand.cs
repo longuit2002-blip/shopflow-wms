@@ -13,4 +13,6 @@ public sealed record DisableMfaCommand(
     Guid UserId,
     string TenantSlug,
     string CurrentPassword,
+    string SourceIp,
+    string UserAgent,
     Guid CorrelationId) : IRequest<Result>;

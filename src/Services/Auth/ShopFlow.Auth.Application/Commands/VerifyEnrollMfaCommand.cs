@@ -19,6 +19,8 @@ public sealed record VerifyEnrollMfaCommand(
     Guid EnrollmentId,
     string Otp,
     bool RememberMe,
+    string SourceIp,
+    string UserAgent,
     Guid CorrelationId) : IRequest<Result<VerifyEnrollMfaResponse>>;
 
 /// <summary>

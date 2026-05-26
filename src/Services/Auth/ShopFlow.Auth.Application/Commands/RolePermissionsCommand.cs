@@ -19,6 +19,8 @@ public sealed record RolePermissionsCommand(
     RolePermissionsOperation Operation,
     string? PermissionKey,
     IReadOnlyList<string>? Permissions,
+    string SourceIp,
+    string UserAgent,
     Guid CorrelationId) : IRequest<Result>;
 
 /// <summary>

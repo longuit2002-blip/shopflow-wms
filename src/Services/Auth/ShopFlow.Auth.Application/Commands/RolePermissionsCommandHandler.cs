@@ -1,4 +1,6 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Domain;
 using ShopFlow.SharedKernel.Authorization;
@@ -10,7 +12,12 @@ namespace ShopFlow.Auth.Application.Commands;
 /// Sprint-9 U8 — Owner-only RBAC editor. KTD13 — server-side guard
 /// rejects any edit that would leave the Owner row missing one of
 /// <see cref="PermissionKeys.OwnerCritical"/> with 422
-/// <c>auth.role_permissions_owner_critical_locked</c>.
+/// <c>auth.role_permissions_owner_critical_locked</c>. Sprint-12.5 U1 —
+/// emits <c>auth.role_permissions.changed</c> on the successful update
+/// path with the actual <c>added</c> + <c>removed</c> diff (NOT the
+/// full desired set) so the audit trail captures the operator's intent
+/// over time. Rejections (OwnerCritical / unknown-key / operation-invalid)
+/// do not emit — audit captures successful actions.
 /// </summary>
 public sealed class RolePermissionsCommandHandler : IRequestHandler<RolePermissionsCommand, Result>
 {
@@ -19,10 +26,17 @@ public sealed class RolePermissionsCommandHandler : IRequestHandler<RolePermissi
     private const string OperationInvalid = "auth.role_permissions_operation_invalid";
 
     private readonly IRolePermissionRepository _repo;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<RolePermissionsCommandHandler> _logger;
 
-    public RolePermissionsCommandHandler(IRolePermissionRepository repo)
+    public RolePermissionsCommandHandler(
+        IRolePermissionRepository repo,
+        IAuthAuditLogRepository auditLog,
+        ILogger<RolePermissionsCommandHandler> logger)
     {
         _repo = repo;
+        _auditLog = auditLog;
+        _logger = logger;
     }
 
     public async Task<Result> Handle(RolePermissionsCommand request, CancellationToken ct)
@@ -83,6 +97,36 @@ public sealed class RolePermissionsCommandHandler : IRequestHandler<RolePermissi
         }
 
         var update = await _repo.UpdateForRoleAsync(request.TargetRole, desired, ct).ConfigureAwait(false);
-        return update.IsSuccess ? Result.Success() : Result.Failure(update.Error!, update.ErrorCode);
+        if (!update.IsSuccess)
+        {
+            return Result.Failure(update.Error!, update.ErrorCode);
+        }
+
+        // Sprint-12.5 U1 — capture the diff, not the full desired set,
+        // so the audit row is small + immediately actionable. Use sets
+        // for symmetric-difference semantics (no double-counting on
+        // SetAll equivalents of an Add+Remove).
+        var currentSet = current.ToHashSet(StringComparer.Ordinal);
+        var desiredFinalSet = desired.ToHashSet(StringComparer.Ordinal);
+        var added = desiredFinalSet.Except(currentSet).OrderBy(s => s, StringComparer.Ordinal).ToArray();
+        var removed = currentSet.Except(desiredFinalSet).OrderBy(s => s, StringComparer.Ordinal).ToArray();
+
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.RolePermissionsChanged,
+            request.ActorUserId,
+            request.SourceIp,
+            request.UserAgent,
+            new
+            {
+                targetRole = request.TargetRole.ToString(),
+                added,
+                removed,
+            },
+            request.CorrelationId,
+            ct).ConfigureAwait(false);
+
+        return Result.Success();
     }
 }

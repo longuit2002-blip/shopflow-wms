@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using MediatR;
+using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.SharedKernel.Domain;
 
@@ -21,6 +23,8 @@ public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPa
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _hasher;
     private readonly IRefreshTokenStore _refreshStore;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<ResetPasswordConfirmCommandHandler> _logger;
     private readonly TimeProvider _clock;
 
     public ResetPasswordConfirmCommandHandler(
@@ -28,12 +32,16 @@ public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPa
         IUserRepository users,
         IPasswordHasher hasher,
         IRefreshTokenStore refreshStore,
+        IAuthAuditLogRepository auditLog,
+        ILogger<ResetPasswordConfirmCommandHandler> logger,
         TimeProvider clock)
     {
         _resetTokens = resetTokens;
         _users = users;
         _hasher = hasher;
         _refreshStore = refreshStore;
+        _auditLog = auditLog;
+        _logger = logger;
         _clock = clock;
     }
 
@@ -74,6 +82,17 @@ public sealed class ResetPasswordConfirmCommandHandler : IRequestHandler<ResetPa
         await _refreshStore
             .RevokeAllForUserAsync(request.TenantSlug, user.Id, ct)
             .ConfigureAwait(false);
+
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.PasswordResetCompleted,
+            user.Id,
+            request.SourceIp,
+            request.UserAgent,
+            metadata: null,
+            request.CorrelationId,
+            ct).ConfigureAwait(false);
 
         return Result.Success();
     }
