@@ -4,6 +4,9 @@ docs/source/
 # Claude Code per-user settings (commit .claude/settings.json if you want shared config).
 .claude/settings.local.json
 
+# Claude Code subagent worktrees (per-agent isolated working trees).
+.claude/worktrees/
+
 # OS
 Thumbs.db
 .DS_Store
