@@ -91,6 +91,38 @@ public sealed class HandoffFixture : IAsyncLifetime
     public Guid PickerUserId { get; private set; } = Guid.NewGuid();
     public Guid DispatcherUserId { get; private set; } = Guid.NewGuid();
 
+    /// <summary>
+    /// Sprint-12.5 U4 — settable shipping-provider factory seam for the
+    /// tier-3 carrier-retry E2E tests
+    /// (<see cref="CarrierRetryE2ETests"/>). When non-null, the
+    /// <c>ConfigureTestServices</c> block at <c>InitializeAsync</c>
+    /// registers <see cref="IMockShippingProvider"/> via this factory
+    /// instead of the Sprint-12 KTD5 zero-flake default. The fixture's
+    /// default behavior is unchanged when the property remains null —
+    /// the original Sprint-12 happy-path + cross-role denial tests
+    /// continue to receive the zero-flake provider.
+    /// </summary>
+    /// <remarks>
+    /// <para>The factory receives the test <see cref="IServiceProvider"/>
+    /// so consumers can resolve the production
+    /// <see cref="ResiliencePipeline"/> via
+    /// <c>sp.GetRequiredService&lt;ResiliencePipeline&gt;()</c> before
+    /// constructing a <see cref="MockShippingProvider"/>. A counter shim
+    /// can wrap the constructed provider for retry-count assertions
+    /// (see <c>CarrierRetryE2ETests.CountingMockShippingProvider</c>).</para>
+    ///
+    /// <para>Set this BEFORE <see cref="InitializeAsync"/> runs. Once
+    /// the WAF is built the test-services callback has executed and
+    /// changing the property has no effect. xUnit class fixtures
+    /// instantiate before any <c>[Fact]</c> runs, so the per-test
+    /// approach is to either share one collection-scoped factory or to
+    /// instantiate <see cref="HandoffFixture"/> manually inside a single
+    /// test — Sprint-12.5 U4 takes the latter approach so the retry
+    /// tests don't perturb the shared
+    /// <see cref="HandoffCollection"/> fixture.</para>
+    /// </remarks>
+    public Func<IServiceProvider, IMockShippingProvider>? ShippingProviderFactory { get; set; }
+
     public string OwnerEmail => $"owner@{TenantSlug}.test";
     public string PickerEmail => $"picker@{TenantSlug}.test";
     public string DispatcherEmail => $"dispatcher@{TenantSlug}.test";
@@ -180,10 +212,25 @@ public sealed class HandoffFixture : IAsyncLifetime
             b.ConfigureTestServices(services =>
             {
                 services.RemoveAll<IMockShippingProvider>();
-                services.AddSingleton<IMockShippingProvider>(sp =>
-                    MockShippingProvider.WithFlakeRate(
-                        sp.GetRequiredService<ResiliencePipeline>(),
-                        0.0));
+                // Sprint-12.5 U4 — settable factory seam. When the
+                // tier-3 carrier-retry E2E test sets
+                // ShippingProviderFactory, register via that delegate
+                // (which can wrap a non-zero-flake MockShippingProvider
+                // in a counter shim). Otherwise fall back to the
+                // Sprint-12 KTD5 zero-flake default so the original
+                // happy-path + cross-role denial tests keep their
+                // deterministic-success contract.
+                if (ShippingProviderFactory is not null)
+                {
+                    services.AddSingleton<IMockShippingProvider>(ShippingProviderFactory);
+                }
+                else
+                {
+                    services.AddSingleton<IMockShippingProvider>(sp =>
+                        MockShippingProvider.WithFlakeRate(
+                            sp.GetRequiredService<ResiliencePipeline>(),
+                            0.0));
+                }
             });
         });
 

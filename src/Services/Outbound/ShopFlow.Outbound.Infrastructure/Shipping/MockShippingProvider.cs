@@ -28,7 +28,11 @@ namespace ShopFlow.Outbound.Infrastructure.Shipping;
 /// flake. Production binding uses a 5% rate.</para>
 ///
 /// <para>Random sources use <see cref="Random.Shared"/> per
-/// AGENTS.md §3.21 (no captured-stale-seed <c>new Random()</c>).</para>
+/// AGENTS.md §3.21 (no captured-stale-seed <c>new Random()</c>) by default.
+/// Sprint-12.5 U4 added the 5-arg ctor accepting an optional
+/// <c>Func&lt;double&gt;</c> for deterministic flake-sequencing in
+/// tier-3 carrier-retry E2E tests; production binding leaves it null so
+/// <see cref="Random.Shared"/> remains the canonical source.</para>
 /// </remarks>
 public sealed class MockShippingProvider : IMockShippingProvider
 {
@@ -45,15 +49,44 @@ public sealed class MockShippingProvider : IMockShippingProvider
     private readonly double _flakeRate;
     private readonly int _minDelayMs;
     private readonly int _maxDelayMsExclusive;
+    private readonly Func<double> _randomSource;
 
     public MockShippingProvider(ResiliencePipeline pipeline)
-        : this(pipeline, DefaultFlakeRate, DefaultMinDelayMs, DefaultMaxDelayMsExclusive) { }
+        : this(pipeline, DefaultFlakeRate, DefaultMinDelayMs, DefaultMaxDelayMsExclusive, randomSource: null) { }
 
     public MockShippingProvider(
         ResiliencePipeline pipeline,
         double flakeRate,
         int minDelayMs,
         int maxDelayMsExclusive
+    )
+        : this(pipeline, flakeRate, minDelayMs, maxDelayMsExclusive, randomSource: null) { }
+
+    /// <summary>
+    /// Sprint-12.5 U4 — additive 5-arg ctor accepting an optional
+    /// <paramref name="randomSource"/> for deterministic flake-sequencing
+    /// in tier-3 carrier-retry E2E tests. When null, falls back to
+    /// <see cref="Random.Shared"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>The injected lambda is invoked once per
+    /// <see cref="InnerCreateLabelAsync"/> attempt for the FLAKE decision.
+    /// The CARRIER DELAY in <see cref="InnerCreateLabelAsync"/> still uses
+    /// <see cref="Random.Shared"/> — wall-time variance is independent of
+    /// failure determinism; AE6's assertion is on call count not exact
+    /// wall-time.</para>
+    ///
+    /// <para>Polly v8 retry continuations resume on ThreadPool workers,
+    /// so any backing collection the lambda closes over MUST be
+    /// thread-safe (e.g. <see cref="System.Collections.Concurrent.ConcurrentQueue{T}"/>
+    /// — NOT <see cref="System.Collections.Generic.Queue{T}"/>).</para>
+    /// </remarks>
+    public MockShippingProvider(
+        ResiliencePipeline pipeline,
+        double flakeRate,
+        int minDelayMs,
+        int maxDelayMsExclusive,
+        Func<double>? randomSource
     )
     {
         ArgumentNullException.ThrowIfNull(pipeline);
@@ -75,6 +108,7 @@ public sealed class MockShippingProvider : IMockShippingProvider
         _flakeRate = flakeRate;
         _minDelayMs = minDelayMs;
         _maxDelayMsExclusive = maxDelayMsExclusive;
+        _randomSource = randomSource ?? (() => Random.Shared.NextDouble());
     }
 
     /// <inheritdoc />
@@ -104,7 +138,7 @@ public sealed class MockShippingProvider : IMockShippingProvider
         var delay = Random.Shared.Next(_minDelayMs, _maxDelayMsExclusive);
         await Task.Delay(delay, ct).ConfigureAwait(false);
 
-        if (Random.Shared.NextDouble() < _flakeRate)
+        if (_randomSource() < _flakeRate)
         {
             throw new TransientShippingException(
                 $"Mock carrier transient failure for order {order.Id}."
@@ -134,4 +168,22 @@ public sealed class MockShippingProvider : IMockShippingProvider
         int minDelayMs,
         int maxDelayMsExclusive
     ) => new(pipeline, flakeRate, minDelayMs, maxDelayMsExclusive);
+
+    /// <summary>
+    /// Sprint-12.5 U4 — builder for tier-3 carrier-retry E2E tests:
+    /// returns a provider with deterministic flake rate + custom delay
+    /// window + an injected <paramref name="randomSource"/> for
+    /// deterministic flake-sequencing. The lambda is invoked once per
+    /// <c>InnerCreateLabelAsync</c> attempt for the FLAKE decision; pass a
+    /// <see cref="System.Collections.Concurrent.ConcurrentQueue{T}"/>-backed
+    /// dequeue function for thread-safe pre-seeded value sequences
+    /// (Polly v8 retry continuations resume on ThreadPool workers).
+    /// </summary>
+    public static MockShippingProvider WithFlakeRateDelayAndRandom(
+        ResiliencePipeline pipeline,
+        double flakeRate,
+        int minDelayMs,
+        int maxDelayMsExclusive,
+        Func<double> randomSource
+    ) => new(pipeline, flakeRate, minDelayMs, maxDelayMsExclusive, randomSource);
 }
