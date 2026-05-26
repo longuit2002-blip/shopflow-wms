@@ -15,4 +15,6 @@ public sealed record AdminMfaResetCommand(
     Guid ActorUserId,
     Guid TargetUserId,
     string TenantSlug,
+    string SourceIp,
+    string UserAgent,
     Guid CorrelationId) : IRequest<Result>;

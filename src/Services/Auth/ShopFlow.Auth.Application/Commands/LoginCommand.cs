@@ -23,4 +23,7 @@ public sealed record LoginCommand(
     string Email,
     string Password,
     bool RememberMe,
-    string TenantSlug) : IRequest<Result<LoginResponse>>;
+    string TenantSlug,
+    string SourceIp,
+    string UserAgent,
+    Guid CorrelationId) : IRequest<Result<LoginResponse>>;

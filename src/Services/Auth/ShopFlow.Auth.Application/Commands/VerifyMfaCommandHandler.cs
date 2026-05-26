@@ -1,4 +1,6 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Dtos;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.SharedKernel.Domain;
@@ -23,6 +25,8 @@ public sealed class VerifyMfaCommandHandler : IRequestHandler<VerifyMfaCommand, 
     private readonly IPasswordHasher _hasher;
     private readonly ITokenIssuer _issuer;
     private readonly IRefreshTokenStore _refreshStore;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<VerifyMfaCommandHandler> _logger;
     private readonly SharedKernel.Application.IRequestContext _requestContext;
     private readonly TimeProvider _clock;
 
@@ -36,6 +40,8 @@ public sealed class VerifyMfaCommandHandler : IRequestHandler<VerifyMfaCommand, 
         IPasswordHasher hasher,
         ITokenIssuer issuer,
         IRefreshTokenStore refreshStore,
+        IAuthAuditLogRepository auditLog,
+        ILogger<VerifyMfaCommandHandler> logger,
         SharedKernel.Application.IRequestContext requestContext,
         TimeProvider clock)
     {
@@ -48,6 +54,8 @@ public sealed class VerifyMfaCommandHandler : IRequestHandler<VerifyMfaCommand, 
         _hasher = hasher;
         _issuer = issuer;
         _refreshStore = refreshStore;
+        _auditLog = auditLog;
+        _logger = logger;
         _requestContext = requestContext;
         _clock = clock;
     }
@@ -123,6 +131,17 @@ public sealed class VerifyMfaCommandHandler : IRequestHandler<VerifyMfaCommand, 
         var refresh = await _refreshStore
             .IssueAsync(payload.TenantSlug, user.Id, payload.RememberMe, ct)
             .ConfigureAwait(false);
+
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.MfaUsed,
+            user.Id,
+            request.SourceIp,
+            request.UserAgent,
+            metadata: null,
+            request.CorrelationId,
+            ct).ConfigureAwait(false);
 
         return Result<LoginResponse>.Success(new LoginResponse(
             AccessToken: access.Jwt,

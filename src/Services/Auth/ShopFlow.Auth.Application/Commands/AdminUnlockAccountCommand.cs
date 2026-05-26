@@ -12,4 +12,6 @@ public sealed record AdminUnlockAccountCommand(
     Guid ActorUserId,
     Guid TargetUserId,
     string TenantSlug,
+    string SourceIp,
+    string UserAgent,
     Guid CorrelationId) : IRequest<Result>;

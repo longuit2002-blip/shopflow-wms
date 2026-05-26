@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using MediatR;
+using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Dtos;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Contracts.Auth;
@@ -34,6 +36,8 @@ public sealed class VerifyEnrollMfaCommandHandler
     private readonly ITokenIssuer _issuer;
     private readonly IRefreshTokenStore _refreshStore;
     private readonly IAuthOutbox _outbox;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<VerifyEnrollMfaCommandHandler> _logger;
     private readonly IRequestContext _requestContext;
     private readonly TimeProvider _clock;
 
@@ -49,6 +53,8 @@ public sealed class VerifyEnrollMfaCommandHandler
         ITokenIssuer issuer,
         IRefreshTokenStore refreshStore,
         IAuthOutbox outbox,
+        IAuthAuditLogRepository auditLog,
+        ILogger<VerifyEnrollMfaCommandHandler> logger,
         IRequestContext requestContext,
         TimeProvider clock)
     {
@@ -63,6 +69,8 @@ public sealed class VerifyEnrollMfaCommandHandler
         _issuer = issuer;
         _refreshStore = refreshStore;
         _outbox = outbox;
+        _auditLog = auditLog;
+        _logger = logger;
         _requestContext = requestContext;
         _clock = clock;
     }
@@ -116,6 +124,17 @@ public sealed class VerifyEnrollMfaCommandHandler
         await _outbox.AppendAsync(
             typeof(MfaEnrolledV1).FullName!,
             new MfaEnrolledV1(_requestContext.TenantId, user.Id, user.Email, now, request.CorrelationId),
+            ct).ConfigureAwait(false);
+
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.MfaEnrolled,
+            user.Id,
+            request.SourceIp,
+            request.UserAgent,
+            metadata: null,
+            request.CorrelationId,
             ct).ConfigureAwait(false);
 
         var access = await _issuer.IssueAccessTokenAsync(user, payload.TenantSlug, ct).ConfigureAwait(false);

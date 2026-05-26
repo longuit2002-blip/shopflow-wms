@@ -77,8 +77,14 @@ public sealed class AuthController : ControllerBase
             return slugResult.ErrorResult!;
         }
 
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator
-            .Send(new LoginCommand(body.Email, body.Password, body.RememberMe, slugResult.Slug!), ct)
+            .Send(
+                new LoginCommand(
+                    body.Email, body.Password, body.RememberMe, slugResult.Slug!,
+                    clientIp, userAgent, Guid.NewGuid()),
+                ct)
             .ConfigureAwait(false);
 
         return result.IsSuccess
@@ -111,8 +117,14 @@ public sealed class AuthController : ControllerBase
             return slugResult.ErrorResult!;
         }
 
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator
-            .Send(new RefreshTokenCommand(body.RefreshToken, body.UserId, slugResult.Slug!), ct)
+            .Send(
+                new RefreshTokenCommand(
+                    body.RefreshToken, body.UserId, slugResult.Slug!,
+                    clientIp, userAgent, Guid.NewGuid()),
+                ct)
             .ConfigureAwait(false);
 
         if (result.IsSuccess)
@@ -143,8 +155,14 @@ public sealed class AuthController : ControllerBase
             return Unauthorized();
         }
 
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         await _mediator
-            .Send(new LogoutCommand(body.RefreshToken, body.AllDevices, userId, slug), ct)
+            .Send(
+                new LogoutCommand(
+                    body.RefreshToken, body.AllDevices, userId, slug,
+                    clientIp, userAgent, Guid.NewGuid()),
+                ct)
             .ConfigureAwait(false);
 
         return NoContent();
@@ -169,8 +187,14 @@ public sealed class AuthController : ControllerBase
             return Unauthorized();
         }
 
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator
-            .Send(new ChangePasswordCommand(body.CurrentPassword, body.NewPassword, userId, slug), ct)
+            .Send(
+                new ChangePasswordCommand(
+                    body.CurrentPassword, body.NewPassword, userId, slug,
+                    clientIp, userAgent, Guid.NewGuid()),
+                ct)
             .ConfigureAwait(false);
 
         if (result.IsSuccess)
@@ -317,6 +341,8 @@ public sealed class AuthController : ControllerBase
 
         // The enrollment token internally encodes the user_id; we
         // pass Guid.Empty as a placeholder and let the handler decode.
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator.Send(
             new VerifyEnrollMfaCommand(
                 UserId: Guid.Empty, // handler reads from challenge payload
@@ -325,6 +351,8 @@ public sealed class AuthController : ControllerBase
                 EnrollmentId: body.EnrollmentId,
                 Otp: body.Otp,
                 RememberMe: false,
+                SourceIp: clientIp,
+                UserAgent: userAgent,
                 CorrelationId: Guid.NewGuid()),
             ct).ConfigureAwait(false);
 
@@ -388,8 +416,10 @@ public sealed class AuthController : ControllerBase
             return Unauthorized();
         }
 
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator.Send(
-            new DisableMfaCommand(userId, slug, body.CurrentPassword, Guid.NewGuid()),
+            new DisableMfaCommand(userId, slug, body.CurrentPassword, clientIp, userAgent, Guid.NewGuid()),
             ct).ConfigureAwait(false);
 
         if (result.IsSuccess)

@@ -1,4 +1,6 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.SharedKernel.Domain;
 
@@ -7,7 +9,10 @@ namespace ShopFlow.Auth.Application.Commands;
 /// <summary>
 /// Sprint-9 U8 — self-service MFA disable. Requires current password
 /// re-verify; rejected when the user has <c>mfa_required = true</c>
-/// (Owner invariant + R17).
+/// (Owner invariant + R17). Sprint-12.5 U1 — emits
+/// <c>auth.mfa.disabled</c> only on the successful disable path
+/// (per R3, audit captures successful actions; the
+/// <c>auth.mfa_required_cannot_disable</c> rejection has no audit row).
 /// </summary>
 public sealed class DisableMfaCommandHandler : IRequestHandler<DisableMfaCommand, Result>
 {
@@ -18,17 +23,23 @@ public sealed class DisableMfaCommandHandler : IRequestHandler<DisableMfaCommand
     private readonly IPasswordHasher _hasher;
     private readonly ITotpSecretRepository _secrets;
     private readonly IRecoveryCodeRepository _recoveryCodes;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<DisableMfaCommandHandler> _logger;
 
     public DisableMfaCommandHandler(
         IUserRepository users,
         IPasswordHasher hasher,
         ITotpSecretRepository secrets,
-        IRecoveryCodeRepository recoveryCodes)
+        IRecoveryCodeRepository recoveryCodes,
+        IAuthAuditLogRepository auditLog,
+        ILogger<DisableMfaCommandHandler> logger)
     {
         _users = users;
         _hasher = hasher;
         _secrets = secrets;
         _recoveryCodes = recoveryCodes;
+        _auditLog = auditLog;
+        _logger = logger;
     }
 
     public async Task<Result> Handle(DisableMfaCommand request, CancellationToken ct)
@@ -57,6 +68,17 @@ public sealed class DisableMfaCommandHandler : IRequestHandler<DisableMfaCommand
         await _recoveryCodes.DeleteAllAsync(user.Id, ct).ConfigureAwait(false);
         user.MarkMfaDisabled();
         await _users.UpdateAsync(user, ct).ConfigureAwait(false);
+
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.MfaDisabled,
+            user.Id,
+            request.SourceIp,
+            request.UserAgent,
+            metadata: null,
+            request.CorrelationId,
+            ct).ConfigureAwait(false);
 
         return Result.Success();
     }

@@ -13,4 +13,7 @@ public sealed record ChangePasswordCommand(
     string CurrentPassword,
     string NewPassword,
     Guid UserId,
-    string TenantSlug) : IRequest<Result>;
+    string TenantSlug,
+    string SourceIp,
+    string UserAgent,
+    Guid CorrelationId) : IRequest<Result>;

@@ -18,4 +18,7 @@ namespace ShopFlow.Auth.Application.Commands;
 public sealed record RefreshTokenCommand(
     string RefreshToken,
     Guid UserId,
-    string TenantSlug) : IRequest<Result<RefreshResponse>>;
+    string TenantSlug,
+    string SourceIp,
+    string UserAgent,
+    Guid CorrelationId) : IRequest<Result<RefreshResponse>>;

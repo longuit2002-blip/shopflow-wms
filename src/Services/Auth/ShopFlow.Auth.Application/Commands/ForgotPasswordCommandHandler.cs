@@ -1,7 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Contracts.Auth;
 using ShopFlow.SharedKernel.Application;
@@ -22,6 +24,8 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
     private readonly IPasswordResetTokenRepository _resetTokens;
     private readonly IPasswordHasher _hasher;
     private readonly IAuthOutbox _outbox;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<ForgotPasswordCommandHandler> _logger;
     private readonly IRequestContext _requestContext;
     private readonly TimeProvider _clock;
     private readonly AuthPasswordResetOptions _options;
@@ -31,6 +35,8 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         IPasswordResetTokenRepository resetTokens,
         IPasswordHasher hasher,
         IAuthOutbox outbox,
+        IAuthAuditLogRepository auditLog,
+        ILogger<ForgotPasswordCommandHandler> logger,
         IRequestContext requestContext,
         TimeProvider clock,
         IOptions<AuthPasswordResetOptions> options)
@@ -39,6 +45,8 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
         _resetTokens = resetTokens;
         _hasher = hasher;
         _outbox = outbox;
+        _auditLog = auditLog;
+        _logger = logger;
         _requestContext = requestContext;
         _clock = clock;
         _options = options.Value;
@@ -102,6 +110,21 @@ public sealed class ForgotPasswordCommandHandler : IRequestHandler<ForgotPasswor
                 expiresAt,
                 now,
                 request.CorrelationId),
+            ct).ConfigureAwait(false);
+
+        // Sprint-12.5 U1 — audit only on the path that actually emitted
+        // a reset token. The R6 silent-skip / unknown-email paths above
+        // return success without ever issuing a token, so they do NOT
+        // emit auth.password.reset.requested (audit captures real actions).
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.PasswordResetRequested,
+            user.Id,
+            request.SourceIp,
+            request.UserAgent,
+            metadata: null,
+            request.CorrelationId,
             ct).ConfigureAwait(false);
 
         return Result.Success();

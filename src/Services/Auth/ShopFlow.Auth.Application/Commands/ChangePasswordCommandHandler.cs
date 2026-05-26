@@ -1,4 +1,6 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.SharedKernel.Domain;
 
@@ -9,7 +11,8 @@ namespace ShopFlow.Auth.Application.Commands;
 /// successful rotation, revokes EVERY refresh token for the user
 /// (R10 + R15 — fresh password means fresh session everywhere). The
 /// caller's current refresh token also goes; the frontend re-logs in
-/// after a 200 response.
+/// after a 200 response. Sprint-12.5 U1 — emits
+/// <c>auth.password.changed</c> on the successful rotation path.
 /// </summary>
 /// <remarks>
 /// <para>Minimum password length is 8 chars per R17 baseline. Equality
@@ -28,15 +31,21 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
     private readonly IUserRepository _users;
     private readonly IPasswordHasher _hasher;
     private readonly IRefreshTokenStore _refreshStore;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<ChangePasswordCommandHandler> _logger;
 
     public ChangePasswordCommandHandler(
         IUserRepository users,
         IPasswordHasher hasher,
-        IRefreshTokenStore refreshStore)
+        IRefreshTokenStore refreshStore,
+        IAuthAuditLogRepository auditLog,
+        ILogger<ChangePasswordCommandHandler> logger)
     {
         _users = users;
         _hasher = hasher;
         _refreshStore = refreshStore;
+        _auditLog = auditLog;
+        _logger = logger;
     }
 
     public async Task<Result> Handle(ChangePasswordCommand request, CancellationToken ct)
@@ -70,6 +79,17 @@ public sealed class ChangePasswordCommandHandler : IRequestHandler<ChangePasswor
         await _refreshStore
             .RevokeAllForUserAsync(request.TenantSlug, request.UserId, ct)
             .ConfigureAwait(false);
+
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.PasswordChanged,
+            request.UserId,
+            request.SourceIp,
+            request.UserAgent,
+            metadata: null,
+            request.CorrelationId,
+            ct).ConfigureAwait(false);
 
         return Result.Success();
     }

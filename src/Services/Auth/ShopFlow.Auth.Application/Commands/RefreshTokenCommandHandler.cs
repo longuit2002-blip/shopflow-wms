@@ -1,4 +1,6 @@
 using MediatR;
+using Microsoft.Extensions.Logging;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Dtos;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Contracts.Auth;
@@ -8,7 +10,9 @@ using ShopFlow.SharedKernel.Domain;
 namespace ShopFlow.Auth.Application.Commands;
 
 /// <summary>
-/// Sprint-8 U7 — refresh-token rotation handler. Maps the four
+/// Sprint-8 U7 — refresh-token rotation handler. Sprint-12.5 U1 — wires
+/// <c>auth.refresh.success</c> on Issued/GraceReplay + <c>auth.refresh.reused</c>
+/// on ChainRevoked/ReuseDetected. Maps the four
 /// <see cref="RefreshRotateOutcome"/> cases to handler results:
 /// <list type="bullet">
 ///   <item>Issued / GraceReplay → new access token + the rotated
@@ -31,6 +35,8 @@ public sealed class RefreshTokenCommandHandler
     private readonly IUserRepository _users;
     private readonly ITokenIssuer _issuer;
     private readonly IAuthOutbox _outbox;
+    private readonly IAuthAuditLogRepository _auditLog;
+    private readonly ILogger<RefreshTokenCommandHandler> _logger;
     private readonly IRequestContext _requestContext;
 
     public RefreshTokenCommandHandler(
@@ -38,12 +44,16 @@ public sealed class RefreshTokenCommandHandler
         IUserRepository users,
         ITokenIssuer issuer,
         IAuthOutbox outbox,
+        IAuthAuditLogRepository auditLog,
+        ILogger<RefreshTokenCommandHandler> logger,
         IRequestContext requestContext)
     {
         _refreshStore = refreshStore;
         _users = users;
         _issuer = issuer;
         _outbox = outbox;
+        _auditLog = auditLog;
+        _logger = logger;
         _requestContext = requestContext;
     }
 
@@ -70,6 +80,7 @@ public sealed class RefreshTokenCommandHandler
                 // surface the same response shape; the store has already
                 // revoked (chain-only or user-wide depending on outcome).
                 var presentedHash = HashHex(request.RefreshToken);
+                var revokedAt = DateTime.UtcNow;
                 await _outbox.AppendAsync(
                     typeof(RefreshReuseDetectedV1).FullName!,
                     new RefreshReuseDetectedV1(
@@ -80,9 +91,25 @@ public sealed class RefreshTokenCommandHandler
                         PresentedTokenHash: presentedHash,
                         PresentingIp: "unknown",
                         UserAgent: "unknown",
-                        OccurredAtUtc: DateTime.UtcNow,
+                        OccurredAtUtc: revokedAt,
                         CorrelationId: Guid.NewGuid()),
                     ct).ConfigureAwait(false);
+
+                await AuthAuditWriter.TryAppendAsync(
+                    _auditLog,
+                    _logger,
+                    AuthAuditEventTypes.RefreshReused,
+                    request.UserId,
+                    request.SourceIp,
+                    request.UserAgent,
+                    new
+                    {
+                        chainId = (rotation.ChainId ?? Guid.Empty).ToString(),
+                        revokedAt = revokedAt.ToString("O"),
+                    },
+                    request.CorrelationId,
+                    ct).ConfigureAwait(false);
+
                 return Result<RefreshResponse>.Failure(
                     "Refresh token reuse detected.",
                     RefreshReused);
@@ -132,6 +159,17 @@ public sealed class RefreshTokenCommandHandler
         // of 7d for the wire response; the actual key TTL in Redis is
         // authoritative.
         var refreshExpiresAt = DateTime.UtcNow.AddDays(7);
+
+        await AuthAuditWriter.TryAppendAsync(
+            _auditLog,
+            _logger,
+            AuthAuditEventTypes.RefreshSuccess,
+            request.UserId,
+            request.SourceIp,
+            request.UserAgent,
+            new { chainId = (rotation.ChainId ?? Guid.Empty).ToString() },
+            request.CorrelationId,
+            ct).ConfigureAwait(false);
 
         return Result<RefreshResponse>.Success(new RefreshResponse(
             AccessToken: accessToken.Jwt,

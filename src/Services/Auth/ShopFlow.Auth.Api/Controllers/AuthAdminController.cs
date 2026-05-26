@@ -202,8 +202,10 @@ public sealed class AuthAdminController : ControllerBase
         {
             return Unauthorized();
         }
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator.Send(
-            new AdminMfaResetCommand(actorId, userId, slug, Guid.NewGuid()),
+            new AdminMfaResetCommand(actorId, userId, slug, clientIp, userAgent, Guid.NewGuid()),
             ct).ConfigureAwait(false);
 
         if (result.IsSuccess)
@@ -229,8 +231,10 @@ public sealed class AuthAdminController : ControllerBase
         {
             return Unauthorized();
         }
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator.Send(
-            new AdminUnlockAccountCommand(actorId, userId, slug, Guid.NewGuid()),
+            new AdminUnlockAccountCommand(actorId, userId, slug, clientIp, userAgent, Guid.NewGuid()),
             ct).ConfigureAwait(false);
 
         return result.IsSuccess
@@ -278,8 +282,12 @@ public sealed class AuthAdminController : ControllerBase
             return Unauthorized();
         }
 
+        var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         var result = await _mediator.Send(
-            new RolePermissionsCommand(actorId, targetRole, op, body.PermissionKey, body.Permissions, Guid.NewGuid()),
+            new RolePermissionsCommand(
+                actorId, targetRole, op, body.PermissionKey, body.Permissions,
+                clientIp, userAgent, Guid.NewGuid()),
             ct).ConfigureAwait(false);
 
         if (result.IsSuccess)

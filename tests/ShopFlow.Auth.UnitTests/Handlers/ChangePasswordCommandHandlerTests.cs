@@ -1,5 +1,7 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using ShopFlow.Auth.Application.Audit;
 using ShopFlow.Auth.Application.Commands;
 using ShopFlow.Auth.Application.Ports;
 using ShopFlow.Auth.Domain;
@@ -11,7 +13,8 @@ namespace ShopFlow.Auth.UnitTests.Handlers;
 /// <summary>
 /// Sprint-8 U7 — change-password handler unit tests. Pins R15
 /// (current-password gate) + R10 (post-change revoke-all-sessions
-/// cascade) + the min-length validator.
+/// cascade) + the min-length validator. Sprint-12.5 U1 pins the
+/// <c>auth.password.changed</c> audit-row emit on success.
 /// </summary>
 public sealed class ChangePasswordCommandHandlerTests
 {
@@ -21,11 +24,17 @@ public sealed class ChangePasswordCommandHandlerTests
     private readonly IUserRepository _users = Substitute.For<IUserRepository>();
     private readonly IPasswordHasher _hasher = Substitute.For<IPasswordHasher>();
     private readonly IRefreshTokenStore _refreshStore = Substitute.For<IRefreshTokenStore>();
+    private readonly IAuthAuditLogRepository _auditLog = Substitute.For<IAuthAuditLogRepository>();
 
-    private ChangePasswordCommandHandler BuildHandler() => new(_users, _hasher, _refreshStore);
+    private ChangePasswordCommandHandler BuildHandler() => new(
+        _users, _hasher, _refreshStore, _auditLog,
+        NullLogger<ChangePasswordCommandHandler>.Instance);
+
+    private static ChangePasswordCommand Cmd(string current, string newPwd, Guid userId) =>
+        new(current, newPwd, userId, "t1", "203.0.113.10", "test-ua/1.0", Guid.NewGuid());
 
     [Fact]
-    public async Task Happy_RotatesHashAndRevokesAllSessions()
+    public async Task Happy_RotatesHashAndRevokesAllSessions_EmitsPasswordChangedAudit()
     {
         var user = User.Create("alice@example.com", CurrentHash, UserRole.Owner);
         _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
@@ -34,17 +43,21 @@ public sealed class ChangePasswordCommandHandlerTests
         _hasher.Hash("newPassword1").Returns(NewHash);
 
         var result = await BuildHandler().Handle(
-            new ChangePasswordCommand("oldPassword1", "newPassword1", user.Id, "t1"),
+            Cmd("oldPassword1", "newPassword1", user.Id),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         user.PasswordHash.Should().Be(NewHash);
         await _users.Received(1).UpdateAsync(user, Arg.Any<CancellationToken>());
         await _refreshStore.Received(1).RevokeAllForUserAsync("t1", user.Id, Arg.Any<CancellationToken>());
+        await _auditLog.Received(1).AppendAsync(
+            AuthAuditEventTypes.PasswordChanged,
+            user.Id, Arg.Any<string>(), Arg.Any<string>(),
+            Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
-    public async Task WrongCurrentPassword_ReturnsInvalidCredentialsDoesNotRotate()
+    public async Task WrongCurrentPassword_ReturnsInvalidCredentialsDoesNotRotate_NoAudit()
     {
         var user = User.Create("alice@example.com", CurrentHash, UserRole.Owner);
         _users.GetByIdAsync(user.Id, Arg.Any<CancellationToken>())
@@ -52,7 +65,7 @@ public sealed class ChangePasswordCommandHandlerTests
         _hasher.Verify("WRONG", CurrentHash).Returns(false);
 
         var result = await BuildHandler().Handle(
-            new ChangePasswordCommand("WRONG", "newPassword1", user.Id, "t1"),
+            Cmd("WRONG", "newPassword1", user.Id),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -61,6 +74,10 @@ public sealed class ChangePasswordCommandHandlerTests
         await _users.DidNotReceive().UpdateAsync(Arg.Any<User>(), Arg.Any<CancellationToken>());
         await _refreshStore.DidNotReceive().RevokeAllForUserAsync(
             Arg.Any<string>(), Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await _auditLog.DidNotReceive().AppendAsync(
+            Arg.Any<string>(), Arg.Any<Guid?>(), Arg.Any<string>(),
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<Guid>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Theory]
@@ -71,9 +88,7 @@ public sealed class ChangePasswordCommandHandlerTests
     {
         var userId = Guid.NewGuid();
 
-        var result = await BuildHandler().Handle(
-            new ChangePasswordCommand("oldPassword1", newPwd, userId, "t1"),
-            CancellationToken.None);
+        var result = await BuildHandler().Handle(Cmd("oldPassword1", newPwd, userId), CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("auth.password_too_short");
@@ -88,7 +103,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(Task.FromResult<User?>(null));
 
         var result = await BuildHandler().Handle(
-            new ChangePasswordCommand("oldPassword1", "newPassword1", Guid.NewGuid(), "t1"),
+            Cmd("oldPassword1", "newPassword1", Guid.NewGuid()),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
@@ -104,7 +119,7 @@ public sealed class ChangePasswordCommandHandlerTests
             .Returns(Task.FromResult<User?>(user));
 
         var result = await BuildHandler().Handle(
-            new ChangePasswordCommand("oldPassword1", "newPassword1", user.Id, "t1"),
+            Cmd("oldPassword1", "newPassword1", user.Id),
             CancellationToken.None);
 
         result.IsSuccess.Should().BeFalse();
