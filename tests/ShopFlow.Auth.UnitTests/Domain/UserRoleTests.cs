@@ -6,35 +6,38 @@ namespace ShopFlow.Auth.UnitTests.Domain;
 
 /// <summary>
 /// Sprint-8 U1 — locks the <see cref="UserRole"/> contract. The enum
-/// names and the DB-level CHECK constraint
-/// (<c>role IN ('Owner', 'Picker', 'Dispatcher')</c>) shipped in U3's
-/// AddUsers migration must agree exactly: adding a 4th role in Sprint-9+
-/// is a coordinated change (enum + per-tenant migration + downstream
-/// consumers of <c>UserRoleChangedEvent</c>). This test would fail loudly
-/// if someone re-ordered, renamed, or extended the enum without that
-/// coordination — surfacing the contract change at unit-test time
-/// instead of at CHECK-constraint-violation time in CI.
+/// names and the DB-level CHECK constraints
+/// (<c>role IN ('Owner', 'Picker', 'Dispatcher', 'Packer')</c>) shipped in
+/// Sprint-8 U3's AddUsers migration + Sprint-9 U3's AddSprint9AuthSchema
+/// (role_permissions mirror) + Sprint-13 U1's AddPackerRole widening must
+/// agree exactly: adding a 5th role is a coordinated change (enum +
+/// per-tenant migration on BOTH constraints + downstream consumers of
+/// <c>UserRoleChangedEvent</c>). This test would fail loudly if someone
+/// re-ordered, renamed, or extended the enum without that coordination —
+/// surfacing the contract change at unit-test time instead of at
+/// CHECK-constraint-violation time in CI.
 /// </summary>
 public sealed class UserRoleTests
 {
     [Fact]
-    public void HasExactlyThreeMembers()
+    public void HasExactlyFourMembers()
     {
         var members = Enum.GetValues<UserRole>();
-        members.Should().HaveCount(3);
+        members.Should().HaveCount(4);
     }
 
     [Fact]
-    public void MembersAreOwnerPickerDispatcher()
+    public void MembersAreOwnerPickerDispatcherPacker()
     {
         var names = Enum.GetNames<UserRole>();
-        names.Should().BeEquivalentTo(new[] { "Owner", "Picker", "Dispatcher" });
+        names.Should().BeEquivalentTo(new[] { "Owner", "Picker", "Dispatcher", "Packer" });
     }
 
     [Theory]
     [InlineData(UserRole.Owner, "Owner")]
     [InlineData(UserRole.Picker, "Picker")]
     [InlineData(UserRole.Dispatcher, "Dispatcher")]
+    [InlineData(UserRole.Packer, "Packer")]
     public void ToStringYieldsTheExactNameUsedInTheCheckConstraint(UserRole role, string expected)
     {
         role.ToString().Should().Be(expected);
@@ -52,10 +55,27 @@ public sealed class UserRoleTests
         default(UserRole).Should().Be(UserRole.Owner);
     }
 
+    [Fact]
+    public void PackerAppendsAtIndexThree()
+    {
+        // Sprint-13 K9 — Packer was appended at the END of the enum
+        // (index 3) to preserve Owner=0/Picker=1/Dispatcher=2 binary
+        // serialization ordering. Pin the index so a future re-order
+        // can't silently shift values that downstream JWT claims, EF
+        // string conversions, and audit-log replay paths depend on.
+        ((int)UserRole.Owner)
+            .Should()
+            .Be(0);
+        ((int)UserRole.Picker).Should().Be(1);
+        ((int)UserRole.Dispatcher).Should().Be(2);
+        ((int)UserRole.Packer).Should().Be(3);
+    }
+
     [Theory]
     [InlineData(UserRole.Owner)]
     [InlineData(UserRole.Picker)]
     [InlineData(UserRole.Dispatcher)]
+    [InlineData(UserRole.Packer)]
     public void EachShippedMemberIsDefined(UserRole role)
     {
         Enum.IsDefined(role).Should().BeTrue();
