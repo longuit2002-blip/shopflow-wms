@@ -71,6 +71,7 @@ public sealed class SagaTransitionObserver
     /// <param name="fromState">State the saga is leaving.</param>
     /// <param name="toState">State the saga is entering.</param>
     /// <param name="eventType">CLR-name of the integration event that triggered this transition.</param>
+    /// <param name="actorUserId">Sprint-12.5 U2 — operator (JWT subject) who triggered the transition; <see langword="null"/> for system-triggered chains.</param>
     /// <param name="ct">Cancellation from the MT consume context.</param>
     public async Task RecordAsync(
         Guid orderId,
@@ -78,7 +79,8 @@ public sealed class SagaTransitionObserver
         string fromState,
         string toState,
         string eventType,
-        CancellationToken ct
+        CancellationToken ct,
+        Guid? actorUserId = null
     )
     {
         var occurredAt = _clock.GetUtcNow().UtcDateTime;
@@ -90,7 +92,8 @@ public sealed class SagaTransitionObserver
             toState: toState,
             occurredAt: occurredAt,
             eventType: eventType,
-            correlationId: correlationId
+            correlationId: correlationId,
+            actorUserId: actorUserId
         );
 
         await _transitions.AppendAsync(transition, ct).ConfigureAwait(false);

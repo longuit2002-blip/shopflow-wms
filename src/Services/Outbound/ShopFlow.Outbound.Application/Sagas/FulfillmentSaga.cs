@@ -54,6 +54,8 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
         Event(() => PickFailed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         Event(() => PackConfirmed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         Event(() => ShipConfirmed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
+        // Sprint-12.5 U3 — Path C entry for ship-failure compensation.
+        Event(() => ShipFailed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
 
         // ---- Initial transition: OrderPlacedV1 → AwaitingReservation -----
         // Publishing happens via .Publish<T>(ctx => ...) returning the new
@@ -71,7 +73,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(AwaitingReservation)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Initial", "AwaitingReservation", nameof(OrderPlacedV1)))
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Initial", "AwaitingReservation", nameof(OrderPlacedV1), actorUserId: null))
                 .Publish(ctx => new ReserveStockV1(
                     OrderId: ctx.Message.OrderId,
                     TenantId: ctx.Message.TenantId,
@@ -100,7 +102,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(Reserved)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingReservation", "Reserved", nameof(StockReservedV1)))
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingReservation", "Reserved", nameof(StockReservedV1), actorUserId: null))
                 // U5 — Reserved → AwaitingPick auto-transition. The Then
                 // handler below writes one PickRequestV1 envelope to the
                 // tenant's in-process Channel via IPickQueue, then the
@@ -146,7 +148,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     await writer.WriteAsync(request, ctx.CancellationToken).ConfigureAwait(false);
                 })
                 .TransitionTo(AwaitingPick)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Reserved", "AwaitingPick", nameof(StockReservedV1))),
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Reserved", "AwaitingPick", nameof(StockReservedV1), actorUserId: null)),
             When(StockReservationFailedEvent)
                 .Then(ctx =>
                 {
@@ -160,7 +162,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(CompensatingReservation)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingReservation", "CompensatingReservation", nameof(StockReservationFailedV1)))
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingReservation", "CompensatingReservation", nameof(StockReservationFailedV1), actorUserId: null))
         );
 
         // ---- Reserved transitions ----------------------------------------
@@ -178,7 +180,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
             When(PickConfirmed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
                 .TransitionTo(Picked)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingPick", "Picked", nameof(PickConfirmed))),
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingPick", "Picked", nameof(PickConfirmed), ctx.Message.ActorUserId)),
             // U7 Path B — pick failure. The StockReserved handler in the
             // AwaitingReservation block above already populated
             // ReservedLineSkus + LinesAwaitingRelease for this saga; the
@@ -189,7 +191,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
             When(PickFailed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
                 .TransitionTo(CompensatingReservation)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingPick", "CompensatingReservation", nameof(PickFailed)))
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "AwaitingPick", "CompensatingReservation", nameof(PickFailed), ctx.Message.ActorUserId))
         );
 
         // ---- Picked / AwaitingPack / Packed / AwaitingShip / Shipped ----
@@ -205,7 +207,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx.Saga.UpdatedAt = DateTime.UtcNow;
                 })
                 .TransitionTo(Packed)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Picked", "Packed", nameof(PackConfirmed)))
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Picked", "Packed", nameof(PackConfirmed), ctx.Message.ActorUserId))
         );
 
         During(
@@ -216,7 +218,17 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
             When(ShipConfirmed)
                 .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
                 .TransitionTo(Shipped)
-                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Packed", "Shipped", nameof(ShipConfirmed)))
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Packed", "Shipped", nameof(ShipConfirmed), ctx.Message.ActorUserId)),
+            // Sprint-12.5 U3 — Path C entry. Mirrors PickFailed precedent
+            // structurally: the operator triggers Packed → CompensatingReservation;
+            // the existing WhenEnter(CompensatingReservation, IfElse(...)) activity
+            // handles the entry transparently because ReservedLineSkus +
+            // LinesAwaitingRelease were populated on AwaitingReservation → Reserved
+            // and survive through Reserved → AwaitingPick → Picked → Packed.
+            When(ShipFailed)
+                .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
+                .TransitionTo(CompensatingReservation)
+                .ThenAsync(ctx => RecordTransitionAsync(ctx, "Packed", "CompensatingReservation", nameof(ShipFailed), ctx.Message.ActorUserId))
         );
 
         // ---- CompensatingReservation transitions (U7) -------------------
@@ -245,7 +257,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     // Order row update.
                     then =>
                         then.TransitionTo(Cancelled)
-                            .ThenAsync(ctx => RecordTransitionAsync(ctx, "CompensatingReservation", "Cancelled", "PathA_EmptyReleaseSet")),
+                            .ThenAsync(ctx => RecordTransitionAsync(ctx, "CompensatingReservation", "Cancelled", "PathA_EmptyReleaseSet", actorUserId: null)),
                     // Else-branch: Path B. Publish ONE ReleaseStockV1 with
                     // the OrderLineIds parsed from ReservedLineSkus. K13's
                     // accepted Publish-for-commands trade-off applies (saga
@@ -304,7 +316,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                     ctx => ctx.Saga.LinesAwaitingRelease <= 0,
                     branch =>
                         branch.TransitionTo(Cancelled)
-                            .ThenAsync(ctx => RecordTransitionAsync(ctx, "CompensatingReservation", "Cancelled", nameof(StockReleasedV1)))
+                            .ThenAsync(ctx => RecordTransitionAsync(ctx, "CompensatingReservation", "Cancelled", nameof(StockReleasedV1), actorUserId: null))
                 )
         );
 
@@ -348,6 +360,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
     public Event<PickFailed> PickFailed { get; } = null!;
     public Event<PackConfirmed> PackConfirmed { get; } = null!;
     public Event<ShipConfirmed> ShipConfirmed { get; } = null!;
+    public Event<ShipFailed> ShipFailed { get; } = null!;
 
     /// <summary>
     /// Parse the comma-separated <c>ReservedLineSkus</c> column into a
@@ -409,7 +422,8 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
         BehaviorContext<FulfillmentSagaState> ctx,
         string fromState,
         string toState,
-        string eventType
+        string eventType,
+        Guid? actorUserId
     )
     {
         // GetService (nullable) instead of GetRequiredService: Sprint-3-redux's
@@ -433,6 +447,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                 fromState: fromState,
                 toState: toState,
                 eventType: eventType,
+                actorUserId: actorUserId,
                 ct: ctx.CancellationToken
             )
             .ConfigureAwait(false);

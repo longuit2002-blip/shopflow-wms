@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ShopFlow.Outbound.Api.Contracts;
 
 /// <summary>
@@ -64,7 +66,21 @@ public sealed record ConfirmShipResponse(
 /// diagnostic logging only (no pick_failed_reason column in the U1
 /// schema — Phase-2 candidate). Empty / whitespace reason is allowed.
 /// </summary>
-public sealed record MarkPickFailedRequest(string? Reason);
+/// <remarks>
+/// Sprint-12.5 KTD10 retrofit — <c>Reason</c> capped at 1000 characters
+/// via <see cref="MaxLengthAttribute"/>. Closes the inherited DoS / outbox-
+/// bloat vector flagged by Sprint-12.5 doc-review (a malicious Picker
+/// could otherwise submit ~10MB reasons).
+/// </remarks>
+public sealed record MarkPickFailedRequest([property: MaxLength(1000)] string? Reason);
+
+/// <summary>
+/// Sprint-12.5 U3 — <c>POST /mark-ship-failed</c> body. Operator reports
+/// the carrier rejected the label / the package is damaged pre-ship.
+/// Mirrors <see cref="MarkPickFailedRequest"/> shape including the 1000-
+/// character <see cref="MaxLengthAttribute"/> cap (KTD10).
+/// </summary>
+public sealed record MarkShipFailedRequest([property: MaxLength(1000)] string? Reason);
 
 // ── Sprint-7 U4 — Orders screen wire-shape ──────────────────────────────
 // PascalCase wire stays unchanged (Sprint-6 KTD4). DTOs map from the

@@ -50,11 +50,22 @@ public sealed class OrderTransition : BaseEntity
 
     public string CorrelationId { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// Sprint-12.5 U2 — the operator who triggered this transition, sourced
+    /// from <c>IRequestContext.UserId</c> on the controller call. NULL for
+    /// system-triggered transitions (StockReserved-driven chains, the
+    /// Cancelled terminal published by the saga's WhenEnter activity, etc.).
+    /// Per KTD3 the actor flows through the saga event payload, not a
+    /// transient field on <see cref="FulfillmentSagaState"/>.
+    /// </summary>
+    public Guid? ActorUserId { get; private set; }
+
     private OrderTransition() { }
 
     /// <summary>
-    /// Build an audit row. All fields required; the caller (the saga
-    /// state observer) supplies fully-resolved values.
+    /// Build an audit row. <paramref name="actorUserId"/> is the operator
+    /// who triggered the transition (Sprint-12.5 U2 — null for system-
+    /// triggered transitions); other fields required.
     /// </summary>
     public static OrderTransition Create(
         Guid orderId,
@@ -62,7 +73,8 @@ public sealed class OrderTransition : BaseEntity
         string toState,
         DateTime occurredAt,
         string eventType,
-        string correlationId
+        string correlationId,
+        Guid? actorUserId = null
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(fromState);
@@ -83,6 +95,7 @@ public sealed class OrderTransition : BaseEntity
             OccurredAt = occurredAt,
             EventType = eventType,
             CorrelationId = correlationId,
+            ActorUserId = actorUserId,
         };
     }
 }

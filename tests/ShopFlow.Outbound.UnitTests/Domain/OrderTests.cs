@@ -292,6 +292,63 @@ public sealed class OrderTests
         result.ErrorCode.Should().Be("order.invalid_state");
     }
 
+    // Sprint-12.5 U3 — Path C: MarkCompensatingReservation widens to allow
+    // AwaitingShip pre-state (Order aggregate's state when mark-ship-failed
+    // fires; saga state is still Packed at that moment per Sprint-12 KTD2).
+    [Fact]
+    public void MarkCompensatingReservation_FromAwaitingShip_TransitionsOk()
+    {
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+        order.MarkPacked(100);
+        order.MarkAwaitingShip();
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(OrderStatus.CompensatingReservation);
+    }
+
+    [Fact]
+    public void MarkCompensatingReservation_FromPacked_FailsInvalidState()
+    {
+        // Packed is a transient state — ConfirmPackAsync auto-chains to
+        // AwaitingShip in one commit. If a test ever lands a row in Packed
+        // and tries to compensate, the domain correctly rejects.
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+        order.MarkPacked(100);
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("order.invalid_state");
+    }
+
+    [Fact]
+    public void MarkCompensatingReservation_FromShipped_FailsInvalidState()
+    {
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+        order.MarkPacked(100);
+        order.MarkAwaitingShip();
+        order.MarkShipped("https://example/label.pdf", "TRACK-001");
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("order.invalid_state");
+    }
+
     [Fact]
     public void MarkCancelled_FromCreated_Succeeds()
     {

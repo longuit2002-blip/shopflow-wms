@@ -206,9 +206,9 @@ public sealed class Order : BaseEntity
     }
 
     /// <summary>
-    /// Reserved OR AwaitingPick → CompensatingReservation. Entry point for
-    /// the saga's compensation path (U7). The saga publishes
-    /// <c>ReleaseStockV1</c> from this state. Two callers:
+    /// Reserved OR AwaitingPick OR AwaitingShip → CompensatingReservation.
+    /// Entry point for the saga's compensation paths. The saga publishes
+    /// <c>ReleaseStockV1</c> from this state. Three callers:
     /// </summary>
     /// <remarks>
     /// <para><c>Reserved</c> pre-state is the legacy hook from the
@@ -219,20 +219,35 @@ public sealed class Order : BaseEntity
     /// CompensatingReservation state and drives the Order to
     /// <c>Cancelled</c> via the in-process <c>OrderCancelled</c> event).</para>
     ///
-    /// <para><c>AwaitingPick</c> pre-state is the U7 pick-failure path:
-    /// <c>POST /mark-pick-failed</c> calls this method to record the
-    /// Order's compensating intent BEFORE publishing the saga's
+    /// <para><c>AwaitingPick</c> pre-state is the Sprint-3-redux U7 pick-
+    /// failure path: <c>POST /mark-pick-failed</c> calls this method to
+    /// record the Order's compensating intent BEFORE publishing the saga's
     /// <c>PickFailed</c> event. The Order stays in
     /// <c>CompensatingReservation</c> until the saga's compensation
     /// completes and the <c>OrderCancelled</c> consumer flips it to
     /// <c>Cancelled</c> (R3 eventual-consistency boundary).</para>
+    ///
+    /// <para><c>AwaitingShip</c> pre-state is the Sprint-12.5 U3 ship-
+    /// failure path: <c>POST /mark-ship-failed</c> calls this method when
+    /// the carrier rejects the label or the package is damaged pre-ship.
+    /// Per Sprint-12 KTD2, by the time mark-ship-failed fires, the Order
+    /// aggregate has already moved Packed → AwaitingShip via
+    /// <c>ConfirmPackAsync</c>'s chain (the saga state is still Packed —
+    /// these two state machines run one step apart by design). The saga's
+    /// Packed → CompensatingReservation Path C reuses the Sprint-3-redux
+    /// Path B compensation primitives unchanged
+    /// (<c>ReservedLineSkus</c> + <c>LinesAwaitingRelease</c>).</para>
     /// </remarks>
     public Result MarkCompensatingReservation()
     {
-        if (Status != OrderStatus.Reserved && Status != OrderStatus.AwaitingPick)
+        if (
+            Status != OrderStatus.Reserved
+            && Status != OrderStatus.AwaitingPick
+            && Status != OrderStatus.AwaitingShip
+        )
         {
             return Result.Failure(
-                $"cannot transition from {Status} to CompensatingReservation; required pre-state Reserved or AwaitingPick.",
+                $"cannot transition from {Status} to CompensatingReservation; required pre-state Reserved, AwaitingPick, or AwaitingShip.",
                 "order.invalid_state"
             );
         }

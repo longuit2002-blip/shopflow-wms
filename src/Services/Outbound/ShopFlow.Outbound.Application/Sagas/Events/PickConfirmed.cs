@@ -14,4 +14,4 @@ namespace ShopFlow.Outbound.Application.Sagas.Events;
 /// transition reads no fields off this event other than the correlation
 /// id, so the payload is intentionally minimal.
 /// </remarks>
-public sealed record PickConfirmed(Guid OrderId);
+public sealed record PickConfirmed(Guid OrderId, Guid? ActorUserId = null);

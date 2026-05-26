@@ -712,7 +712,12 @@ public sealed class OrdersController : ControllerBase
         // Publish the in-process saga event AFTER the order commit lands —
         // MassTransit's saga middleware will pick it up on the next dispatch
         // tick and commit the saga transition in its own EF transaction.
-        await _publishEndpoint.Publish(new PickConfirmed(order.Id), ct).ConfigureAwait(false);
+        // Sprint-12.5 U2 — actor (JWT subject) flows via _requestContext.UserId
+        // into the saga event payload so SagaTransitionObserver records actor
+        // attribution on the AwaitingPick → Picked transition row.
+        await _publishEndpoint
+            .Publish(new PickConfirmed(order.Id, _requestContext.UserId), ct)
+            .ConfigureAwait(false);
 
         return Ok(Map(order));
     }
@@ -776,10 +781,118 @@ public sealed class OrdersController : ControllerBase
         // saga commit. The Reason string is captured on the event for
         // diagnostic logging; not persisted on the Order row (no
         // pick_failed_reason column in the U1 schema — Phase-2 candidate).
+        // Sprint-12.5 KTD10 — defence-in-depth: model binding's [MaxLength(1000)]
+        // attribute is enforced by ASP.NET model validation IF [ApiController]
+        // automatic validation is on (Outbound.Api inherits this); explicit
+        // guard here catches direct controller-test bypass of model validation.
+        if (request?.Reason is { Length: > 1000 })
+        {
+            return ProblemFromError(
+                "reason exceeds 1000 characters.",
+                "order.reason_too_long",
+                400
+            );
+        }
         var reason = string.IsNullOrWhiteSpace(request?.Reason)
             ? string.Empty
             : request!.Reason!.Trim();
-        await _publishEndpoint.Publish(new PickFailed(order.Id, reason), ct).ConfigureAwait(false);
+        // Sprint-12.5 U2 — operator actor flows into the saga event payload.
+        await _publishEndpoint
+            .Publish(new PickFailed(order.Id, reason, _requestContext.UserId), ct)
+            .ConfigureAwait(false);
+
+        return Ok(Map(order));
+    }
+
+    /// <summary>
+    /// Sprint-12.5 U3 — operator reports the order cannot ship (carrier
+    /// rejected the label, package damaged pre-ship, etc.). Order moves
+    /// AwaitingShip → CompensatingReservation; the saga's
+    /// <see cref="ShipFailed"/> handler transitions <c>Packed →
+    /// CompensatingReservation</c> (Path C) and publishes
+    /// <c>ReleaseStockV1</c>. When all expected <c>StockReleasedV1</c>
+    /// events arrive (Set-based dedup against MT redelivery), the saga
+    /// transitions to <c>Cancelled</c> + publishes <c>OrderCancelled</c>
+    /// for the Outbound-side consumer to flip the Order row to
+    /// <c>Cancelled</c> (R3 eventual-consistency boundary). Mirrors
+    /// MarkPickFailedAsync structurally; uses the same
+    /// <c>outbound.orders.ship-confirm</c> policy as ConfirmShip
+    /// (no new permission key per Sprint-12.5 KTD6).
+    /// </summary>
+    [HttpPost("{id:guid}/mark-ship-failed")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersShipConfirm)]
+    public async Task<IActionResult> MarkShipFailedAsync(
+        Guid id,
+        [FromBody] MarkShipFailedRequest? request,
+        CancellationToken ct
+    )
+    {
+        var order = await _orderRepo.FindByIdAsync(id, ct).ConfigureAwait(false);
+        if (order is null)
+        {
+            return ProblemFromError($"order {id} not found.", "order.not_found", 404);
+        }
+
+        // Two-tier pre-state guard (KTD6 — natural-409 idempotency mirrors
+        // MarkPickFailedAsync). Idempotency fires FIRST: a duplicate POST
+        // against an already-compensating / cancelled order returns 409
+        // instead of the AwaitingShip-required 422, so operators see the
+        // serialization rather than a confusing pre-state error.
+        if (
+            order.Status == OrderStatus.CompensatingReservation
+            || order.Status == OrderStatus.Cancelled
+        )
+        {
+            return ProblemFromError(
+                $"order {id} is already in {order.Status} state; ship-failure already recorded.",
+                "order.ship_failure_already_recorded",
+                409
+            );
+        }
+
+        // Per Sprint-12 KTD2 + Sprint-12.5 U3 plan: Order aggregate is in
+        // AwaitingShip (NOT Packed) by the time mark-ship-failed fires —
+        // ConfirmPackAsync chains MarkPacked → MarkAwaitingShip in one
+        // SaveChanges. R9 codifies this.
+        if (order.Status != OrderStatus.AwaitingShip)
+        {
+            return ProblemFromError(
+                $"cannot mark ship-failed in {order.Status} state; required pre-state AwaitingShip.",
+                "order.invalid_state",
+                422
+            );
+        }
+
+        // Sprint-12.5 KTD10 — defence-in-depth length guard mirrors
+        // MarkPickFailed.
+        if (request?.Reason is { Length: > 1000 })
+        {
+            return ProblemFromError(
+                "reason exceeds 1000 characters.",
+                "order.reason_too_long",
+                400
+            );
+        }
+
+        var transition = order.MarkCompensatingReservation();
+        if (!transition.IsSuccess)
+        {
+            return ProblemFromResult(transition.Error!, transition.ErrorCode!);
+        }
+
+        await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        // R3 boundary: publish the in-process saga event AFTER the Order
+        // commit. Per saga state machine, the saga is still in Packed at
+        // this point (Packed → AwaitingShip lives only on the Order aggregate);
+        // ShipFailed transitions the saga to CompensatingReservation via
+        // the new During(Packed, When(ShipFailed)) clause in FulfillmentSaga.
+        var reason = string.IsNullOrWhiteSpace(request?.Reason)
+            ? string.Empty
+            : request!.Reason!.Trim();
+        await _publishEndpoint
+            .Publish(new ShipFailed(order.Id, reason, _requestContext.UserId), ct)
+            .ConfigureAwait(false);
 
         return Ok(Map(order));
     }
@@ -855,8 +968,12 @@ public sealed class OrdersController : ControllerBase
         // R3 boundary: publish the in-process saga event after the order
         // commit. Saga middleware drives the saga state forward in its
         // own EF transaction.
+        // Sprint-12.5 U2 — operator actor flows into saga event payload.
         await _publishEndpoint
-            .Publish(new PackConfirmed(order.Id, request.ActualWeightTotal), ct)
+            .Publish(
+                new PackConfirmed(order.Id, request.ActualWeightTotal, _requestContext.UserId),
+                ct
+            )
             .ConfigureAwait(false);
 
         var (warning, variancePct) = ComputeWeightWarning(
@@ -954,8 +1071,17 @@ public sealed class OrdersController : ControllerBase
         // in one EF transaction. The saga commit is separate.
         await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
+        // Sprint-12.5 U2 — operator actor flows into saga event payload.
         await _publishEndpoint
-            .Publish(new ShipConfirmed(order.Id, label.LabelUrl, label.TrackingNumber), ct)
+            .Publish(
+                new ShipConfirmed(
+                    order.Id,
+                    label.LabelUrl,
+                    label.TrackingNumber,
+                    _requestContext.UserId
+                ),
+                ct
+            )
             .ConfigureAwait(false);
 
         return Ok(

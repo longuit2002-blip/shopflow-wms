@@ -48,6 +48,12 @@ internal sealed class OrderTransitionConfiguration : IEntityTypeConfiguration<Or
             .HasMaxLength(64)
             .IsRequired();
 
+        // Sprint-12.5 U2 — nullable actor_user_id captures the operator who
+        // triggered the transition (NULL for system-triggered chains).
+        builder
+            .Property(o => o.ActorUserId)
+            .HasColumnName("actor_user_id");
+
         builder.Property(o => o.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(o => o.UpdatedAt).HasColumnName("updated_at");
 
