@@ -359,6 +359,34 @@ public sealed class HandoffFixture : IAsyncLifetime
         );
     }
 
+    /// <summary>
+    /// Sprint-13 U5 — mint a Picker JWT with an EXTRA
+    /// <c>outbound.orders.pack-confirm</c> key beyond the baseline. Used by
+    /// the U5 <c>PickerWithManualPackConfirmGrant_CanPack_BehavioralPin</c>
+    /// adversarial-F8 mitigation test to prove the KTD1 additive-only
+    /// contract's behavioral consequence: an operator who pre-grants Picker
+    /// the pack-confirm key HAS granted pack capability — there is no
+    /// defense-in-depth surprise rescue. Mirrors
+    /// <see cref="BuildPickerWithExtraShipConfirmJwt"/> for the Sprint-13
+    /// pack-confirm key.
+    /// </summary>
+    public string BuildPickerWithExtraPackConfirmJwt()
+    {
+        var keys = new List<string>(
+            ShopFlow.Migrate.Provisioning.RolePermissionsSeed.PickerBaseline
+        )
+        {
+            ShopFlow.SharedKernel.Authorization.PermissionKeys.OutboundOrdersPackConfirm,
+        };
+        return JwtBuilder.Build(
+            tenantSlug: TenantSlug,
+            userId: PickerUserId,
+            includeKeys: keys,
+            email: PickerEmail,
+            role: "Picker"
+        );
+    }
+
     public async Task DisposeAsync()
     {
         if (_factory is not null)
