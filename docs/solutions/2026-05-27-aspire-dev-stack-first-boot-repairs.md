@@ -47,3 +47,18 @@ Both of those are local-run workarounds and were intentionally NOT committed —
 ## Lesson for future migrations
 
 Hand-authored EF migration IDs must sort AFTER the latest existing migration **on the same DbContext**, not merely be unique. The Auth chain uses future-dated timestamps (`20260601...`); a new migration dated with the actual calendar day (`20260527...`) silently inserts itself mid-chain and runs against a schema that doesn't yet exist. When adding a migration, check the latest existing ID on that DbContext and exceed it — uniqueness alone is insufficient. (Doc-review's feasibility check verified the timestamp was unused but not that it sorted last; add the ordering check.)
+
+## Finish-line U6 progress (2026-05-27)
+
+The finish-line workstream took the dev-stack repair substantially further. Status of the original open items + what's newly fixed:
+
+**Fixed + committed (branch `feat/portfolio-finish-line`):**
+- **#8 service startup — RESOLVED for Auth.Api + StockSync.Api.** Both now boot past the composition root (verified standalone in Development, where scope validation is ON). Root causes were composition-root bugs, not infra: `JwtTokenIssuer` Singleton-consuming-scoped (U2), `CachingSkuFlagRepository` + `AddDbContextFactory` lifetime bugs (U3), and `IChannelAdapterFactory` left unregistered in StockSync.Api (U6 — fixed via the new `AddChannelAdapterFramework`). See [2026-05-27-jwt-token-issuer-singleton-consumes-scoped.md](./2026-05-27-jwt-token-issuer-singleton-consumes-scoped.md) + [2026-05-27-stocksync-integration-suite-never-ran-composition-bugs.md](./2026-05-27-stocksync-integration-suite-never-ran-composition-bugs.md). (Notification.Api startup still unverified.)
+- **App-role / catalog ordering — RESOLVED.** `shopflow-migrate` now connects DIRECTLY to Postgres as superuser for ALL provisioning (ControlPlane connection was wrongly pointed at PgBouncer). No `shopflow_app`-before-catalog dependency. Verified end-to-end: catalog + dev1 + dev2 provision cleanly direct, 34-row 4-role baseline.
+- **Service connection-config rot — RESOLVED.** All four service ControlPlane configs (had drifted to `shopflow`/`postgres`/mixed-port/`{Database}`-token) consolidated to `shopflow_app` via PgBouncer 6432 with the `{db}` token.
+
+**Still open (the orchestrated `task up` to a full explorable floor):**
+- **PgBouncer config clobber (K1).** Swap `bitnamilegacy/pgbouncer` → `edoburu/pgbouncer` (reads the mounted `pgbouncer.ini` directly, no auto-config). Needs a pinned edoburu tag + verification of the scram-sha-256 + plaintext-userlist auth against the `shopflow_app` role. Boot-iterative.
+- **Native-Postgres-on-5432 coexistence (this machine).** The committed AppHost pins Postgres host port 5432, which collides with the dev machine's native Postgres. Clean fix: a config-driven host port (default 5432 for a clean clone) + inject the resolved Postgres connection into the 3 migrate executables (`WithEnvironment` → `Postgres__AdminConnectionString` etc.), so the dev machine can set a local override (e.g., 5433) to coexist. A clean clone (5432 free) is unaffected. Services use PgBouncer 6432 (a free host port), so only migrate's direct connection is port-coupled.
+
+These two are well-scoped but require live `task up` boot/observe/fix cycles.
