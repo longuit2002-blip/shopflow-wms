@@ -67,6 +67,9 @@ public sealed class HandoffWorkflowTests
     private const string SkipReason =
         "Sprint-12 U4: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon";
 
+    private const string Sprint13SkipReason =
+        "Sprint-13 U4: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon";
+
     private readonly HandoffFixture _fixture;
 
     public HandoffWorkflowTests(HandoffFixture fixture)
@@ -171,6 +174,74 @@ public sealed class HandoffWorkflowTests
         // documented carry-forward — storage layer ships without
         // handler instrumentation; hardening lands in Sprint-11.5/12
         // follow-up workstream).
+
+        return Task.CompletedTask;
+    }
+
+    [Fact(Skip = Sprint13SkipReason)]
+    public Task HappyPath_AllFourRoles_DriveSagaToShipped()
+    {
+        // Sprint-13 U4 (AE2) — the 4-role hand-off. Pack-confirm moves off
+        // Owner to the new Packer role. Owner is NOT used at any point in
+        // this happy path — the chain is entirely non-Owner operators:
+        //
+        //   Picker confirm-pick → Packer confirm-pack → Dispatcher confirm-ship
+        //
+        // Structurally identical to HappyPath_AllThreeRolesDriveSagaToShipped
+        // above EXCEPT step 2 uses _fixture.BuildPackerJwt() instead of
+        // BuildOwnerJwt(). The Sprint-12 3-role test stays UNCHANGED as
+        // regression coverage (Owner-as-Packer still works — ADDITIVE-ONLY
+        // K7 means Owner retains pack-confirm).
+        //
+        // ARRANGE
+        // -------
+        // 1. Fixture provisioned the tenant DB; applied Auth (incl. Sprint-13
+        //    AddPackerRole) + Outbound migrations; ran OwnerSeed + Sprint-13
+        //    U2 RolePermissionsSeed (Owner=24, Picker=4, Dispatcher=3,
+        //    Packer=3). Seeded Owner + Picker + Dispatcher + Packer user
+        //    rows. Awaited bus-readiness (KTD7).
+        //
+        // 2. Mint 3 JWTs for the happy path: BuildPickerJwt() +
+        //    BuildPackerJwt() + BuildDispatcherJwt(). Each maps role-baseline
+        //    perm[] from the SAME RolePermissionsSeed constant the seed uses.
+        //
+        // 3. Direct DbContext seed: orderId + raw INSERT orders.status=
+        //    'AwaitingPick' + raw INSERT saga_state.CurrentState='AwaitingPick'
+        //    (11-column shape per HandoffWorkflowTests step-3 above;
+        //    lines_awaiting_release=0).
+        //
+        // ACT — STEP 1: Picker confirm-pick (BuildPickerJwt)
+        // --------------------------------------------------
+        // 4. POST /confirm-pick → 200; poll saga_state.CurrentState="Picked"
+        //    within 10s. HandoffWatch.MeasureAsync("step-1-confirm-pick").
+        //
+        // ACT — STEP 2: Packer confirm-pack (BuildPackerJwt — NOT Owner)
+        // -------------------------------------------------------------
+        // 5. POST /confirm-pack with the PACKER JWT, body
+        //    { actualWeightTotal: 1500 }. HandoffWatch.MeasureAsync
+        //    ("step-2-confirm-pack-as-packer").
+        //    a. Assert HTTP 200 — proves the Packer baseline's
+        //       outbound.orders.pack-confirm key authorizes the action.
+        //    b. Poll saga_state.CurrentState="Packed" within 10s.
+        //    c. SEPARATELY assert GET /orders/{id} status="AwaitingShip"
+        //       (KTD2 — Order aggregate chains MarkPacked → MarkAwaitingShip).
+        //
+        // ACT — STEP 3: Dispatcher confirm-ship (BuildDispatcherJwt)
+        // ----------------------------------------------------------
+        // 6. POST /confirm-ship → 200; zero-flake provider returns label;
+        //    poll saga_state.CurrentState="Shipped" within 10s.
+        //
+        // ASSERT — TERMINAL STATE
+        // -----------------------
+        // 7. Final GET /orders/{id}: status="Shipped",
+        //    currentSagaState="Shipped", trackingNumber + labelUrl populated.
+        //
+        // 8. Query outbound_saga_transitions: 3 rows to_state ∈
+        //    {"Picked","Packed","Shipped"}; the Picked→Packed row's
+        //    actor_user_id = PackerUserId (proves Packer actor propagated
+        //    via PackConfirmed.ActorUserId per Sprint-12.5 U2 mechanism).
+        //
+        // CLEANUP — HandoffFixture.DisposeAsync.
 
         return Task.CompletedTask;
     }

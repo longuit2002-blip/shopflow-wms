@@ -91,6 +91,11 @@ public sealed class HandoffFixture : IAsyncLifetime
     public Guid PickerUserId { get; private set; } = Guid.NewGuid();
     public Guid DispatcherUserId { get; private set; } = Guid.NewGuid();
 
+    // Sprint-13 U4 (K8) — Packer joins the fixture in-place. The 4-role
+    // hand-off (Picker → Packer → Dispatcher) and the Packer cross-role
+    // denial tests mint JWTs off this id.
+    public Guid PackerUserId { get; private set; } = Guid.NewGuid();
+
     /// <summary>
     /// Sprint-12.5 U4 — settable shipping-provider factory seam for the
     /// tier-3 carrier-retry E2E tests
@@ -126,6 +131,7 @@ public sealed class HandoffFixture : IAsyncLifetime
     public string OwnerEmail => $"owner@{TenantSlug}.test";
     public string PickerEmail => $"picker@{TenantSlug}.test";
     public string DispatcherEmail => $"dispatcher@{TenantSlug}.test";
+    public string PackerEmail => $"packer@{TenantSlug}.test";
 
     public WebApplicationFactory<Program> Factory =>
         _factory ?? throw new InvalidOperationException("Fixture not initialized.");
@@ -167,13 +173,16 @@ public sealed class HandoffFixture : IAsyncLifetime
         //      the AuthDbContext NOT NULL constraint; the JWT path
         //      doesn't read it but the schema does).
         //   4. RolePermissionsSeed.SeedAsync(TenantConnectionString) —
-        //      Sprint-9 U12 + Sprint-11 U1 + Sprint-12 U1 — inserts
-        //      Owner (24 keys) + Picker (4-key baseline) + Dispatcher
-        //      (3-key baseline) rows.
-        //   5. Raw INSERTs into `users` for Owner + Picker + Dispatcher
-        //      (mirrors Sprint-11 U3 PickerFixture pattern, replicated
-        //      3× — KTD4 deferred work consolidates this if the
-        //      duplication starts hurting in Sprint-13+).
+        //      Sprint-9 U12 + Sprint-11 U1 + Sprint-12 U1 + Sprint-13 U2 —
+        //      inserts Owner (24 keys) + Picker (4-key baseline) +
+        //      Dispatcher (3-key baseline) + Packer (3-key baseline) rows.
+        //      Requires the Sprint-13 AddPackerRole migration (step 1) to
+        //      have widened chk_role_permissions_role first, else the
+        //      'Packer' INSERTs trip the CHECK.
+        //   5. Raw INSERTs into `users` for Owner + Picker + Dispatcher +
+        //      Packer (mirrors Sprint-11 U3 PickerFixture pattern,
+        //      replicated 4× — KTD4 deferred work consolidates this if the
+        //      duplication starts hurting in Sprint-14+).
 
         JwtBuilder = new NarrowedJwtBuilder(DevSecret, Issuer, Audience);
 
@@ -262,8 +271,9 @@ public sealed class HandoffFixture : IAsyncLifetime
 
     /// <summary>
     /// Mint an Owner JWT with all 24 PermissionKeys.All entries. Owner
-    /// is the only role with pack-confirm at Sprint-12 (no Packer
-    /// fourth role per plan scope boundary).
+    /// retains pack-confirm at Sprint-13 (K7 — ADDITIVE-ONLY; Packer is
+    /// added beside Owner, not in place of it). Owner is no longer the
+    /// ONLY pack-confirm holder — Packer carries it too.
     /// </summary>
     public string BuildOwnerJwt() =>
         JwtBuilder.Build(
@@ -304,6 +314,23 @@ public sealed class HandoffFixture : IAsyncLifetime
             includeKeys: ShopFlow.Migrate.Provisioning.RolePermissionsSeed.DispatcherBaseline,
             email: DispatcherEmail,
             role: "Dispatcher"
+        );
+
+    /// <summary>
+    /// Sprint-13 U4 — mint a Packer JWT carrying exactly the 3-key
+    /// <c>RolePermissionsSeed.PackerBaseline</c>
+    /// (outbound.orders.read + outbound.orders.pack-confirm + hub.connect).
+    /// Source-of-truth for the perm[] is the same constant list U2 writes
+    /// to role_permissions — drift between the seed and the JWT is
+    /// impossible because the same list is the contract.
+    /// </summary>
+    public string BuildPackerJwt() =>
+        JwtBuilder.Build(
+            tenantSlug: TenantSlug,
+            userId: PackerUserId,
+            includeKeys: ShopFlow.Migrate.Provisioning.RolePermissionsSeed.PackerBaseline,
+            email: PackerEmail,
+            role: "Packer"
         );
 
     /// <summary>
