@@ -1,6 +1,7 @@
 using Npgsql;
 using ShopFlow.Inventory.Domain;
 using ShopFlow.Inventory.IntegrationTests.ScaleGate;
+using ShopFlow.TestSupport;
 using Xunit.Abstractions;
 
 namespace ShopFlow.Inventory.IntegrationTests;
@@ -28,6 +29,7 @@ namespace ShopFlow.Inventory.IntegrationTests;
 [Collection(InventoryTenantCollection.Name)]
 [Trait("Category", "Integration")]
 [Trait("Category", "Load")]
+[Trait("Category", "Proof")] // finish-line U1 — selectable via `task proofs`
 public sealed class MultiTenantScaleGateTests
 {
     private const string ScaleSku = "SKU-SCALE";
@@ -44,7 +46,7 @@ public sealed class MultiTenantScaleGateTests
         _output = output;
     }
 
-    [Fact]
+    [ProofFact]
     public async Task FiveTenants_OneThousandConcurrentEach_FairnessFloorHolds()
     {
         var tenants = new List<ProvisionedTenant>(TenantsInScaleGate);
@@ -139,7 +141,7 @@ public sealed class MultiTenantScaleGateTests
             );
     }
 
-    [Fact]
+    [ProofFact]
     public async Task OneTenant_OverDemand_OneSuccessOnly_RestOversold()
     {
         var tenant = await _fx.ProvisionTenantAsync("scale-tight");

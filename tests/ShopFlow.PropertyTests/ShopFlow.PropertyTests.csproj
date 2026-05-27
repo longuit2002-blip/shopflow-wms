@@ -25,4 +25,16 @@
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Finish-line U1 — shared proof-run gate (env/CI opt-in). This is the
+         only project that references FsCheck.Xunit, so ProofPropertyAttribute
+         (the [Property] analogue) is linked here alongside ProofGate. -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
+    <Compile Include="..\_shared\ProofPropertyAttribute.cs">
+      <Link>_shared\ProofPropertyAttribute.cs</Link>
+    </Compile>
+  </ItemGroup>
+
 </Project>

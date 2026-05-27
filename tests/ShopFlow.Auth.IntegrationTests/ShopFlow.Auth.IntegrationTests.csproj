@@ -33,4 +33,13 @@
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Api\ShopFlow.Auth.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Finish-line U1 — shared proof-run gate (env/CI opt-in) for
+         CrossTenant403Test + the AuthCrossTenant harness (U5). Linked
+         single-source. -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
+  </ItemGroup>
+
 </Project>

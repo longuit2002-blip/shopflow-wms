@@ -42,4 +42,12 @@
     <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Infrastructure\ShopFlow.StockSync.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Finish-line U1 — shared proof-run gate (env/CI opt-in) for
+         CrossTenantRoutingTests. Linked single-source. -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
+  </ItemGroup>
+
 </Project>

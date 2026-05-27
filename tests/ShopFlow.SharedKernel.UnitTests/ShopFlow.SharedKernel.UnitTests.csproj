@@ -13,4 +13,13 @@
     <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Finish-line U1 — link the proof-run gate so its pure decision
+         function (ProofGate.IsEnabled) gets a Category=Unit self-test that
+         runs in the default CI lane (no Docker). -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
+  </ItemGroup>
+
 </Project>

@@ -7,6 +7,7 @@ using ShopFlow.SharedKernel.Application;
 using ShopFlow.SharedKernel.Application.Ports;
 using ShopFlow.SharedKernel.Domain;
 using ShopFlow.SharedKernel.Infrastructure;
+using ShopFlow.TestSupport;
 
 namespace ShopFlow.SharedKernel.IntegrationTests;
 
@@ -33,6 +34,7 @@ namespace ShopFlow.SharedKernel.IntegrationTests;
 /// </remarks>
 [Collection(PostgresCollection.Name)]
 [Trait("Category", "Integration")]
+[Trait("Category", "Proof")] // finish-line U1 — selectable via `task proofs`
 public sealed class CrossTenantRoutingTests : IAsyncLifetime
 {
     private const string TenantA = "tenant-a";
@@ -79,7 +81,7 @@ public sealed class CrossTenantRoutingTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    [Fact]
+    [ProofFact]
     public async Task TenantAHeader_BindsRequestContext_ToTenantADb_AndReadsOnlyTenantARows()
     {
         var ctx = BuildHttpContext(headerSlug: TenantA);
@@ -101,7 +103,7 @@ public sealed class CrossTenantRoutingTests : IAsyncLifetime
         skus.Should().NotContain(TenantBSku);
     }
 
-    [Fact]
+    [ProofFact]
     public async Task TenantBHeader_BindsRequestContext_ToTenantBDb_AndReadsOnlyTenantBRows()
     {
         var ctx = BuildHttpContext(headerSlug: TenantB);
@@ -123,7 +125,7 @@ public sealed class CrossTenantRoutingTests : IAsyncLifetime
         skus.Should().NotContain(TenantASku);
     }
 
-    [Fact]
+    [ProofFact]
     public async Task NoTenantContext_ReturnsBadRequest_AndDoesNotBind()
     {
         var ctx = BuildHttpContext(headerSlug: null);
@@ -141,7 +143,7 @@ public sealed class CrossTenantRoutingTests : IAsyncLifetime
         act.Should().Throw<InvalidOperationException>();
     }
 
-    [Fact]
+    [ProofFact]
     public async Task UnknownSlug_ReturnsNotFound()
     {
         var ctx = BuildHttpContext(headerSlug: "ghost-tenant");
@@ -157,7 +159,7 @@ public sealed class CrossTenantRoutingTests : IAsyncLifetime
         ctx.Response.StatusCode.Should().Be(StatusCodes.Status404NotFound);
     }
 
-    [Fact]
+    [ProofFact]
     public async Task ConflictingHeaderAndSubdomain_Returns403_AndDoesNotBind()
     {
         var ctx = BuildHttpContext(headerSlug: TenantA);

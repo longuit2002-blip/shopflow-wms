@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using FluentAssertions;
 using ShopFlow.SharedKernel.Authorization;
+using ShopFlow.TestSupport;
 using Xunit;
 
 namespace ShopFlow.Auth.IntegrationTests.Authorization;
@@ -35,11 +36,9 @@ namespace ShopFlow.Auth.IntegrationTests.Authorization;
 /// </summary>
 [Collection(AuthAdminAuthorizationCollection.Name)]
 [Trait("Category", "Integration")]
+[Trait("Category", "Proof")] // finish-line U1 — selectable via `task proofs`
 public sealed class CrossTenant403Test
 {
-    private const string SkipReason =
-        "Sprint-10.5 U4: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon";
-
     private readonly AuthAdminAuthorizationFixture _fixture;
 
     public CrossTenant403Test(AuthAdminAuthorizationFixture fixture)
@@ -47,7 +46,7 @@ public sealed class CrossTenant403Test
         _fixture = fixture;
     }
 
-    [Fact(Skip = SkipReason)]
+    [ProofFact]
     public async Task CrossTenantJwt_WithFullPermSet_NeverReturns200()
     {
         // Arrange — build a JWT for tenant-A carrying every key in

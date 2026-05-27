@@ -4,6 +4,7 @@ using FsCheck.Xunit;
 using ShopFlow.Inventory.Domain;
 using ShopFlow.PropertyTests.Fixtures;
 using ShopFlow.PropertyTests.Stubs;
+using ShopFlow.TestSupport;
 
 namespace ShopFlow.PropertyTests;
 
@@ -37,6 +38,7 @@ namespace ShopFlow.PropertyTests;
 /// </remarks>
 [Collection(PostgresPropertyCollection.Name)]
 [Trait("Category", "Integration")]
+[Trait("Category", "Proof")] // finish-line U1 — selectable via `task proofs`
 public sealed class ReservationLedgerProperties
 {
     /// <summary>
@@ -60,7 +62,7 @@ public sealed class ReservationLedgerProperties
     /// <c>N</c> concurrent reservations of <c>qty=10</c> where
     /// <c>N ∈ [1, 10]</c>, all <c>N</c> succeed.
     /// </summary>
-    [Property(
+    [ProofProperty(
         DisplayName = "Plan §9.3: N concurrent qty=10 against total=100 (N≤10) → all N succeed",
         Replay = PinnedReplay,
         MaxTest = 10
@@ -105,7 +107,7 @@ public sealed class ReservationLedgerProperties
     /// <c>N*q &gt; T</c>, at most <c>floor(T/q)</c> succeed and the
     /// rest fail with code <c>reservation.insufficient_stock</c>.
     /// </summary>
-    [Property(
+    [ProofProperty(
         DisplayName = "Plan §9.3: oversubscribed concurrent reservations → ≤ floor(T/q) successes, zero oversell",
         Replay = PinnedReplay,
         MaxTest = 5
@@ -166,7 +168,7 @@ public sealed class ReservationLedgerProperties
     /// same order_id produce exactly one ledger row; every successful
     /// call returns the same <see cref="Reservation.Id"/>.
     /// </summary>
-    [Property(
+    [ProofProperty(
         DisplayName = "TechDesign §4.2: K reservations with same order_id → 1 ledger row, 1 unique Id",
         Replay = PinnedReplay,
         MaxTest = 5
@@ -210,7 +212,7 @@ public sealed class ReservationLedgerProperties
     /// <c>E</c> already-expired Pending rows, <c>ReleaseExpiredAsync</c>
     /// returns <c>E</c> and flips every row to Expired.
     /// </summary>
-    [Property(
+    [ProofProperty(
         DisplayName = "TechDesign §4.5: ReleaseExpiredAsync flips Pending→Expired and returns the count",
         Replay = PinnedReplay,
         MaxTest = 5
@@ -274,7 +276,7 @@ public sealed class ReservationLedgerProperties
     /// it surfaces a real counterexample the trace lands in
     /// <c>docs/solutions/</c>.
     /// </remarks>
-    [Property(
+    [ProofProperty(
         DisplayName = "TechDesign §4.2: sum(pending) + sum(confirmed) ≤ initial_total after any sequence",
         Replay = PinnedReplay,
         MaxTest = 3

@@ -46,6 +46,12 @@
     <Compile Include="..\ShopFlow.Auth.IntegrationTests\Authorization\NarrowedJwtBuilder.cs">
       <Link>Authorization\NarrowedJwtBuilder.cs</Link>
     </Compile>
+    <!-- Finish-line U1 — shared proof-run gate (env/CI opt-in). Linked
+         (not a shared project) per the same single-source idiom as
+         NarrowedJwtBuilder above. -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>

@@ -69,6 +69,13 @@ tasks:
     cmds:
       - dotnet test --filter "Category=Load"
 
+  proofs:
+    desc: 'Run the hard-problem proof suites (Docker required). Opt-in gate for the Category=Proof tests: oversell-under-load, reservation-ledger invariants, tenant isolation, cross-role RBAC denial, multi-channel sync. Skipped by a default `dotnet test`; this target sets SHOPFLOW_RUN_PROOFS=1 to run them.'
+    env:
+      SHOPFLOW_RUN_PROOFS: '1'
+    cmds:
+      - dotnet test --filter "Category=Proof"
+
   ci:
     desc: 'Run the local CI replay (matches .github/workflows/ci.yml stages).'
     cmds:
