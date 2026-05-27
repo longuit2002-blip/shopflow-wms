@@ -10,8 +10,9 @@ namespace ShopFlow.Migrate.Provisioning;
 /// extends the seed to also insert the canonical Picker 4-key baseline
 /// (<see cref="PickerBaseline"/>). Sprint-12 U1 extends further with
 /// the canonical Dispatcher 3-key baseline
-/// (<see cref="DispatcherBaseline"/>). Idempotent — re-running against
-/// a populated table inserts only missing rows via
+/// (<see cref="DispatcherBaseline"/>). Sprint-13 U1 adds the canonical
+/// Packer 3-key baseline (<see cref="PackerBaseline"/>). Idempotent —
+/// re-running against a populated table inserts only missing rows via
 /// <c>ON CONFLICT DO NOTHING</c> on the composite PK
 /// <c>(role, permission_key)</c>.
 /// </summary>
@@ -23,7 +24,7 @@ namespace ShopFlow.Migrate.Provisioning;
 /// reverted on the next provision (re-insertion of the missing key).
 /// The seed never DELETEs, never UPDATEs — it only ensures the
 /// baseline set is present. Same contract holds for Picker
-/// (Sprint-11) AND Dispatcher (Sprint-12).</para>
+/// (Sprint-11), Dispatcher (Sprint-12) AND Packer (Sprint-13).</para>
 /// </remarks>
 public sealed class RolePermissionsSeed
 {
@@ -62,6 +63,32 @@ public sealed class RolePermissionsSeed
         PermissionKeys.HubConnect,
     };
 
+    /// <summary>
+    /// Sprint-13 U1 (K5) — the canonical 3-key Packer baseline
+    /// pre-seeded at every tenant provision. Packer owns the
+    /// pack-confirm transition (Sprint-13 moves Pack off Owner). The
+    /// 4-role hand-off chain is Picker → Packer → Dispatcher on one
+    /// saga. Mirrors <see cref="DispatcherBaseline"/>'s shape (3 keys,
+    /// no <c>inventory.read</c>) — by pack time items are already
+    /// pulled, so Packer doesn't need inventory visibility.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>Reuses <c>outbound.orders.pack-confirm</c>.</b> The same
+    /// key gates both <c>confirm-pack</c> AND <c>mark-pack-failed</c>
+    /// (Sprint-13 K3 — no 25th permission key). No frontend mirror at
+    /// Sprint-13 (backend-only); a <c>web/src/lib/auth/packerBaseline.ts</c>
+    /// mirror lands when the Packer UI surface ships.</para>
+    ///
+    /// <para><b>Owner KEEPS pack-confirm</b> (Sprint-13 K7 — ADDITIVE-ONLY
+    /// KTD1). Packer is added beside Owner, not in place of it.</para>
+    /// </remarks>
+    public static readonly IReadOnlyList<string> PackerBaseline = new[]
+    {
+        PermissionKeys.OutboundOrdersRead,
+        PermissionKeys.OutboundOrdersPackConfirm,
+        PermissionKeys.HubConnect,
+    };
+
     private readonly ILogger<RolePermissionsSeed> _logger;
 
     public RolePermissionsSeed(ILogger<RolePermissionsSeed> logger)
@@ -71,9 +98,10 @@ public sealed class RolePermissionsSeed
 
     /// <summary>
     /// Seed the Owner row with every PermissionKeys.All entry, the
-    /// Picker row with its canonical baseline, and the Dispatcher row
-    /// with its canonical baseline. Safe to run multiple times
-    /// (additive-only via ON CONFLICT DO NOTHING).
+    /// Picker row with its canonical baseline, the Dispatcher row with
+    /// its canonical baseline, and the Packer row with its canonical
+    /// baseline. Safe to run multiple times (additive-only via
+    /// ON CONFLICT DO NOTHING).
     /// </summary>
     public async Task SeedAsync(string tenantConnectionString, CancellationToken ct)
     {
@@ -84,7 +112,8 @@ public sealed class RolePermissionsSeed
 
         // Sprint-9 — Owner gets every key. Sprint-11 — Picker gets the
         // 4-key baseline. Sprint-12 — Dispatcher gets the 3-key
-        // baseline. PK(role, permission_key) makes the seed idempotent:
+        // baseline. Sprint-13 — Packer gets the 3-key baseline.
+        // PK(role, permission_key) makes the seed idempotent:
         // ON CONFLICT DO NOTHING.
         await using var tx = await conn.BeginTransactionAsync(ct).ConfigureAwait(false);
         try
@@ -104,6 +133,11 @@ public sealed class RolePermissionsSeed
                 await InsertAsync(conn, tx, "Dispatcher", key, ct).ConfigureAwait(false);
             }
 
+            foreach (var key in PackerBaseline)
+            {
+                await InsertAsync(conn, tx, "Packer", key, ct).ConfigureAwait(false);
+            }
+
             await tx.CommitAsync(ct).ConfigureAwait(false);
         }
         catch
@@ -113,10 +147,11 @@ public sealed class RolePermissionsSeed
         }
 
         _logger.LogInformation(
-            "RolePermissionsSeed: ensured Owner row has {OwnerCount} permission keys, Picker row has {PickerCount} baseline keys, Dispatcher row has {DispatcherCount} baseline keys.",
+            "RolePermissionsSeed: ensured Owner row has {OwnerCount} permission keys, Picker row has {PickerCount} baseline keys, Dispatcher row has {DispatcherCount} baseline keys, Packer row has {PackerCount} baseline keys.",
             PermissionKeys.All.Count,
             PickerBaseline.Count,
-            DispatcherBaseline.Count
+            DispatcherBaseline.Count,
+            PackerBaseline.Count
         );
     }
 
