@@ -898,6 +898,107 @@ public sealed class OrdersController : ControllerBase
     }
 
     /// <summary>
+    /// Sprint-13 U3 — Packer reports the order cannot be packed (item
+    /// damaged at the pack station, discovered after pick-confirm but
+    /// before pack-confirm). Order moves Picked → CompensatingReservation;
+    /// the saga's <see cref="PackFailed"/> handler transitions
+    /// <c>Picked → CompensatingReservation</c> (Path D) and publishes
+    /// <c>ReleaseStockV1</c>. When all expected <c>StockReleasedV1</c>
+    /// events arrive (Set-based dedup against MT redelivery), the saga
+    /// transitions to <c>Cancelled</c> + publishes <c>OrderCancelled</c>
+    /// for the Outbound-side consumer to flip the Order row to
+    /// <c>Cancelled</c> (R3 eventual-consistency boundary). Mirrors
+    /// MarkPickFailedAsync + MarkShipFailedAsync structurally; uses the
+    /// same <c>outbound.orders.pack-confirm</c> policy as ConfirmPack
+    /// (no new permission key per Sprint-13 K3 / Sprint-12.5 KTD6).
+    /// </summary>
+    /// <remarks>
+    /// Per Sprint-13 K1 (BLOCKING factual correction), the required
+    /// pre-state is <c>Picked</c> — NOT <c>AwaitingPack</c>. The Order
+    /// aggregate never sits at rest in <c>AwaitingPack</c> because
+    /// <c>ConfirmPackAsync</c> chains <c>MarkPacked → MarkAwaitingShip</c>
+    /// atomically (Sprint-12 KTD2). The saga is also in <c>Picked</c> at
+    /// this moment.
+    /// </remarks>
+    [HttpPost("{id:guid}/mark-pack-failed")]
+    [Authorize(Policy = PermissionKeys.OutboundOrdersPackConfirm)]
+    public async Task<IActionResult> MarkPackFailedAsync(
+        Guid id,
+        [FromBody] MarkPackFailedRequest? request,
+        CancellationToken ct
+    )
+    {
+        var order = await _orderRepo.FindByIdAsync(id, ct).ConfigureAwait(false);
+        if (order is null)
+        {
+            return ProblemFromError($"order {id} not found.", "order.not_found", 404);
+        }
+
+        // Two-tier pre-state guard (Sprint-12.5 KTD6 — natural-409
+        // idempotency mirrors MarkPickFailed / MarkShipFailed). Idempotency
+        // fires FIRST: a duplicate POST against an already-compensating /
+        // cancelled order returns 409 instead of the Picked-required 422,
+        // so operators see the serialization rather than a confusing
+        // pre-state error.
+        if (
+            order.Status == OrderStatus.CompensatingReservation
+            || order.Status == OrderStatus.Cancelled
+        )
+        {
+            return ProblemFromError(
+                $"order {id} is already in {order.Status} state; pack-failure already recorded.",
+                "order.pack_failure_already_recorded",
+                409
+            );
+        }
+
+        // Sprint-13 K1 — the Order aggregate is in Picked (NOT AwaitingPack)
+        // by the time mark-pack-failed fires. ConfirmPackAsync chains
+        // MarkPacked → MarkAwaitingShip in one SaveChanges, so the aggregate
+        // never rests in AwaitingPack. The saga is also in Picked.
+        if (order.Status != OrderStatus.Picked)
+        {
+            return ProblemFromError(
+                $"cannot mark pack-failed in {order.Status} state; required pre-state Picked.",
+                "order.invalid_state",
+                422
+            );
+        }
+
+        // Sprint-12.5 KTD10 — defence-in-depth length guard mirrors
+        // MarkPickFailed / MarkShipFailed.
+        if (request?.Reason is { Length: > 1000 })
+        {
+            return ProblemFromError(
+                "reason exceeds 1000 characters.",
+                "order.reason_too_long",
+                400
+            );
+        }
+
+        var transition = order.MarkCompensatingReservation();
+        if (!transition.IsSuccess)
+        {
+            return ProblemFromResult(transition.Error!, transition.ErrorCode!);
+        }
+
+        await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
+
+        // R3 boundary: publish the in-process saga event AFTER the Order
+        // commit. The saga is still in Picked at this point; PackFailed
+        // transitions it to CompensatingReservation via the new
+        // During(Picked, When(PackFailed)) clause in FulfillmentSaga.
+        var reason = string.IsNullOrWhiteSpace(request?.Reason)
+            ? string.Empty
+            : request!.Reason!.Trim();
+        await _publishEndpoint
+            .Publish(new PackFailed(order.Id, reason, _requestContext.UserId), ct)
+            .ConfigureAwait(false);
+
+        return Ok(Map(order));
+    }
+
+    /// <summary>
     /// U6 — packer reports the actual packed weight. Weight-variance
     /// check vs. the expected weight: if &gt; 10% the response carries
     /// <c>weight_warning=true</c> with the signed variance percentage,

@@ -82,6 +82,15 @@ public sealed record MarkPickFailedRequest([property: MaxLength(1000)] string? R
 /// </summary>
 public sealed record MarkShipFailedRequest([property: MaxLength(1000)] string? Reason);
 
+/// <summary>
+/// Sprint-13 U3 — <c>POST /mark-pack-failed</c> body. Packer reports an item
+/// damaged at the pack station (discovered after pick-confirm, before
+/// pack-confirm). Mirrors <see cref="MarkPickFailedRequest"/> +
+/// <see cref="MarkShipFailedRequest"/> shape including the 1000-character
+/// <see cref="MaxLengthAttribute"/> cap (Sprint-12.5 KTD10).
+/// </summary>
+public sealed record MarkPackFailedRequest([property: MaxLength(1000)] string? Reason);
+
 // ── Sprint-7 U4 — Orders screen wire-shape ──────────────────────────────
 // PascalCase wire stays unchanged (Sprint-6 KTD4). DTOs map from the
 // Application-layer read models (OrderListRow / OrderDetailReadModel /

@@ -303,12 +303,34 @@ public sealed class OrderTests
         order.Status.Should().Be(OrderStatus.CompensatingReservation);
     }
 
+    // Sprint-13 U3 — Path D: MarkCompensatingReservation widens to allow
+    // Picked pre-state (Order aggregate's state when mark-pack-failed fires;
+    // saga state is also Picked at that moment per Sprint-13 K1 — the Order
+    // never rests in AwaitingPack because ConfirmPackAsync chains
+    // MarkPacked → MarkAwaitingShip atomically).
+    [Fact]
+    public void MarkCompensatingReservation_FromPicked_TransitionsOk()
+    {
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(OrderStatus.CompensatingReservation);
+    }
+
     [Fact]
     public void MarkCompensatingReservation_FromPacked_FailsInvalidState()
     {
         // Packed is a transient state — ConfirmPackAsync auto-chains to
         // AwaitingShip in one commit. If a test ever lands a row in Packed
-        // and tries to compensate, the domain correctly rejects.
+        // and tries to compensate, the domain correctly rejects. (Sprint-13
+        // K1 — this stays unchanged: Picked widens the allow-set, Packed
+        // does NOT, because Packed is never at rest.)
         var order = NewCreatedOrder();
         order.MarkAwaitingReservation();
         order.MarkReserved();

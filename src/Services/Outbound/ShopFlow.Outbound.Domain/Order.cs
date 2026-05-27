@@ -220,6 +220,19 @@ public sealed class Order : BaseEntity
     /// completes and the <c>OrderCancelled</c> consumer flips it to
     /// <c>Cancelled</c> (R3 eventual-consistency boundary).</para>
     ///
+    /// <para><c>Picked</c> pre-state is the Sprint-13 U3 pack-failure path:
+    /// <c>POST /mark-pack-failed</c> calls this method when the Packer
+    /// discovers a damaged item at the pack station AFTER pick-confirm but
+    /// BEFORE pack-confirm. Per Sprint-13 K1 (BLOCKING factual correction
+    /// over the brainstorm), the Order aggregate is in <c>Picked</c> — NOT
+    /// <c>AwaitingPack</c> — at this moment: <c>ConfirmPackAsync</c> chains
+    /// <c>MarkPacked → MarkAwaitingShip</c> atomically, so the aggregate
+    /// never sits at rest in <c>AwaitingPack</c>. The saga is also in
+    /// <c>Picked</c>; its <c>During(Picked, When(PackFailed))</c> Path D
+    /// clause reuses the Sprint-3-redux Path B / Sprint-12.5 Path C
+    /// compensation primitives unchanged (<c>ReservedLineSkus</c> +
+    /// <c>LinesAwaitingRelease</c> survive through <c>Picked</c>).</para>
+    ///
     /// <para><c>AwaitingShip</c> pre-state is the Sprint-12.5 U3 ship-
     /// failure path: <c>POST /mark-ship-failed</c> calls this method when
     /// the carrier rejects the label or the package is damaged pre-ship.
@@ -236,11 +249,12 @@ public sealed class Order : BaseEntity
         if (
             Status != OrderStatus.Reserved
             && Status != OrderStatus.AwaitingPick
+            && Status != OrderStatus.Picked
             && Status != OrderStatus.AwaitingShip
         )
         {
             return Result.Failure(
-                $"cannot transition from {Status} to CompensatingReservation; required pre-state Reserved, AwaitingPick, or AwaitingShip.",
+                $"cannot transition from {Status} to CompensatingReservation; required pre-state Reserved, AwaitingPick, Picked, or AwaitingShip.",
                 "order.invalid_state"
             );
         }

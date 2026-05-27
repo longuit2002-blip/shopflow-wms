@@ -53,6 +53,8 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
         Event(() => PickConfirmed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         Event(() => PickFailed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         Event(() => PackConfirmed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
+        // Sprint-13 U3 — Path D entry for pack-failure compensation.
+        Event(() => PackFailed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         Event(() => ShipConfirmed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
         // Sprint-12.5 U3 — Path C entry for ship-failure compensation.
         Event(() => ShipFailed, x => x.CorrelateById(ctx => ctx.Message.OrderId));
@@ -266,6 +268,28 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
                         nameof(PackConfirmed),
                         ctx.Message.ActorUserId
                     )
+                ),
+            // Sprint-13 U3 Path D — pack failure. The StockReserved handler in
+            // the AwaitingReservation block above already populated
+            // ReservedLineSkus + LinesAwaitingRelease for this saga, and those
+            // fields survive through AwaitingPick → Picked unchanged; the
+            // WhenEnter(CompensatingReservation) activity below reads them to
+            // decide Path B/C/D (publish ReleaseStockV1; LinesAwaitingRelease
+            // > 0) vs Path A short-circuit (LinesAwaitingRelease == 0).
+            // Structurally identical to the AwaitingPick When(PickFailed)
+            // clause and the Packed When(ShipFailed) clause — Path D reuses
+            // the same compensation primitives (Sprint-13 K4).
+            When(PackFailed)
+                .Then(ctx => ctx.Saga.UpdatedAt = DateTime.UtcNow)
+                .TransitionTo(CompensatingReservation)
+                .ThenAsync(ctx =>
+                    RecordTransitionAsync(
+                        ctx,
+                        "Picked",
+                        "CompensatingReservation",
+                        nameof(PackFailed),
+                        ctx.Message.ActorUserId
+                    )
                 )
         );
 
@@ -448,6 +472,7 @@ public sealed class FulfillmentSaga : MassTransitStateMachine<FulfillmentSagaSta
     public Event<PickConfirmed> PickConfirmed { get; } = null!;
     public Event<PickFailed> PickFailed { get; } = null!;
     public Event<PackConfirmed> PackConfirmed { get; } = null!;
+    public Event<PackFailed> PackFailed { get; } = null!;
     public Event<ShipConfirmed> ShipConfirmed { get; } = null!;
     public Event<ShipFailed> ShipFailed { get; } = null!;
 

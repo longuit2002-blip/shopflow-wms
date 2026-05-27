@@ -115,6 +115,19 @@ public sealed class OutboundAuthorizePolicyCoverageTests
     }
 
     [Fact]
+    public void OrdersController_MarkPackFailedAsync_RequiresOutboundOrdersPackConfirmPolicy()
+    {
+        // Sprint-13 K3 — MarkPackFailed reuses the pack-confirm policy
+        // (no 25th key). Same key gates both confirm-pack AND
+        // mark-pack-failed, mirroring MarkShipFailed's reuse of
+        // ship-confirm (Sprint-12.5 KTD6).
+        AssertActionPolicy<OrdersController>(
+            nameof(OrdersController.MarkPackFailedAsync),
+            PermissionKeys.OutboundOrdersPackConfirm
+        );
+    }
+
+    [Fact]
     public void OrdersController_ConfirmShipAsync_RequiresOutboundOrdersShipConfirmPolicy()
     {
         AssertActionPolicy<OrdersController>(
