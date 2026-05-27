@@ -1,4 +1,5 @@
 using Hellang.Middleware.ProblemDetails;
+using ShopFlow.Channel.Infrastructure;
 using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.SharedKernel.Infrastructure;
 using ShopFlow.StockSync.Application.Consumers;
@@ -39,6 +40,11 @@ builder.Services.AddShopFlowDefaults(
 );
 builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddStockSyncModule(builder.Configuration);
+
+// Finish-line U6 — the PerTenantDispatcherService resolves IChannelAdapterFactory
+// to push stock updates; compose the real ShopeeAdapter + factory here (push-side
+// only, no webhook schema). Without this the host failed DI validation at startup.
+builder.Services.AddChannelAdapterFramework(builder.Configuration);
 builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
