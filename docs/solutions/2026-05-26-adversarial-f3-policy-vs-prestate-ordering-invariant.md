@@ -35,9 +35,10 @@ Per Sprint-12.5, the policy-gated saga-touching endpoints in `OrdersController.c
 
 | Endpoint | Policy | Adversarial-F3 pin lives in |
 |---|---|---|
-| `POST /confirm-pick` | `outbound.orders.pick-confirm` | `CrossRoleDenialTests.Dispatcher_AttemptsPickConfirm_...` (Sprint-12) |
-| `POST /mark-pick-failed` | `outbound.orders.pick-confirm` | (inherited from Sprint-12; same policy) |
-| `POST /confirm-pack` | `outbound.orders.pack-confirm` | (Sprint-12.5 follow-up if not present) |
+| `POST /confirm-pick` | `outbound.orders.pick-confirm` | `CrossRoleDenialTests.Dispatcher_AttemptsPickConfirm_...` (Sprint-12); `Packer_AttemptsConfirmPick_OnCancelledOrder_Returns403_NotStateError` (Sprint-13 U5 — third pin) |
+| `POST /mark-pick-failed` | `outbound.orders.pick-confirm` | (inherited; same policy) |
+| `POST /confirm-pack` | `outbound.orders.pack-confirm` | pack-confirm policy family pinned via the Sprint-13 third pin (the Packer→confirm-pick pin proves filter-before-prestate for the policy-gated family) |
+| `POST /mark-pack-failed` | `outbound.orders.pack-confirm` | Sprint-13 U5 — `Picker_AttemptsMarkPackFailed_...` + `Dispatcher_AttemptsMarkPackFailed_...` |
 | `POST /confirm-ship` | `outbound.orders.ship-confirm` | `CrossRoleDenialTests` Sprint-12 baseline |
 | `POST /mark-ship-failed` | `outbound.orders.ship-confirm` | Sprint-12.5 U3 new pin |
 
@@ -49,7 +50,7 @@ If a future endpoint somehow has the pre-state check evaluate before the policy 
 
 - Sprint-12 U5 ships the first adversarial-F3 pin for ConfirmShip.
 - Sprint-12.5 U3 ships the second pin for MarkShipFailed and graduates the discipline from "Sprint-12 U5 pinned this" to "class-level invariant for all policy-gated saga-touching endpoints."
-- Sprint-13+ adds the third pin when Packer is introduced and Pack-confirm moves off Owner, OR when any new policy-gated saga-touching endpoint ships.
+- **Sprint-13 U5 ships the third pin** (`Packer_AttemptsConfirmPick_OnCancelledOrder_Returns403_NotStateError`) when Packer is introduced and Pack-confirm moves off Owner. The invariant is now exercised across the pick / pack / ship policy families. The new `mark-pack-failed` endpoint also gains its cross-role denial coverage (Picker + Dispatcher → 403). The discipline is fully generalized: every future policy-gated saga-touching endpoint carries a pin.
 
 ## Why this is a separate file from generic ASP.NET filter docs
 
