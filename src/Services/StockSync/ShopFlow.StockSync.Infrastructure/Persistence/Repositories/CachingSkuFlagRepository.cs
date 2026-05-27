@@ -50,7 +50,6 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
     public const int MaxEntries = 10_000;
 
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ITenantCatalog _tenantCatalog;
     private readonly TimeProvider _clock;
     private readonly ILogger<CachingSkuFlagRepository> _logger;
     private readonly Func<IServiceProvider, ISkuFlagRepository> _innerResolver;
@@ -58,13 +57,11 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
 
     public CachingSkuFlagRepository(
         IServiceScopeFactory scopeFactory,
-        ITenantCatalog tenantCatalog,
         TimeProvider clock,
         ILogger<CachingSkuFlagRepository> logger
     )
         : this(
             scopeFactory,
-            tenantCatalog,
             clock,
             logger,
             innerResolver: static sp => sp.GetRequiredService<SkuFlagRepository>()
@@ -78,20 +75,17 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
     /// </summary>
     public CachingSkuFlagRepository(
         IServiceScopeFactory scopeFactory,
-        ITenantCatalog tenantCatalog,
         TimeProvider clock,
         ILogger<CachingSkuFlagRepository> logger,
         Func<IServiceProvider, ISkuFlagRepository> innerResolver
     )
     {
         ArgumentNullException.ThrowIfNull(scopeFactory);
-        ArgumentNullException.ThrowIfNull(tenantCatalog);
         ArgumentNullException.ThrowIfNull(clock);
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(innerResolver);
 
         _scopeFactory = scopeFactory;
-        _tenantCatalog = tenantCatalog;
         _clock = clock;
         _logger = logger;
         _innerResolver = innerResolver;
@@ -184,14 +178,21 @@ public sealed class CachingSkuFlagRepository : ISkuFlagRepository
         Func<ISkuFlagRepository, CancellationToken, Task<T>> work
     )
     {
+        // Finish-line U3 — resolve ITenantCatalog FROM the per-call scope, not
+        // a captured field. ITenantCatalog is scoped; capturing it in this
+        // Singleton's constructor fails DI scope validation (which the WAF +
+        // Aspire dev host enforce) and was why StockSync.Api never booted. The
+        // class already opens a scope here; the catalog reads the (global)
+        // control-plane DB and does not need the RequestContext bound first.
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        var tenantCatalog = scope.ServiceProvider.GetRequiredService<ITenantCatalog>();
         var tenant =
-            await _tenantCatalog.LookupByIdAsync(tenantId, ct).ConfigureAwait(false)
+            await tenantCatalog.LookupByIdAsync(tenantId, ct).ConfigureAwait(false)
             ?? throw new InvalidOperationException(
                 $"CachingSkuFlagRepository: tenant {tenantId} not found in catalog. "
                     + "The flush + consumer paths must only ask for tenants the catalog knows about."
             );
 
-        await using var scope = _scopeFactory.CreateAsyncScope();
         var requestContext = scope.ServiceProvider.GetRequiredService<RequestContext>();
         requestContext.Bind(tenant, Guid.NewGuid().ToString("N"), userId: null);
 

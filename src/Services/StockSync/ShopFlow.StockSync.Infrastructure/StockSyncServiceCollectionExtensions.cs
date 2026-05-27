@@ -73,6 +73,14 @@ public static class StockSyncServiceCollectionExtensions
         // K12 pattern — the factory builds a fresh DbContext per call bound
         // to IRequestContext.DbConnectionString. AddScoped<StockSyncDbContext>
         // makes the controller / repo seam identical to Sprint-4 Channel.
+        //
+        // Finish-line U3 — the factory MUST be Scoped. AddDbContextFactory
+        // defaults to a Singleton factory, whose configure-lambda `sp` is the
+        // ROOT provider; resolving the scoped IRequestContext there throws
+        // "Cannot resolve scoped service IRequestContext from root provider"
+        // on every consume + flush (the consumer faulted on every message; the
+        // happy-path would too — neither had ever run). A Scoped factory's `sp`
+        // is the per-call scope where IRequestContext is bound.
         services.AddDbContextFactory<StockSyncDbContext>(
             (sp, options) =>
             {
@@ -81,7 +89,8 @@ public static class StockSyncServiceCollectionExtensions
                     requestContext.DbConnectionString,
                     npg => npg.MigrationsAssembly("ShopFlow.StockSync.Infrastructure")
                 );
-            }
+            },
+            ServiceLifetime.Scoped
         );
 
         services.AddScoped<StockSyncDbContext>(sp =>

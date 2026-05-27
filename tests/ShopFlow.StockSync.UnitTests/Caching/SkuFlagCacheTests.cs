@@ -230,12 +230,15 @@ public sealed class SkuFlagCacheTests
             var services = new ServiceCollection();
             services.AddScoped<RequestContext>();
             services.AddScoped<IRequestContext>(sp => sp.GetRequiredService<RequestContext>());
+            // Finish-line U3 — the wrapper now resolves ITenantCatalog from the
+            // per-call scope (not a captured ctor field), so register the
+            // substitute here for the scope to hand back.
+            services.AddScoped<ITenantCatalog>(_ => catalog);
             var sp = services.BuildServiceProvider();
             var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
 
             Cache = new CachingSkuFlagRepository(
                 scopeFactory,
-                catalog,
                 Clock,
                 NullLogger<CachingSkuFlagRepository>.Instance,
                 innerResolver: scopeSp =>
