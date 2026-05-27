@@ -17,10 +17,10 @@ namespace ShopFlow.Outbound.Infrastructure.Migrations;
 ///
 /// Adds:
 /// <list type="bullet">
-///   <item><c>ix_outbound_orders_status_created_at</c> — supports
+///   <item><c>ix_orders_status_created_at</c> — supports
 ///   <c>ListOrdersHandler</c>'s typical filter (by saga state /
 ///   status) + DESC newest-first ordering.</item>
-///   <item><c>ix_outbound_order_lines_order_id</c> — defensive index
+///   <item><c>ix_order_lines_order_id</c> — defensive index
 ///   for the LineItems join path; PK + FK may already cover, idempotent
 ///   CREATE INDEX IF NOT EXISTS keeps it safe regardless.</item>
 /// </list>
@@ -28,6 +28,15 @@ namespace ShopFlow.Outbound.Infrastructure.Migrations;
 /// Pure raw-SQL via <c>mb.Sql</c> + <c>CREATE INDEX IF NOT EXISTS</c>
 /// so the migration is no-op if the index happens to already exist
 /// (mirrors Sprint-3-redux convention for cross-cutting index work).
+///
+/// <para><strong>Finish-line U4 correction.</strong> The original Sprint-7.5
+/// migration indexed <c>outbound_orders</c> + <c>outbound_order_lines</c> —
+/// neither table exists; InitialOutboundSchema creates <c>orders</c> +
+/// <c>order_lines</c> (no module prefix on these). Judgment-authored without a
+/// local Docker daemon (the Sprint-7.5 U10 deviation note), so it threw
+/// <c>42P01 relation "outbound_orders" does not exist</c> on every real apply —
+/// part of why the Outbound integration suite never ran end-to-end. Corrected
+/// to the real table + index names.</para>
 /// </summary>
 [DbContext(typeof(OutboundDbContext))]
 [Migration("20260519000003_OutboundIndexAudit")]
@@ -37,19 +46,16 @@ public sealed partial class OutboundIndexAudit : Migration
     {
         ArgumentNullException.ThrowIfNull(mb);
         mb.Sql(
-            "CREATE INDEX IF NOT EXISTS ix_outbound_orders_status_created_at "
-                + "ON outbound_orders (status, created_at DESC);"
+            "CREATE INDEX IF NOT EXISTS ix_orders_status_created_at "
+                + "ON orders (status, created_at DESC);"
         );
-        mb.Sql(
-            "CREATE INDEX IF NOT EXISTS ix_outbound_order_lines_order_id "
-                + "ON outbound_order_lines (order_id);"
-        );
+        mb.Sql("CREATE INDEX IF NOT EXISTS ix_order_lines_order_id ON order_lines (order_id);");
     }
 
     protected override void Down(MigrationBuilder mb)
     {
         ArgumentNullException.ThrowIfNull(mb);
-        mb.Sql("DROP INDEX IF EXISTS ix_outbound_order_lines_order_id;");
-        mb.Sql("DROP INDEX IF EXISTS ix_outbound_orders_status_created_at;");
+        mb.Sql("DROP INDEX IF EXISTS ix_order_lines_order_id;");
+        mb.Sql("DROP INDEX IF EXISTS ix_orders_status_created_at;");
     }
 }

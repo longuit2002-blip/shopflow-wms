@@ -1,3 +1,7 @@
+using System.Net;
+using System.Net.Http.Headers;
+using ShopFlow.TestSupport;
+
 namespace ShopFlow.Outbound.IntegrationTests.Handoff;
 
 /// <summary>
@@ -75,30 +79,45 @@ public sealed class CrossRoleDenialTests
         _fixture = fixture;
     }
 
-    [Fact(Skip = SkipReason)]
-    public Task Picker_AttemptsShipConfirm_Returns403_AndSagaUnchanged()
+    // Finish-line U4 — body written + ready, but DEFERRED: booting the
+    // Outbound.Api WAF currently throws "AddMassTransit() was already called"
+    // — AddShopFlowDefaults calls AddMassTransit (AddConsumers + AddSagaStateMachines)
+    // AND AddOutboundModule calls a SECOND AddMassTransit for the FulfillmentSaga's
+    // EntityFrameworkRepository config. MassTransit forbids two calls, so the
+    // Outbound.Api WAF has never booted (its WAF tests were all Skip-marked). The
+    // fix is a composition-root rebuild — a kernel bus-configurator hook on
+    // AddShopFlowDefaults so the saga EF-repo + SignalR relays + TenantBindingSagaFilter
+    // register in the single AddMassTransit call. Tracked in
+    // docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md.
+    // The HandoffFixture provisioning (catalog + tenant + Outbound schema) + the
+    // two Outbound migration fixes that unblocked the schema are committed; this
+    // body becomes [ProofFact] once the composition rebuild lands.
+    [Fact(
+        Skip = "finish-line U4 WIP: Outbound.Api WAF boot blocked on a double-AddMassTransit "
+            + "composition bug (AddShopFlowDefaults + AddOutboundModule both call it). "
+            + "Needs a kernel bus-configurator hook; see docs/solutions/"
+            + "2026-05-27-outbound-api-never-booted-composition-bugs.md."
+    )]
+    public async Task Picker_AttemptsShipConfirm_Returns403_AndSagaUnchanged()
     {
-        // ARRANGE
-        // -------
-        // 1. Seed order via direct DbContext: orders.Status="AwaitingShip"
-        //    + saga_state.CurrentState="Packed" (saga reality per KTD2 —
-        //    saga has no AwaitingShip handler; sits at Packed between
-        //    pack-confirm and ship-confirm).
-        // 2. Mint Picker JWT via _fixture.BuildPickerJwt — carries the
-        //    4-key baseline (NO ship-confirm).
-        //
-        // ACT
-        // ---
-        // 3. POST /api/outbound/orders/{orderId}/confirm-ship with the
-        //    Picker JWT. Empty body.
-        //
-        // ASSERT
-        // ------
-        // 4. HTTP 403 + ProblemDetails body.errorCode == "auth.forbidden".
-        // 5. orders.Status still "AwaitingShip" (controller didn't run).
-        // 6. saga_state.CurrentState still "Packed" (no transition fired).
-        // 7. No new outbound_saga_transitions row for this orderId.
-        return Task.CompletedTask;
+        // The [Authorize(Policy=OutboundOrdersShipConfirm)] gate fires on the
+        // Picker JWT's perm[] (no ship-confirm) BEFORE the controller looks up
+        // the order — so a non-existent order id still 403s, proving the auth
+        // gate, not a not-found/state path. (No order-seeding needed for the
+        // pure denial; the adversarial-F3 pins seed a wrong-state order to
+        // prove auth-before-state.)
+        var client = _fixture.HttpClient;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            _fixture.BuildPickerJwt()
+        );
+
+        var resp = await client.PostAsync(
+            $"/api/outbound/orders/{Guid.NewGuid()}/confirm-ship",
+            content: null
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
     [Fact(Skip = SkipReason)]

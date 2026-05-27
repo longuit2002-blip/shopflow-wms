@@ -1,13 +1,17 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
 using Polly;
 using ShopFlow.Auth.IntegrationTests.Authorization;
+using ShopFlow.ControlPlane.Domain;
+using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Outbound.Application.Ports;
+using ShopFlow.Outbound.Infrastructure;
 using ShopFlow.Outbound.Infrastructure.Shipping;
 using Testcontainers.PostgreSql;
 
@@ -142,47 +146,30 @@ public sealed class HandoffFixture : IAsyncLifetime
     {
         await _container.StartAsync();
         var admin = _container.GetConnectionString();
-        ControlPlaneConnectionString = admin;
 
-        // Sprint-2.5 precedent — provision ONE tenant DB hosting both
-        // Auth + Outbound schemas. Per-module outbox prefixes prevent
-        // the legacy `outbox_messages` collision.
+        // ── Tenant DB — Outbound schema only (finish-line U4) ─────────────
+        // The cross-role denial tests are CLAIM-based: the perm[] rides in the
+        // NarrowedJwtBuilder-minted JWT and [Authorize(Policy)] reads the claim,
+        // never the DB (the Sprint-9 perm-claim design / KTD1). So the fixture
+        // needs the Outbound schema (orders + saga_state + transitions) for
+        // order-seeding and the controller's operations — NOT the Auth schema /
+        // users / role_permissions. The Sprint-12 "CI-tier body" comment that
+        // listed those 5 steps over-specified them: nothing in the request path
+        // reads the Auth DB. (PickerFixture carried the same over-specified,
+        // never-run comment.)
         var dbName = $"shopflow_hndoff_{Guid.NewGuid().ToString("N")[..8]}";
-        await using (var conn = new NpgsqlConnection(admin))
-        {
-            await conn.OpenAsync();
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"CREATE DATABASE \"{dbName}\"";
-            await cmd.ExecuteNonQueryAsync();
-        }
-
+        await CreateDatabaseAsync(admin, dbName);
         TenantConnectionString = new NpgsqlConnectionStringBuilder(admin)
         {
             Database = dbName,
         }.ConnectionString;
+        await MigrateOutboundSchemaAsync(TenantConnectionString);
 
-        // CI-tier body (omitted from local skipped run):
-        //   1. AuthDbContext.Database.MigrateAsync(TenantConnectionString)
-        //      — applies Sprint-9 AddSprint9AuthSchema + earlier AddUsers
-        //      migrations.
-        //   2. OutboundDbContext.Database.MigrateAsync(TenantConnectionString)
-        //      — applies InitialOutboundSchema + AddOrderTransitions +
-        //      AddUniqueOnSagaTransitions + OutboundIndexAudit.
-        //   3. OwnerSeed.SeedAsync(TenantConnectionString) — inserts the
-        //      Owner row with an Argon2id-hashed password (required by
-        //      the AuthDbContext NOT NULL constraint; the JWT path
-        //      doesn't read it but the schema does).
-        //   4. RolePermissionsSeed.SeedAsync(TenantConnectionString) —
-        //      Sprint-9 U12 + Sprint-11 U1 + Sprint-12 U1 + Sprint-13 U2 —
-        //      inserts Owner (24 keys) + Picker (4-key baseline) +
-        //      Dispatcher (3-key baseline) + Packer (3-key baseline) rows.
-        //      Requires the Sprint-13 AddPackerRole migration (step 1) to
-        //      have widened chk_role_permissions_role first, else the
-        //      'Packer' INSERTs trip the CHECK.
-        //   5. Raw INSERTs into `users` for Owner + Picker + Dispatcher +
-        //      Packer (mirrors Sprint-11 U3 PickerFixture pattern,
-        //      replicated 4× — KTD4 deferred work consolidates this if the
-        //      duplication starts hurting in Sprint-14+).
+        // ── Control-plane catalog — register the handoff tenant ───────────
+        // TenantRoutingMiddleware resolves the JWT's tenant_slug against this
+        // catalog to bind the per-request DbContext connection string.
+        ControlPlaneConnectionString = await CreateAndMigrateControlPlaneDbAsync(admin);
+        await RegisterTenantInCatalogAsync(ControlPlaneConnectionString, TenantSlug, dbName);
 
         JwtBuilder = new NarrowedJwtBuilder(DevSecret, Issuer, Audience);
 
@@ -197,13 +184,20 @@ public sealed class HandoffFixture : IAsyncLifetime
             b.UseSetting("Auth:Audience", Audience);
             b.UseSetting("ConnectionStrings:Redis", "localhost:6379");
             b.UseSetting("MessageBus:Transport", "InMemory");
+            // Finish-line U4 — AddShopFlowDefaults' Sprint-9 KTD7 guard reads
+            // the Auth:ForwardedHeaders:KnownNetworks config key (not
+            // IWebHostEnvironment) and throws in non-Development on an empty
+            // allowlist; UseEnvironment doesn't satisfy it. Trust loopback.
+            b.UseSetting("Auth:ForwardedHeaders:KnownNetworks:0", "127.0.0.0/8");
             b.UseSetting("ControlPlane:ConnectionString", ControlPlaneConnectionString);
+            // Finish-line U4 — AddControlPlane requires the literal '{db}' token;
+            // NpgsqlConnectionStringBuilder URL-encodes the braces, so un-escape.
+            // ('{Database}' never matched — the same bug as the Auth fixture.)
             b.UseSetting(
                 "ControlPlane:TenantTemplate",
-                new NpgsqlConnectionStringBuilder(admin)
-                {
-                    Database = "{Database}",
-                }.ConnectionString
+                new NpgsqlConnectionStringBuilder(admin) { Database = "{db}" }
+                    .ConnectionString.Replace("%7B", "{", StringComparison.OrdinalIgnoreCase)
+                    .Replace("%7D", "}", StringComparison.OrdinalIgnoreCase)
             );
 
             // ── KTD5 — Zero-flake MockShippingProvider override ──────
@@ -385,6 +379,81 @@ public sealed class HandoffFixture : IAsyncLifetime
             email: PickerEmail,
             role: "Picker"
         );
+    }
+
+    // ── Provisioning helpers (finish-line U4) ─────────────────────────────
+    // Mirror the StockSyncHappyPathTests catalog pattern. No SetPrivateProperty
+    // Id-forcing needed: tenant routing resolves by SLUG, and the JWT's sub is a
+    // user id, not the tenant id — the catalog tenant's generated id is fine.
+
+    private static async Task CreateDatabaseAsync(string adminConnStr, string dbName)
+    {
+        await using var conn = new NpgsqlConnection(adminConnStr);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = $"CREATE DATABASE \"{dbName}\"";
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task MigrateOutboundSchemaAsync(string tenantConnStr)
+    {
+        var options = new DbContextOptionsBuilder<OutboundDbContext>()
+            .UseNpgsql(
+                tenantConnStr,
+                npg => npg.MigrationsAssembly("ShopFlow.Outbound.Infrastructure")
+            )
+            .Options;
+        await using var ctx = new OutboundDbContext(options);
+        await ctx.Database.MigrateAsync();
+    }
+
+    private static async Task<string> CreateAndMigrateControlPlaneDbAsync(string adminConnStr)
+    {
+        var dbName = $"shopflow_control_{Guid.NewGuid().ToString("N")[..8]}";
+        await CreateDatabaseAsync(adminConnStr, dbName);
+        var connStr = new NpgsqlConnectionStringBuilder(adminConnStr)
+        {
+            Database = dbName,
+        }.ConnectionString;
+        var options = new DbContextOptionsBuilder<ControlPlaneDbContext>()
+            .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.ControlPlane.Migrations"))
+            .Options;
+        await using var ctx = new ControlPlaneDbContext(options);
+        await ctx.Database.MigrateAsync();
+        return connStr;
+    }
+
+    private static async Task RegisterTenantInCatalogAsync(
+        string controlConnStr,
+        string slug,
+        string dbName
+    )
+    {
+        var options = new DbContextOptionsBuilder<ControlPlaneDbContext>()
+            .UseNpgsql(
+                controlConnStr,
+                npg => npg.MigrationsAssembly("ShopFlow.ControlPlane.Migrations")
+            )
+            .Options;
+        await using var ctx = new ControlPlaneDbContext(options);
+
+        var create = Tenant.Create(
+            slug: slug,
+            dbName: dbName,
+            region: "ap-southeast-1",
+            tier: "free"
+        );
+        if (!create.IsSuccess)
+        {
+            throw new InvalidOperationException(
+                $"failed to create tenant '{slug}' in catalog: {create.Error}"
+            );
+        }
+        var entity = create.Value!;
+        entity.BeginProvisioning();
+        entity.MarkProvisioned();
+        ctx.Tenants.Add(entity);
+        await ctx.SaveChangesAsync();
     }
 
     public async Task DisposeAsync()

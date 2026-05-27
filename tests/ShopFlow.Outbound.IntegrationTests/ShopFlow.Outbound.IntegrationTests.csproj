@@ -44,6 +44,13 @@
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <!-- Finish-line U4 — HandoffFixture provisions a control-plane catalog +
+         registers the handoff tenant so the WAF's TenantRoutingMiddleware can
+         resolve it. ControlPlane.Migrations must be on the probing path for
+         ControlPlaneDbContext.MigrateAsync (same reason SharedKernel +
+         StockSync.IntegrationTests reference it). -->
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
     <!-- Sprint-10.5 U4 — NarrowedJwtBuilder is linked as a Compile item
          from Auth.IntegrationTests/Authorization/. Cross-test-project
          ProjectReference (the plan's prescribed shape) pulls Auth.Api.dll
@@ -66,6 +73,10 @@
          single source of truth without the transitive cost. -->
     <Compile Include="..\..\tools\shopflow-migrate\Provisioning\RolePermissionsSeed.cs">
       <Link>Provisioning\RolePermissionsSeed.cs</Link>
+    </Compile>
+    <!-- Finish-line U4 — proof-run gate for the cross-role denial harness. -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
     </Compile>
   </ItemGroup>
 

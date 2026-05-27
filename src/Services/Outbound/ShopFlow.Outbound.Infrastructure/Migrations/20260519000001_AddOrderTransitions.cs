@@ -31,7 +31,17 @@ namespace ShopFlow.Outbound.Infrastructure.Migrations;
 /// <c>tenant_id</c> column.</para>
 /// </remarks>
 [DbContext(typeof(OutboundDbContext))]
-[Migration("20260519100001_AddOrderTransitions")]
+// Finish-line U4 — renamed from 20260519100001 → 20260519000001 to FIX a
+// migration-ordering bug: this migration CREATES outbound_saga_transitions, but
+// AddUniqueOnSagaTransitions (20260519000002) + AddActorUserIdToSagaTransitions
+// reference that table — and at the old ID this table-creation sorted AFTER them
+// (100001 > 000002), so MigrateAsync threw 42P01 "relation
+// outbound_saga_transitions does not exist". AddOrderTransitions (Sprint-7) was
+// authored before the Sprint-7.5 dependents; it now sorts first (right after
+// InitialOutboundSchema), matching authorship chronology. Never applied to a
+// durable DB (the Outbound integration suite never ran end-to-end), so the
+// rename is safe — same fix class as the Sprint-13 AddPackerRole correction.
+[Migration("20260519000001_AddOrderTransitions")]
 public sealed partial class AddOrderTransitions : Migration
 {
     protected override void Up(MigrationBuilder mb)
