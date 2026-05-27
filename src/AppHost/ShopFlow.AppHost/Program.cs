@@ -60,12 +60,20 @@ var postgres = builder
 // max_db_connections=20 per D1 + Tech Design v3.0 §1.6. Pool sizing comments
 // live in the rendered pgbouncer.ini.template.
 var pgBouncer = builder
-    .AddContainer("pgbouncer", "bitnami/pgbouncer", "1.23.1")
+    .AddContainer("pgbouncer", "bitnamilegacy/pgbouncer", "1.23.1")
     .WithEndpoint(port: 6432, targetPort: 6432, name: "tcp", scheme: "tcp")
     .WithBindMount(pgBouncerConfigDir, "/etc/pgbouncer", isReadOnly: true)
     .WithEnvironment("PGBOUNCER_AUTH_TYPE", "scram-sha-256")
     .WithEnvironment("PGBOUNCER_INI_FILE", "/etc/pgbouncer/pgbouncer.ini")
     .WithEnvironment("PGBOUNCER_USERLIST_FILE", "/etc/pgbouncer/userlist.txt")
+    // Local-run fix: the bitnami(legacy) pgbouncer entrypoint validates
+    // POSTGRESQL_* upstream vars even when a custom pgbouncer.ini is bind-
+    // mounted. POSTGRESQL_HOST=postgres targets the Aspire internal DNS;
+    // password matches the pg-superuser parameter above.
+    .WithEnvironment("POSTGRESQL_HOST", "postgres")
+    .WithEnvironment("POSTGRESQL_PORT_NUMBER", "5432")
+    .WithEnvironment("POSTGRESQL_USERNAME", "postgres")
+    .WithEnvironment("POSTGRESQL_PASSWORD", "postgres")
     .WaitFor(postgres);
 
 // ── shopflow-migrate bootstrap chain ────────────────────────────────────
@@ -87,7 +95,7 @@ var migrateCatalog = builder
     .AddExecutable(
         name: "migrate-catalog",
         command: "dotnet",
-        workingDirectory: repoRoot,
+        workingDirectory: migrateProjectPath,
         args: new[]
         {
             "run",
@@ -105,7 +113,7 @@ var migrateDev1 = builder
     .AddExecutable(
         name: "migrate-dev1",
         command: "dotnet",
-        workingDirectory: repoRoot,
+        workingDirectory: migrateProjectPath,
         args: new[]
         {
             "run",
@@ -123,7 +131,7 @@ var migrateDev2 = builder
     .AddExecutable(
         name: "migrate-dev2",
         command: "dotnet",
-        workingDirectory: repoRoot,
+        workingDirectory: migrateProjectPath,
         args: new[]
         {
             "run",

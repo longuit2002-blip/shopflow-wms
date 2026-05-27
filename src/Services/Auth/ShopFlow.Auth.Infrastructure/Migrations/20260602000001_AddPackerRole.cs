@@ -37,7 +37,7 @@ namespace ShopFlow.Auth.Infrastructure.Migrations;
 /// step, not an automatic data scrub.</para>
 /// </remarks>
 [DbContext(typeof(AuthDbContext))]
-[Migration("20260527000001_AddPackerRole")]
+[Migration("20260602000001_AddPackerRole")]
 public sealed partial class AddPackerRole : Migration
 {
     protected override void Up(MigrationBuilder mb)
