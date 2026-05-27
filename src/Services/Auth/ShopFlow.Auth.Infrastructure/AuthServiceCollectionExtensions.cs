@@ -172,12 +172,21 @@ public static class AuthServiceCollectionExtensions
         // Sprint-8 U6 — JWT access-token issuer. Reads iss/aud/secret
         // from the same Auth config section the kernel validator
         // (AddShopFlowDefaults) reads — single source of truth keeps
-        // issuance + validation coordinated (KTD5). Singleton because
-        // the handler + signing key are immutable per-process.
+        // issuance + validation coordinated (KTD5).
+        //
+        // Finish-line U2 — MUST be Scoped, not Singleton. Sprint-9 U6 gave
+        // the issuer a scoped IRolePermissionRepository dependency (to project
+        // the perm[] claim); a Singleton consuming a Scoped service fails DI
+        // scope validation, which WebApplicationFactory (ValidateOnBuild) and
+        // the Aspire dev host (ValidateScopes in Development) both enforce —
+        // so Auth.Api threw at startup and never served HTTP. The handler +
+        // signing key the old "immutable per-process" comment referred to are
+        // cheap to construct per scope. Surfaced the first time the Auth WAF
+        // actually booted (every Auth integration test was Skip-marked).
         services
             .AddOptions<JwtIssuerOptions>()
             .Bind(configuration.GetSection(JwtIssuerOptions.SectionName));
-        services.AddSingleton<ITokenIssuer, JwtTokenIssuer>();
+        services.AddScoped<ITokenIssuer, JwtTokenIssuer>();
 
         return services;
     }

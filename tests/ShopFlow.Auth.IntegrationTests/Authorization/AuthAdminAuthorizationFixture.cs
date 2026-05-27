@@ -65,18 +65,33 @@ public sealed class AuthAdminAuthorizationFixture : IAsyncLifetime
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
         {
+            // Finish-line U2 — the WAF boots in the Production environment, where
+            // AddShopFlowDefaults' Sprint-9 KTD7 guard throws unless a
+            // ForwardedHeaders allowlist is configured. That guard reads the
+            // config key Auth:ForwardedHeaders:KnownNetworks directly (NOT
+            // IWebHostEnvironment), so UseEnvironment("Development") does not
+            // satisfy it — UseSetting on the actual config key does. Trusting
+            // loopback as a known network is the realistic test posture and
+            // keeps the WAF in Production mode (no dev relaxations masking the
+            // security boundary under test). Surfaced the first time this
+            // fixture ever ran — its consumers were all Skip-marked.
+            b.UseSetting("Auth:ForwardedHeaders:KnownNetworks:0", "127.0.0.0/8");
             b.UseSetting("Auth:DevSecret", DevSecret);
             b.UseSetting("Auth:Issuer", Issuer);
             b.UseSetting("Auth:Audience", Audience);
             b.UseSetting("ConnectionStrings:Redis", "localhost:6379");
             b.UseSetting("MessageBus:Transport", "InMemory");
             b.UseSetting("ControlPlane:ConnectionString", ControlPlaneConnectionString);
+            // Finish-line U2 — AddControlPlane requires the literal token
+            // '{db}' (lowercase) in the template; NpgsqlConnectionStringBuilder
+            // URL-encodes the braces to %7B/%7D, so un-escape them back (same
+            // pattern as StockSyncHappyPathTests.BuildTenantTemplate). The
+            // original '{Database}' token never matched — surfaced on first run.
             b.UseSetting(
                 "ControlPlane:TenantTemplate",
-                new NpgsqlConnectionStringBuilder(admin)
-                {
-                    Database = "{Database}",
-                }.ConnectionString
+                new NpgsqlConnectionStringBuilder(admin) { Database = "{db}" }
+                    .ConnectionString.Replace("%7B", "{", StringComparison.OrdinalIgnoreCase)
+                    .Replace("%7D", "}", StringComparison.OrdinalIgnoreCase)
             );
         });
     }
