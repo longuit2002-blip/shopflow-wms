@@ -1,4 +1,5 @@
 using Hellang.Middleware.ProblemDetails;
+using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Outbound.Infrastructure;
 using ShopFlow.SharedKernel.Infrastructure;
 using ShopFlow.SharedKernel.Infrastructure.SignalR;
@@ -28,7 +29,21 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddShopFlowDefaults(
     builder.Configuration,
-    configure: o => o.ServiceName = "shopflow-outbound",
+    configure: o =>
+    {
+        o.ServiceName = "shopflow-outbound";
+        // Finish-line U4 — register the FulfillmentSaga EF repository + the
+        // SignalR relay consumers inside the kernel's SINGLE AddMassTransit
+        // (MassTransit forbids a second AddMassTransit per container). This
+        // replaces the second AddMassTransit that AddOutboundModule used to
+        // call, which threw at host build and kept Outbound.Api from ever
+        // booting. See OutboundServiceCollectionExtensions.ConfigureOutboundBus.
+        o.ConfigureBus = ShopFlow
+            .Outbound
+            .Infrastructure
+            .OutboundServiceCollectionExtensions
+            .ConfigureOutboundBus;
+    },
     assembliesToScan: new[]
     {
         // Sprint-7 U4 — Outbound.Application assembly carries the MediatR
@@ -43,6 +58,12 @@ builder.Services.AddShopFlowDefaults(
         typeof(ShopFlow.Outbound.Infrastructure.OutboundDbContext).Assembly,
     }
 );
+
+// Finish-line U4 — register ITenantCatalog (backed by the shopflow_control
+// catalog DB). TenantRoutingMiddleware, the SignalR hub filter, and the relay
+// consumers all depend on it. Outbound.Api never wired this because the host
+// never booted (the double-AddMassTransit threw first); mirrors StockSync.Api.
+builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddOutboundModule(builder.Configuration);
 builder.Services.AddShopFlowControllers();
 

@@ -1,76 +1,49 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using ShopFlow.Outbound.Domain;
+using ShopFlow.Outbound.Infrastructure;
 using ShopFlow.TestSupport;
 
 namespace ShopFlow.Outbound.IntegrationTests.Handoff;
 
 /// <summary>
-/// Sprint-12 U5 — Docker-backed cross-role denial tests pinning that
-/// each role's <c>[Authorize(Policy = ...)]</c> gate rejects real
-/// non-Owner JWTs missing the specific permission, NOT just narrowed
-/// Owner JWTs (which Sprint-10.5's 33+1 403 tests already cover).
+/// Sprint-12 U5 / Sprint-13 U5 / finish-line U4 — Docker-backed cross-role
+/// denial proofs (AE4). Each fact pins that a role's
+/// <c>[Authorize(Policy = ...)]</c> gate rejects a real non-Owner JWT that is
+/// missing the specific permission, returning HTTP 403 and leaving the order
+/// state untouched. These are minted from the SAME
+/// <c>RolePermissionsSeed.{Picker,Dispatcher,Packer}Baseline</c> constants the
+/// provisioner writes (via <see cref="HandoffFixture"/>'s JWT builders), so
+/// drift between the seeded role permissions and the JWT under test is
+/// impossible.
 ///
-/// <para><b>Test set rationale (origin flow F3 + plan U5).</b></para>
-/// <list type="number">
-///   <item><description>Picker → ship-confirm → 403 (wrong role, correct
-///     pre-state)</description></item>
-///   <item><description>Picker → pack-confirm → 403 (wrong role, correct
-///     pre-state)</description></item>
-///   <item><description>Dispatcher → pick-confirm → 403 (wrong role,
-///     correct pre-state)</description></item>
-///   <item><description>Dispatcher → pack-confirm → 403 (wrong role,
-///     correct pre-state)</description></item>
-///   <item><description><b>adversarial-F3 mitigation:</b> Dispatcher →
-///     pick-confirm with order in AwaitingShip state (wrong role AND
-///     wrong pre-state). Assert HTTP 403 + <c>errorCode == "auth.forbidden"</c>,
-///     NOT HTTP 400 + <c>errorCode == "order.invalid_state"</c>. Proves
-///     the <c>[Authorize(Policy)]</c> filter executes BEFORE the
-///     controller's pre-state check at <c>OrdersController.cs:895</c> —
-///     a middleware-ordering regression that swapped the response code
-///     would leak the order's state to an unauthorized caller. Closes
-///     the Sprint-10 ordering-regression class the 4 baseline facts
-///     don't distinguish.</description></item>
-///   <item><description><b>adversarial-F8 mitigation:</b> Picker JWT
-///     with an EXTRA <c>outbound.orders.ship-confirm</c> key beyond the
-///     baseline (simulating the AE6 operator-pre-grant case via
-///     <see cref="HandoffFixture.BuildPickerWithExtraShipConfirmJwt"/>).
-///     POST /confirm-ship on an AwaitingShip-state order returns 200 +
-///     saga reaches Shipped. Then the SAME JWT against /confirm-pack
-///     returns 403 (Picker still doesn't have pack-confirm). Pins the
-///     KTD1 additive-only contract's behavioral consequence: an
-///     operator who grants Picker ship-confirm HAS granted ship
-///     capability — there is no defense-in-depth surprise rescue. The
-///     operator-runbook callout is the only mitigation; this test
-///     ensures the documented behavior matches reality.</description></item>
-/// </list>
+/// <para><b>Why HTTP status, not an <c>auth.forbidden</c> error body.</b> The
+/// per-action <c>[Authorize(Policy)]</c> filter rejects with the framework's
+/// default 403 (empty body) BEFORE the controller action runs — there is no
+/// ProblemDetails <c>errorCode</c> on that path. The proof is therefore the
+/// 403 status itself, and for the ordering pins the fact that it is 403 (auth)
+/// and NOT 400/422 <c>order.invalid_state</c> (the controller's pre-state
+/// guard). A 403 on a wrong-state order proves the auth filter fires before
+/// the controller can leak the order's state to an unauthorized caller.</para>
 ///
-/// <para>All facts seed orders via direct DbContext writes
-/// (Sprint-11 U3 pattern): both <c>orders.Status</c> AND
-/// <c>saga_state.CurrentState</c> set to the appropriate pre-state.
-/// Negative-path tests skip the saga propagation chain since no
-/// transition is expected to fire.</para>
-///
-/// <para><b>Sprint-13 U5 adds 8 facts (6 → 14 total)</b> for the Packer
-/// 4th role: 4 Packer-baseline denials (pick-confirm / ship-confirm /
-/// mark-pick-failed / mark-ship-failed all → 403), 2 new-endpoint denials
-/// (Picker / Dispatcher → mark-pack-failed → 403; mark-pack-failed didn't
-/// exist in Sprint-12), the adversarial-F3 third pin (Packer → confirm-pick
-/// on a Cancelled order → 403 not state-error), and the adversarial-F8
-/// union-of-perms pin (Picker + manual pack-confirm grant CAN pack, still
-/// can't ship). The Sprint-12 6 facts stay unchanged.</para>
-///
-/// <para>Skip-marked locally per Sprint-1+ posture; CI runs the full
-/// Docker-backed suite.</para>
+/// <para><b>Finish-line U4.</b> These bodies were Skip-marked stubs until the
+/// Outbound.Api WAF could boot — it never had, because the production
+/// composition double-called <c>AddMassTransit</c> and never registered
+/// <c>ITenantCatalog</c>. Both are fixed (kernel <c>ConfigureBus</c> hook +
+/// <c>AddControlPlane</c> in Program.cs); see
+/// docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md.
+/// Gated behind <see cref="ProofFactAttribute"/> — run via <c>task proofs</c>
+/// (or CI), skipped on a default no-Docker <c>dotnet test</c>.</para>
 /// </summary>
 [Collection(HandoffCollection.Name)]
 [Trait("Category", "Integration")]
+[Trait("Category", "Proof")] // finish-line U4 — selectable via `task proofs`
 public sealed class CrossRoleDenialTests
 {
-    private const string SkipReason =
-        "Sprint-12 U5: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon";
-
-    private const string Sprint13SkipReason =
-        "Sprint-13 U5: Docker-backed fixture wired in CI tier; dev machine has no Docker daemon";
+    private const string OrdersBase = "/api/outbound/orders";
 
     private readonly HandoffFixture _fixture;
 
@@ -79,299 +52,350 @@ public sealed class CrossRoleDenialTests
         _fixture = fixture;
     }
 
-    // Finish-line U4 — body written + ready, but DEFERRED: booting the
-    // Outbound.Api WAF currently throws "AddMassTransit() was already called"
-    // — AddShopFlowDefaults calls AddMassTransit (AddConsumers + AddSagaStateMachines)
-    // AND AddOutboundModule calls a SECOND AddMassTransit for the FulfillmentSaga's
-    // EntityFrameworkRepository config. MassTransit forbids two calls, so the
-    // Outbound.Api WAF has never booted (its WAF tests were all Skip-marked). The
-    // fix is a composition-root rebuild — a kernel bus-configurator hook on
-    // AddShopFlowDefaults so the saga EF-repo + SignalR relays + TenantBindingSagaFilter
-    // register in the single AddMassTransit call. Tracked in
-    // docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md.
-    // The HandoffFixture provisioning (catalog + tenant + Outbound schema) + the
-    // two Outbound migration fixes that unblocked the schema are committed; this
-    // body becomes [ProofFact] once the composition rebuild lands.
-    [Fact(
-        Skip = "finish-line U4 WIP: Outbound.Api WAF boot blocked on a double-AddMassTransit "
-            + "composition bug (AddShopFlowDefaults + AddOutboundModule both call it). "
-            + "Needs a kernel bus-configurator hook; see docs/solutions/"
-            + "2026-05-27-outbound-api-never-booted-composition-bugs.md."
-    )]
+    // ── Sprint-12 cross-role denial matrix (6 facts) ──────────────────────
+
+    /// <summary>
+    /// Picker (no ship-confirm) → POST /confirm-ship → 403. Uses a random
+    /// order id to prove the auth gate fires BEFORE the controller looks the
+    /// order up — a non-existent id still 403s, so this is the auth path, not
+    /// a not-found/state path.
+    /// </summary>
+    [ProofFact]
     public async Task Picker_AttemptsShipConfirm_Returns403_AndSagaUnchanged()
     {
-        // The [Authorize(Policy=OutboundOrdersShipConfirm)] gate fires on the
-        // Picker JWT's perm[] (no ship-confirm) BEFORE the controller looks up
-        // the order — so a non-existent order id still 403s, proving the auth
-        // gate, not a not-found/state path. (No order-seeding needed for the
-        // pure denial; the adversarial-F3 pins seed a wrong-state order to
-        // prove auth-before-state.)
-        var client = _fixture.HttpClient;
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
-            "Bearer",
-            _fixture.BuildPickerJwt()
-        );
-
-        var resp = await client.PostAsync(
-            $"/api/outbound/orders/{Guid.NewGuid()}/confirm-ship",
-            content: null
+        var resp = await Post(
+            _fixture.BuildPickerJwt(),
+            $"{OrdersBase}/{Guid.NewGuid()}/confirm-ship"
         );
 
         resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
-    [Fact(Skip = SkipReason)]
-    public Task Picker_AttemptsPackConfirm_Returns403_AndSagaUnchanged()
+    /// <summary>Picker (no pack-confirm) → POST /confirm-pack on a Picked
+    /// order → 403; the order stays Picked.</summary>
+    [ProofFact]
+    public async Task Picker_AttemptsPackConfirm_Returns403_AndSagaUnchanged()
     {
-        // Seed orders.Status="Picked" + saga_state.CurrentState="Picked".
-        // Picker JWT against POST /confirm-pack with body
-        // { actualWeightTotal: 1500 } → 403 + state-still-Picked + no
-        // new transition row.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.Picked);
+
+        var resp = await PostJson(
+            _fixture.BuildPickerJwt(),
+            $"{OrdersBase}/{orderId}/confirm-pack",
+            new { actualWeightTotal = 100 }
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.Picked);
     }
 
-    [Fact(Skip = SkipReason)]
-    public Task Dispatcher_AttemptsPickConfirm_Returns403_AndSagaUnchanged()
+    /// <summary>Dispatcher (no pick-confirm) → POST /confirm-pick on an
+    /// AwaitingPick order → 403; the order stays AwaitingPick.</summary>
+    [ProofFact]
+    public async Task Dispatcher_AttemptsPickConfirm_Returns403_AndSagaUnchanged()
     {
-        // Seed orders.Status="AwaitingPick" + saga_state.CurrentState=
-        // "AwaitingPick". Dispatcher JWT against POST /confirm-pick →
-        // 403 + state-still-AwaitingPick + no new transition row.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.AwaitingPick);
+
+        var resp = await Post(
+            _fixture.BuildDispatcherJwt(),
+            $"{OrdersBase}/{orderId}/confirm-pick"
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.AwaitingPick);
     }
 
-    [Fact(Skip = SkipReason)]
-    public Task Dispatcher_AttemptsPackConfirm_Returns403_AndSagaUnchanged()
+    /// <summary>Dispatcher (no pack-confirm) → POST /confirm-pack on a Picked
+    /// order → 403; the order stays Picked.</summary>
+    [ProofFact]
+    public async Task Dispatcher_AttemptsPackConfirm_Returns403_AndSagaUnchanged()
     {
-        // Seed orders.Status="Picked" + saga_state.CurrentState="Picked".
-        // Dispatcher JWT against POST /confirm-pack → 403 + state-
-        // still-Picked + no new transition row.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.Picked);
+
+        var resp = await PostJson(
+            _fixture.BuildDispatcherJwt(),
+            $"{OrdersBase}/{orderId}/confirm-pack",
+            new { actualWeightTotal = 100 }
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.Picked);
     }
 
-    [Fact(Skip = SkipReason)]
-    public Task Dispatcher_AttemptsPickConfirm_OnAwaitingShipOrder_Returns403_NotStateError()
+    /// <summary>
+    /// adversarial-F3 — Dispatcher → confirm-pick on an AwaitingShip order
+    /// (wrong role AND wrong pre-state). Asserts 403 (auth), NOT 400/422
+    /// (<c>order.invalid_state</c>): the <c>[Authorize(Policy)]</c> filter
+    /// fires before the controller's pre-state guard, so the order's state is
+    /// never leaked to the unauthorized caller. The order stays AwaitingShip.
+    /// </summary>
+    [ProofFact]
+    public async Task Dispatcher_AttemptsPickConfirm_OnAwaitingShipOrder_Returns403_NotStateError()
     {
-        // ARRANGE — wrong role AND wrong pre-state.
-        // -----------------------------------------
-        // 1. Seed orders.Status="AwaitingShip" + saga_state.CurrentState=
-        //    "Packed" (i.e. the order is genuinely past pick-confirm
-        //    territory).
-        // 2. Mint Dispatcher JWT (no pick-confirm in perm[]).
-        //
-        // ACT
-        // ---
-        // 3. POST /api/outbound/orders/{orderId}/confirm-pick with the
-        //    Dispatcher JWT. Empty body.
-        //
-        // ASSERT (adversarial-F3 mitigation)
-        // ----------------------------------
-        // 4. HTTP 403 + ProblemDetails body.errorCode ==
-        //    "auth.forbidden" — NOT HTTP 400 +
-        //    errorCode == "order.invalid_state".
-        //
-        //    Proves: [Authorize(Policy = OutboundOrdersPickConfirm)]
-        //    filter executes BEFORE the controller's pre-state check
-        //    at OrdersController.cs (the controller's state check
-        //    would surface "cannot pick order in AwaitingShip state"
-        //    if the auth filter were bypassed). A middleware-ordering
-        //    regression that swapped the response code would leak the
-        //    order's state to an unauthorized caller — this fact pins
-        //    the safety-by-ordering invariant the Sprint-10 per-action
-        //    [Authorize(Policy)] migration depends on.
-        //
-        // 5. orders.Status still "AwaitingShip" (auth filter rejected
-        //    before controller ran; no state mutation possible).
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.AwaitingShip);
+
+        var resp = await Post(
+            _fixture.BuildDispatcherJwt(),
+            $"{OrdersBase}/{orderId}/confirm-pick"
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        resp.StatusCode.Should().NotBe(HttpStatusCode.BadRequest);
+        resp.StatusCode.Should().NotBe(HttpStatusCode.UnprocessableEntity);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.AwaitingShip);
     }
 
-    [Fact(Skip = SkipReason)]
-    public Task PickerWithManualShipConfirmGrant_CanShip_BehavioralPin()
+    /// <summary>
+    /// adversarial-F8 — a Picker JWT carrying an operator-granted EXTRA
+    /// ship-confirm key CAN ship (200), pinning the KTD1 additive-only
+    /// contract: granting the key grants the capability, no defense-in-depth
+    /// surprise rescue. The SAME JWT against confirm-pack still 403s (Picker
+    /// was never granted pack-confirm). The grant adds exactly what it says,
+    /// no more.
+    /// </summary>
+    [ProofFact]
+    public async Task PickerWithManualShipConfirmGrant_CanShip_BehavioralPin()
     {
-        // ARRANGE
-        // -------
-        // 1. Seed order at orders.Status="AwaitingShip" + saga_state.
-        //    CurrentState="Packed" (saga reality per KTD2).
-        // 2. Mint Picker JWT WITH EXTRA ship-confirm key via
-        //    _fixture.BuildPickerWithExtraShipConfirmJwt — simulates
-        //    the AE6 operator-pre-grant scenario where Owner manually
-        //    added outbound.orders.ship-confirm to Picker via
-        //    /admin/role-permissions PRE-Sprint-12 deploy.
-        //
-        // ACT — STEP 1: ship-confirm
-        // --------------------------
-        // 3. POST /api/outbound/orders/{orderId}/confirm-ship with the
-        //    augmented Picker JWT.
-        //
-        // ASSERT (adversarial-F8 mitigation — KTD1 behavioral consequence)
-        // ----------------------------------------------------------------
-        // 4. HTTP 200 + ConfirmShipResponse body. Picker HAS shipped
-        //    the order. No defense-in-depth surprise rescue — the auth
-        //    filter sees ship-confirm in perm[] and accepts.
-        // 5. Poll saga_state.CurrentState for "Shipped" within 10s
-        //    (Packed → Shipped on ShipConfirmed per FulfillmentSaga.cs:218).
-        // 6. orders.Status now "Shipped".
-        //
-        // ACT — STEP 2: pack-confirm (same JWT, no pack-confirm key)
-        // ----------------------------------------------------------
-        // 7. Seed a SECOND order at orders.Status="Picked" +
-        //    saga_state.CurrentState="Picked" (Picker's existing role
-        //    can transition through pick → packed if pack-confirm were
-        //    granted; this test proves it ISN'T).
-        // 8. POST /api/outbound/orders/{secondOrderId}/confirm-pack with
-        //    the SAME augmented Picker JWT (which has pick-confirm +
-        //    ship-confirm but NOT pack-confirm).
-        //
-        // ASSERT
-        // ------
-        // 9. HTTP 403 + errorCode == "auth.forbidden". The augmented
-        //    Picker JWT can ship (Owner pre-granted ship-confirm) but
-        //    cannot pack (no pack-confirm grant). The KTD1 contract is
-        //    additive-only; it adds what's explicitly granted, no
-        //    more. The behavioral pin documents this for future
-        //    refactors that might be tempted to widen Picker's
-        //    capability bundle.
-        return Task.CompletedTask;
+        var augmentedPickerJwt = _fixture.BuildPickerWithExtraShipConfirmJwt();
+
+        // Granted: ship an AwaitingShip order → 200 + order reaches Shipped
+        // (the controller marks + saves synchronously; the zero-flake mock
+        // carrier deterministically succeeds).
+        var shipOrderId = await SeedOrderAsync(OrderStatus.AwaitingShip);
+        var shipResp = await Post(augmentedPickerJwt, $"{OrdersBase}/{shipOrderId}/confirm-ship");
+        shipResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await ReadStatusAsync(shipOrderId)).Should().Be(OrderStatus.Shipped);
+
+        // Not granted: the same JWT against confirm-pack → 403 (no pack-confirm).
+        var packOrderId = await SeedOrderAsync(OrderStatus.Picked);
+        var packResp = await PostJson(
+            augmentedPickerJwt,
+            $"{OrdersBase}/{packOrderId}/confirm-pack",
+            new { actualWeightTotal = 100 }
+        );
+        packResp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(packOrderId)).Should().Be(OrderStatus.Picked);
     }
 
-    // ── Sprint-13 U5 — Packer cross-role denial (8 new facts) ───────────
-    // The Packer role joins the cross-role denial matrix. Pack-confirm has
-    // moved off Owner to Packer; the 4 Packer-baseline denials prove the
-    // Packer JWT can ONLY pack (not pick/ship/mark-pick-fail/mark-ship-fail).
-    // The 2 new-endpoint denials (Picker/Dispatcher → mark-pack-failed)
-    // pin the new Sprint-13 endpoint's policy gate against the other two
-    // non-Owner roles (Sprint-12 had no mark-pack-failed to test). The
-    // adversarial-F3 third pin + adversarial-F8 union-of-perms pin graduate
-    // the invariants to the pack-confirm endpoint family.
+    // ── Sprint-13 Packer cross-role denial (8 facts) ──────────────────────
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task Packer_AttemptsConfirmPick_OnAwaitingPickOrder_Returns403_AndSagaUnchanged()
+    /// <summary>Packer (pack-confirm only) → confirm-pick on an AwaitingPick
+    /// order → 403; order stays AwaitingPick.</summary>
+    [ProofFact]
+    public async Task Packer_AttemptsConfirmPick_OnAwaitingPickOrder_Returns403_AndSagaUnchanged()
     {
-        // Seed orders.Status="AwaitingPick" + saga_state.CurrentState=
-        // "AwaitingPick". Mint Packer JWT (BuildPackerJwt — 3-key baseline,
-        // NO pick-confirm). POST /confirm-pick → 403 + errorCode=
-        // "auth.forbidden" + state-still-AwaitingPick + no new transition
-        // row. Wrong role, correct pre-state.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.AwaitingPick);
+
+        var resp = await Post(_fixture.BuildPackerJwt(), $"{OrdersBase}/{orderId}/confirm-pick");
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.AwaitingPick);
     }
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task Packer_AttemptsConfirmShip_OnPackedOrder_Returns403_AndSagaUnchanged()
+    /// <summary>Packer (no ship-confirm) → confirm-ship on an AwaitingShip
+    /// order → 403; order stays AwaitingShip.</summary>
+    [ProofFact]
+    public async Task Packer_AttemptsConfirmShip_OnPackedOrder_Returns403_AndSagaUnchanged()
     {
-        // Seed orders.Status="AwaitingShip" + saga_state.CurrentState=
-        // "Packed" (saga reality per KTD2). Packer JWT against
-        // POST /confirm-ship → 403 + errorCode="auth.forbidden" +
-        // state unchanged + no new transition row. Packer has pack-confirm
-        // only, not ship-confirm.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.AwaitingShip);
+
+        var resp = await Post(_fixture.BuildPackerJwt(), $"{OrdersBase}/{orderId}/confirm-ship");
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.AwaitingShip);
     }
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task Packer_AttemptsMarkPickFailed_OnAwaitingPickOrder_Returns403_AndSagaUnchanged()
+    /// <summary>Packer (no pick-confirm; mark-pick-failed is gated by the
+    /// pick-confirm policy) → mark-pick-failed → 403; order stays
+    /// AwaitingPick.</summary>
+    [ProofFact]
+    public async Task Packer_AttemptsMarkPickFailed_OnAwaitingPickOrder_Returns403_AndSagaUnchanged()
     {
-        // Seed orders.Status="AwaitingPick" + saga_state.CurrentState=
-        // "AwaitingPick". Packer JWT against POST /mark-pick-failed → 403 +
-        // errorCode="auth.forbidden" (mark-pick-failed is gated by
-        // pick-confirm policy, which Packer lacks) + state unchanged.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.AwaitingPick);
+
+        var resp = await Post(
+            _fixture.BuildPackerJwt(),
+            $"{OrdersBase}/{orderId}/mark-pick-failed"
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.AwaitingPick);
     }
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task Packer_AttemptsMarkShipFailed_OnAwaitingShipOrder_Returns403_AndSagaUnchanged()
+    /// <summary>Packer (no ship-confirm; mark-ship-failed is gated by the
+    /// ship-confirm policy) → mark-ship-failed → 403; order stays
+    /// AwaitingShip.</summary>
+    [ProofFact]
+    public async Task Packer_AttemptsMarkShipFailed_OnAwaitingShipOrder_Returns403_AndSagaUnchanged()
     {
-        // Seed orders.Status="AwaitingShip" + saga_state.CurrentState=
-        // "Packed". Packer JWT against POST /mark-ship-failed → 403 +
-        // errorCode="auth.forbidden" (mark-ship-failed is gated by
-        // ship-confirm policy, which Packer lacks) + state unchanged.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.AwaitingShip);
+
+        var resp = await Post(
+            _fixture.BuildPackerJwt(),
+            $"{OrdersBase}/{orderId}/mark-ship-failed"
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.AwaitingShip);
     }
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task Picker_AttemptsMarkPackFailed_OnPickedOrder_Returns403_AndSagaUnchanged()
+    /// <summary>Picker (no pack-confirm; mark-pack-failed is gated by the
+    /// pack-confirm policy, K3) → mark-pack-failed → 403; order stays
+    /// Picked. New Sprint-13 endpoint.</summary>
+    [ProofFact]
+    public async Task Picker_AttemptsMarkPackFailed_OnPickedOrder_Returns403_AndSagaUnchanged()
     {
-        // NEW ENDPOINT (Sprint-12 had no mark-pack-failed). Seed
-        // orders.Status="Picked" + saga_state.CurrentState="Picked". Picker
-        // JWT (BuildPickerJwt — 4-key baseline, NO pack-confirm) against
-        // POST /mark-pack-failed → 403 + errorCode="auth.forbidden" +
-        // state-still-Picked + no new transition row. mark-pack-failed is
-        // gated by pack-confirm policy (K3), which Picker lacks.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.Picked);
+
+        var resp = await Post(
+            _fixture.BuildPickerJwt(),
+            $"{OrdersBase}/{orderId}/mark-pack-failed"
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.Picked);
     }
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task Dispatcher_AttemptsMarkPackFailed_OnPickedOrder_Returns403_AndSagaUnchanged()
+    /// <summary>Dispatcher (no pack-confirm) → mark-pack-failed on a Picked
+    /// order → 403; order stays Picked. New Sprint-13 endpoint.</summary>
+    [ProofFact]
+    public async Task Dispatcher_AttemptsMarkPackFailed_OnPickedOrder_Returns403_AndSagaUnchanged()
     {
-        // NEW ENDPOINT (Sprint-12 had no mark-pack-failed). Seed
-        // orders.Status="Picked" + saga_state.CurrentState="Picked".
-        // Dispatcher JWT (3-key baseline, NO pack-confirm) against
-        // POST /mark-pack-failed → 403 + errorCode="auth.forbidden" +
-        // state-still-Picked + no new transition row.
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.Picked);
+
+        var resp = await Post(
+            _fixture.BuildDispatcherJwt(),
+            $"{OrdersBase}/{orderId}/mark-pack-failed"
+        );
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.Picked);
     }
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task Packer_AttemptsConfirmPick_OnCancelledOrder_Returns403_NotStateError()
+    /// <summary>
+    /// adversarial-F3 third pin — Packer → confirm-pick on a Cancelled
+    /// (terminal) order. Wrong role AND wrong pre-state. Asserts 403 (auth),
+    /// NOT 400/422 (<c>order.invalid_state</c>) — the auth filter fires before
+    /// the controller's state check, so the Cancelled state never leaks. The
+    /// order stays Cancelled.
+    /// </summary>
+    [ProofFact]
+    public async Task Packer_AttemptsConfirmPick_OnCancelledOrder_Returns403_NotStateError()
     {
-        // ADVERSARIAL-F3 THIRD PIN (graduates the invariant to a third
-        // policy-gated saga-touching endpoint per
-        // docs/solutions/2026-05-26-adversarial-f3-policy-vs-prestate-
-        // ordering-invariant.md, which pre-anticipated Sprint-13).
-        //
-        // ARRANGE — wrong role AND wrong pre-state.
-        // 1. Seed orders.Status="Cancelled" + saga_state.CurrentState=
-        //    "Cancelled" (terminal; pick-confirm would fail the pre-state
-        //    guard too).
-        // 2. Mint Packer JWT (no pick-confirm in perm[]).
-        //
-        // ACT
-        // 3. POST /confirm-pick with the Packer JWT.
-        //
-        // ASSERT
-        // 4. HTTP 403 + errorCode="auth.forbidden" — NOT 422/400 +
-        //    "order.invalid_state". Proves [Authorize(Policy=PickConfirm)]
-        //    fires BEFORE the controller's pre-state check; a middleware-
-        //    ordering regression that swapped the code would leak the
-        //    Cancelled state to an unauthorized caller.
-        // 5. orders.Status still "Cancelled" (auth rejected before
-        //    controller ran).
-        return Task.CompletedTask;
+        var orderId = await SeedOrderAsync(OrderStatus.Cancelled);
+
+        var resp = await Post(_fixture.BuildPackerJwt(), $"{OrdersBase}/{orderId}/confirm-pick");
+
+        resp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        resp.StatusCode.Should().NotBe(HttpStatusCode.BadRequest);
+        resp.StatusCode.Should().NotBe(HttpStatusCode.UnprocessableEntity);
+        (await ReadStatusAsync(orderId)).Should().Be(OrderStatus.Cancelled);
     }
 
-    [Fact(Skip = Sprint13SkipReason)]
-    public Task PickerWithManualPackConfirmGrant_CanPack_BehavioralPin()
+    /// <summary>
+    /// adversarial-F8 pack-confirm variant — a Picker JWT carrying an
+    /// operator-granted EXTRA pack-confirm key CAN pack (200; order chains
+    /// Picked → Packed → AwaitingShip), but the SAME JWT against confirm-ship
+    /// still 403s (no ship-confirm grant). Pins the KTD1 additive-only
+    /// contract for the pack-confirm endpoint family.
+    /// </summary>
+    [ProofFact]
+    public async Task PickerWithManualPackConfirmGrant_CanPack_BehavioralPin()
     {
-        // ADVERSARIAL-F8 UNION-OF-PERMS PIN (pack-confirm variant of the
-        // Sprint-12 ship-confirm pin). Documents the KTD1 additive-only
-        // contract consequence for pack-confirm.
-        //
-        // ARRANGE — STEP 1: pack succeeds with the granted key.
-        // 1. Seed order at orders.Status="Picked" +
-        //    saga_state.CurrentState="Picked".
-        // 2. Mint Picker JWT WITH EXTRA pack-confirm key via
-        //    _fixture.BuildPickerWithExtraPackConfirmJwt — simulates the
-        //    AE9 operator-pre-grant where Owner manually added
-        //    outbound.orders.pack-confirm to Picker via
-        //    /admin/role-permissions.
-        //
-        // ACT — STEP 1: pack-confirm
-        // 3. POST /confirm-pack with the augmented Picker JWT, body
-        //    { actualWeightTotal: 1500 }.
-        //
-        // ASSERT
-        // 4. HTTP 200. Picker HAS packed the order — no defense-in-depth
-        //    surprise rescue; the auth filter sees pack-confirm in perm[]
-        //    and accepts.
-        // 5. Poll saga_state.CurrentState="Packed" within 10s.
-        // 6. orders.Status now "AwaitingShip" (ConfirmPackAsync chains
-        //    MarkPacked → MarkAwaitingShip).
-        //
-        // ACT — STEP 2: ship-confirm (same JWT, no ship-confirm key)
-        // 7. POST /confirm-ship with the SAME augmented Picker JWT (which
-        //    has pick-confirm + pack-confirm but NOT ship-confirm).
-        //
-        // ASSERT
-        // 8. HTTP 403 + errorCode="auth.forbidden". The augmented Picker
-        //    can pack (Owner pre-granted pack-confirm) but cannot ship.
-        //    The KTD1 contract adds exactly what's granted, no more.
-        return Task.CompletedTask;
+        var augmentedPickerJwt = _fixture.BuildPickerWithExtraPackConfirmJwt();
+
+        // Granted: pack a Picked order → 200 + order reaches AwaitingShip
+        // (ConfirmPackAsync chains MarkPacked → MarkAwaitingShip).
+        var packOrderId = await SeedOrderAsync(OrderStatus.Picked);
+        var packResp = await PostJson(
+            augmentedPickerJwt,
+            $"{OrdersBase}/{packOrderId}/confirm-pack",
+            new { actualWeightTotal = 100 }
+        );
+        packResp.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await ReadStatusAsync(packOrderId)).Should().Be(OrderStatus.AwaitingShip);
+
+        // Not granted: the same JWT against confirm-ship → 403 (no ship-confirm).
+        var shipResp = await Post(augmentedPickerJwt, $"{OrdersBase}/{packOrderId}/confirm-ship");
+        shipResp.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    // ── helpers ───────────────────────────────────────────────────────────
+
+    private HttpClient Authed(string jwt)
+    {
+        var client = _fixture.HttpClient;
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
+        return client;
+    }
+
+    private Task<HttpResponseMessage> Post(string jwt, string path) =>
+        Authed(jwt).PostAsync(path, content: null);
+
+    private Task<HttpResponseMessage> PostJson(string jwt, string path, object body) =>
+        Authed(jwt).PostAsync(path, JsonContent.Create(body));
+
+    /// <summary>
+    /// Seed an order directly via the Outbound DbContext (the
+    /// <see cref="Order"/> aggregate populates every column + the
+    /// BaseEntity-defaulted timestamps), then flip <c>orders.status</c> to the
+    /// target pre-state via raw SQL. Mirrors SagaHappyPathTests' direct-DbContext
+    /// create + SetOrderStatusAsync. The <c>orders.status</c> column is the
+    /// operator-facing state the controller's pre-state guards read (the saga
+    /// is the authoritative state for cross-module commands; the two run a step
+    /// apart by design — KTD2).
+    /// </summary>
+    /// <remarks>
+    /// Deliberately bypasses <c>POST /orders/seed</c> (and <c>POST /orders</c>):
+    /// both return 500 through the WAF because their <c>CreatedAtAction(
+    /// nameof(GetByIdAsync), …)</c> references the action's pre-suffix-strip
+    /// name while ASP.NET registered it as "GetById" — a real production bug in
+    /// the never-booted Outbound.Api, tracked separately from this RBAC proof.
+    /// </remarks>
+    private async Task<Guid> SeedOrderAsync(OrderStatus status)
+    {
+        var options = new DbContextOptionsBuilder<OutboundDbContext>()
+            .UseNpgsql(_fixture.TenantConnectionString)
+            .Options;
+
+        Guid orderId;
+        await using (var db = new OutboundDbContext(options))
+        {
+            var created = Order.Create(
+                channelExternalOrderId: $"ext-{Guid.NewGuid():N}",
+                shippingProfile: "standard",
+                lines: new[] { ("SKU-A", 1, (int?)100) }
+            );
+            created.IsSuccess.Should().BeTrue(created.Error);
+            var order = created.Value!;
+            db.Orders.Add(order);
+            await db.SaveChangesAsync();
+            orderId = order.Id;
+        }
+
+        if (status != OrderStatus.Created)
+        {
+            await using var conn = new NpgsqlConnection(_fixture.TenantConnectionString);
+            await conn.OpenAsync();
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "UPDATE orders SET status = @s WHERE id = @id";
+            cmd.Parameters.AddWithValue("s", status.ToString());
+            cmd.Parameters.AddWithValue("id", orderId);
+            var rows = await cmd.ExecuteNonQueryAsync();
+            rows.Should().Be(1);
+        }
+
+        return orderId;
+    }
+
+    private async Task<OrderStatus> ReadStatusAsync(Guid orderId)
+    {
+        await using var conn = new NpgsqlConnection(_fixture.TenantConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT status FROM orders WHERE id = @id";
+        cmd.Parameters.AddWithValue("id", orderId);
+        var raw = (string?)await cmd.ExecuteScalarAsync();
+        raw.Should().NotBeNull("seeded order must exist");
+        return Enum.Parse<OrderStatus>(raw!);
     }
 }

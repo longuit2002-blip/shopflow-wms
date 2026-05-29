@@ -98,43 +98,14 @@ public static class OutboundServiceCollectionExtensions
         services.AddScoped<IPickWaveRepository, PickWaveRepository>();
         services.AddScoped<IPickerRepository, PickerRepository>();
 
-        // U4 — FulfillmentSaga state machine + MT EF saga repository
-        // against saga_state. The saga itself is registered here so the
-        // bus-level AddMassTransit() in AddShopFlowDefaults can resolve
-        // it via DI. The EntityFrameworkRepository pattern uses MT's
-        // .ExistingDbContext<OutboundDbContext>() which resolves the
-        // scoped OutboundDbContext registered above — that DbContext
-        // reads IRequestContext.DbConnectionString at construction, so
-        // when TenantBindingSagaFilter (K12 primary path) binds the
-        // tenant BEFORE the saga repo runs, the DbContext lands in the
-        // correct per-tenant DB.
-        services.AddMassTransit(bus =>
-        {
-            bus.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .EntityFrameworkRepository(r =>
-                {
-                    r.ExistingDbContext<OutboundDbContext>();
-                    // Postgres-specific row-lock statement for the saga
-                    // repository's pessimistic concurrency (R5).
-                    r.UsePostgres();
-                });
-
-            // Sprint-7 U6 — SignalR relay consumers register HERE (inside
-            // the Outbound MassTransit block) rather than in
-            // AddShopFlowDefaults. Reason: AddShopFlowDefaults runs for
-            // every module API (Inventory / StockSync / Channel / Inbound /
-            // Auth); if the relays subscribed there, every module process
-            // would join the same RabbitMQ pub/sub topology and the
-            // competing-consumer semantics would deliver each event to
-            // only ONE process per round-robin. The connected SignalR
-            // client lives on whichever process the Gateway routes /hub
-            // to (Outbound.Api per the SINGLE-HUB-HOST decision), so a
-            // miss-routed delivery would silently drop the event.
-            // Registering only here keeps the relay process == the hub
-            // host process, eliminating the race.
-            bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.StockChangedRelayConsumer>();
-            bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.SagaTransitionedRelayConsumer>();
-        });
+        // U4 — FulfillmentSaga state machine + MT EF saga repository + the
+        // SignalR relay consumers are configured inside the kernel's SINGLE
+        // AddMassTransit via the ShopFlowDefaultsOptions.ConfigureBus hook
+        // (Outbound.Api/Program.cs passes ConfigureOutboundBus below).
+        // MassTransit forbids a second AddMassTransit() per container — a
+        // second call here is exactly what kept the Outbound.Api host from
+        // building (finish-line U4; see
+        // docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md).
 
         // U4 K12 (primary path) — the open-generic filter is registered
         // here as Scoped so MT's pipe-builder can resolve it per message.
@@ -192,6 +163,52 @@ public static class OutboundServiceCollectionExtensions
         // consumer to ShopFlow.Channel.Infrastructure with a real adapter.
 
         return services;
+    }
+
+    /// <summary>
+    /// Finish-line U4 — the Outbound-specific bus configuration that MUST run
+    /// inside the kernel's SINGLE <c>AddMassTransit</c> call. MassTransit forbids
+    /// a second <c>AddMassTransit</c> per container, so <c>Outbound.Api/Program.cs</c>
+    /// passes this method as <see cref="ShopFlowDefaultsOptions.ConfigureBus"/>.
+    /// It gives the <see cref="FulfillmentSaga"/> its EF saga repository (against
+    /// <c>saga_state</c>) and registers the two SignalR relay consumers, which
+    /// live in <c>ShopFlow.SharedKernel.Infrastructure.SignalR</c> — an assembly
+    /// the kernel does NOT scan, so they would otherwise never register.
+    /// </summary>
+    /// <remarks>
+    /// <para>The kernel's <c>AddSagaStateMachines(asm)</c> scan also discovers
+    /// <see cref="FulfillmentSaga"/> in the scanned Application assembly;
+    /// re-registering it here returns the same registration and the explicit
+    /// <c>EntityFrameworkRepository</c> configuration takes effect. The repository
+    /// resolves the scoped <see cref="OutboundDbContext"/> registered in
+    /// <see cref="AddOutboundModule"/>, which reads
+    /// <c>IRequestContext.DbConnectionString</c> at construction — so the saga
+    /// lands in the correct per-tenant DB once the tenant is bound for the
+    /// consume scope.</para>
+    ///
+    /// <para>The relays register ONLY on Outbound.Api (the single hub-host per
+    /// the Sprint-7 decision): if they subscribed in the kernel — which runs for
+    /// every module API — every module process would join the same pub/sub
+    /// topology and competing-consumer semantics would deliver each event to one
+    /// arbitrary process, not necessarily the hub host the client is connected
+    /// to. Registering them here keeps the relay process == the hub-host
+    /// process.</para>
+    /// </remarks>
+    public static void ConfigureOutboundBus(IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+
+        bus.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
+            .EntityFrameworkRepository(r =>
+            {
+                r.ExistingDbContext<OutboundDbContext>();
+                // Postgres-specific row-lock statement for the saga repository's
+                // pessimistic concurrency (R5).
+                r.UsePostgres();
+            });
+
+        bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.StockChangedRelayConsumer>();
+        bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.SagaTransitionedRelayConsumer>();
     }
 }
 

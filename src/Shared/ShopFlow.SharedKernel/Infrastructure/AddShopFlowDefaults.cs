@@ -194,6 +194,19 @@ public static class ShopFlowDefaultsExtensions
                 bus.AddSagaStateMachines(asm);
             }
 
+            // Finish-line U4 — per-module bus configuration hook. MassTransit
+            // forbids more than one AddMassTransit() per container, so a module
+            // that needs to configure a saga repository, attach extra consumers
+            // not in the scanned assemblies (e.g. the SignalR relays), or add a
+            // bus-level filter MUST do it inside this single call rather than a
+            // second AddMassTransit. Outbound.Api uses this to give the
+            // FulfillmentSaga its EntityFrameworkRepository + register the relay
+            // consumers; previously AddOutboundModule called a SECOND
+            // AddMassTransit, which threw ConfigurationException and kept the
+            // Outbound.Api host from ever building. See
+            // docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md.
+            options.ConfigureBus?.Invoke(bus);
+
             if (transport == MessageBusTransport.RabbitMq)
             {
                 bus.UsingRabbitMq(
@@ -558,4 +571,18 @@ public sealed class ShopFlowDefaultsOptions
     /// <c>MessageBus:Transport</c> (when present) overrides this.
     /// </summary>
     public MessageBusTransport MessageBusTransport { get; set; } = MessageBusTransport.RabbitMq;
+
+    /// <summary>
+    /// Finish-line U4 — module-supplied callback invoked inside the kernel's
+    /// single <see cref="MassTransit"/> <c>AddMassTransit</c> registration,
+    /// after assembly-scanned consumers/sagas and before transport selection.
+    /// MassTransit forbids a second <c>AddMassTransit</c> per container, so a
+    /// module that must configure a saga repository, register consumers that
+    /// live outside the scanned assemblies, or add a bus-level filter sets this
+    /// instead of calling <c>AddMassTransit</c> again. Outbound.Api uses it to
+    /// wire the FulfillmentSaga's EntityFrameworkRepository + the SignalR relay
+    /// consumers. Null (the default) leaves the bus configured by the scan +
+    /// transport only, unchanged for every other module.
+    /// </summary>
+    public Action<IBusRegistrationConfigurator>? ConfigureBus { get; set; }
 }
