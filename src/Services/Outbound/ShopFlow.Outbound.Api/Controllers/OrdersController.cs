@@ -61,6 +61,18 @@ public sealed class OrdersController : ControllerBase
     private const string IdempotencyHeader = "Idempotency-Key";
 
     /// <summary>
+    /// Finish-line U4 — the MassTransit envelope header carrying the tenant id
+    /// on saga-driving publishes. Mirrors
+    /// <c>TenantBindingSagaFilter&lt;T&gt;.TenantIdHeader</c> (a literal here to
+    /// avoid an Api → Infrastructure type coupling). The saga consume scope runs
+    /// outside the HTTP request scope, so the filter reads this header to bind
+    /// the per-tenant <c>OutboundDbContext</c> + audit observer. Unlike the
+    /// outbox dispatcher, a direct <c>IPublishEndpoint.Publish</c> does not
+    /// otherwise carry the tenant id.
+    /// </summary>
+    private const string TenantIdHeaderName = "tenant_id";
+
+    /// <summary>
     /// Sprint-7 U4 — defensive ceiling on the seed endpoint's
     /// <c>line_count</c> argument so a malicious payload cannot grow an
     /// order to thousands of lines on a dev container.
@@ -715,8 +727,7 @@ public sealed class OrdersController : ControllerBase
         // Sprint-12.5 U2 — actor (JWT subject) flows via _requestContext.UserId
         // into the saga event payload so SagaTransitionObserver records actor
         // attribution on the AwaitingPick → Picked transition row.
-        await _publishEndpoint
-            .Publish(new PickConfirmed(order.Id, _requestContext.UserId), ct)
+        await PublishWithTenantAsync(new PickConfirmed(order.Id, _requestContext.UserId), ct)
             .ConfigureAwait(false);
 
         return Ok(Map(order));
@@ -797,8 +808,7 @@ public sealed class OrdersController : ControllerBase
             ? string.Empty
             : request!.Reason!.Trim();
         // Sprint-12.5 U2 — operator actor flows into the saga event payload.
-        await _publishEndpoint
-            .Publish(new PickFailed(order.Id, reason, _requestContext.UserId), ct)
+        await PublishWithTenantAsync(new PickFailed(order.Id, reason, _requestContext.UserId), ct)
             .ConfigureAwait(false);
 
         return Ok(Map(order));
@@ -890,8 +900,7 @@ public sealed class OrdersController : ControllerBase
         var reason = string.IsNullOrWhiteSpace(request?.Reason)
             ? string.Empty
             : request!.Reason!.Trim();
-        await _publishEndpoint
-            .Publish(new ShipFailed(order.Id, reason, _requestContext.UserId), ct)
+        await PublishWithTenantAsync(new ShipFailed(order.Id, reason, _requestContext.UserId), ct)
             .ConfigureAwait(false);
 
         return Ok(Map(order));
@@ -991,8 +1000,7 @@ public sealed class OrdersController : ControllerBase
         var reason = string.IsNullOrWhiteSpace(request?.Reason)
             ? string.Empty
             : request!.Reason!.Trim();
-        await _publishEndpoint
-            .Publish(new PackFailed(order.Id, reason, _requestContext.UserId), ct)
+        await PublishWithTenantAsync(new PackFailed(order.Id, reason, _requestContext.UserId), ct)
             .ConfigureAwait(false);
 
         return Ok(Map(order));
@@ -1070,8 +1078,7 @@ public sealed class OrdersController : ControllerBase
         // commit. Saga middleware drives the saga state forward in its
         // own EF transaction.
         // Sprint-12.5 U2 — operator actor flows into saga event payload.
-        await _publishEndpoint
-            .Publish(
+        await PublishWithTenantAsync(
                 new PackConfirmed(order.Id, request.ActualWeightTotal, _requestContext.UserId),
                 ct
             )
@@ -1173,8 +1180,7 @@ public sealed class OrdersController : ControllerBase
         await _uow.SaveChangesAsync(ct).ConfigureAwait(false);
 
         // Sprint-12.5 U2 — operator actor flows into saga event payload.
-        await _publishEndpoint
-            .Publish(
+        await PublishWithTenantAsync(
                 new ShipConfirmed(
                     order.Id,
                     label.LabelUrl,
@@ -1193,6 +1199,23 @@ public sealed class OrdersController : ControllerBase
             )
         );
     }
+
+    /// <summary>
+    /// Finish-line U4 — publish a saga-driving event with the
+    /// <see cref="TenantIdHeaderName"/> header stamped from the current
+    /// request's <see cref="IRequestContext.TenantId"/>. Required so the saga's
+    /// MassTransit consume scope (which runs outside this HTTP request scope)
+    /// can bind the correct per-tenant DB via <c>TenantBindingSagaFilter</c>,
+    /// attached to the Outbound receive endpoints in
+    /// <c>OutboundServiceCollectionExtensions.ConfigureOutboundBus</c>.
+    /// </summary>
+    private Task PublishWithTenantAsync<T>(T message, CancellationToken ct)
+        where T : class =>
+        _publishEndpoint.Publish(
+            message,
+            context => context.Headers.Set(TenantIdHeaderName, _requestContext.TenantId.ToString()),
+            ct
+        );
 
     private static (bool Warning, double? VariancePct) ComputeWeightWarning(
         int? expectedWeightTotal,

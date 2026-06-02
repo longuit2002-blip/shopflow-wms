@@ -209,6 +209,25 @@ public static class OutboundServiceCollectionExtensions
 
         bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.StockChangedRelayConsumer>();
         bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.SagaTransitionedRelayConsumer>();
+
+        // Finish-line U4 (bug 6) — attach the per-message tenant binding to
+        // every Outbound receive endpoint (saga + the two relays). The
+        // open-generic TenantBindingSagaFilter<T> (registered Scoped in
+        // AddOutboundModule) reads the tenant_id envelope header, resolves the
+        // tenant via ITenantCatalog, and binds the scoped RequestContext BEFORE
+        // the consumer/saga body runs — so the saga repository's
+        // ExistingDbContext<OutboundDbContext>() AND the SagaTransitionObserver's
+        // audit DbContext (both read IRequestContext.DbConnectionString) resolve
+        // the correct per-tenant database. AddConfigureEndpointsCallback runs
+        // during ConfigureEndpoints, so this stays inside the kernel's SINGLE
+        // AddMassTransit (no forbidden second call) and touches no other
+        // module's bus (ConfigureOutboundBus runs only for Outbound.Api). The
+        // K12 filter's doc comment specified exactly this attachment shape;
+        // production never wired it — see bug 6 in
+        // docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md.
+        bus.AddConfigureEndpointsCallback(
+            (context, _, cfg) => cfg.UseConsumeFilter(typeof(TenantBindingSagaFilter<>), context)
+        );
     }
 }
 

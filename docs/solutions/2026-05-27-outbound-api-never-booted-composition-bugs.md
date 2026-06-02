@@ -100,7 +100,7 @@ same call `StockSync.Api` makes. `TenantRoutingMiddleware` needs it too, so the 
 as well as unbuildable; nothing caught it because the host never booted. **Fix:** added the
 `ShopFlow.ControlPlane.Infrastructure` project reference + `builder.Services.AddControlPlane(...)`.
 
-## 5. CreatedAtAction(nameof(GetByIdAsync)) → POST /orders + /seed return 500 — OPEN
+## 5. CreatedAtAction(nameof(GetByIdAsync)) → POST /orders + /seed return 500 — RESOLVED (finish-line U4-finish, 2026-06-02)
 
 Once the WAF booted, `POST /api/outbound/orders` (CreateAsync) and `POST .../seed` (SeedAsync) both
 return **500**: `System.InvalidOperationException: No route matches the supplied values`. Both end
@@ -112,21 +112,44 @@ the saga/controller unit tests call the controller method directly and assert th
 `CreatedAtActionResult` object without executing the link generation. **Not fixed in U4** (outside
 the cross-role-RBAC scope; switching `CreatedAtAction` → `CreatedAtRoute` would break the
 `BeOfType<CreatedAtActionResult>()` assertions in `SagaHappyPathTests`); the U4 denial proofs seed
-orders via a direct DbContext write to sidestep it. Fix options when tackled: set
-`SuppressAsyncSuffixInActionNames = false` in `AddShopFlowControllers` (global; also fixes any other
-module with the same latent pattern) OR give the GET action a route name + switch the two callers to
-`CreatedAtRoute` (localized; update the affected `CreatedAtActionResult` assertions).
+orders via a direct DbContext write to sidestep it.
 
-## 6. Saga drive-through (TenantBindingSagaFilter wiring) — OPEN
+**Fix shipped (finish-line U4-finish, 2026-06-02).** Took the global option: `AddShopFlowControllers`
+sets `MvcOptions.SuppressAsyncSuffixInActionNames = false`, so action names keep the `Async` suffix and
+every `CreatedAtAction(nameof(GetByIdAsync), …)` link generation matches. All three call sites (Outbound
+`OrdersController` ×2 + Inbound `PurchaseOrdersController`) use `nameof(GetByIdAsync)`, so the
+strip-disable fixes them consistently; the `BeOfType<CreatedAtActionResult>()` assertions stay intact
+(still a `CreatedAtActionResult`). Pinned by a new `AddShopFlowControllers` unit fact. The U4 denial
+proofs keep their direct-DbContext seed (no need to route through the HTTP create path).
+
+## 6. Saga drive-through (TenantBindingSagaFilter wiring) — RESOLVED (finish-line U4-finish, 2026-06-02)
 
 The cross-role denial proofs are claim-based: the `[Authorize(Policy)]` filter rejects before the
 controller/saga runs, so they boot the WAF and assert 403 without the saga executing. The happy-path
 `HandoffWorkflowTests` (Picker → Packer → Dispatcher driving one saga to Shipped) DOES need the saga
 to transition through states in MassTransit consume scopes, where the per-message tenant binding
 (`TenantBindingSagaFilter`, K12) must run so the saga's `OutboundDbContext` resolves the right
-per-tenant connection string. That filter is registered (Scoped) but never attached to the receive
-endpoints in production (`AddOutboundModule`'s comment claims Program.cs does it; it doesn't). Wiring
-it + seeding `saga_state` is the remaining work to un-stub `HandoffWorkflowTests`.
+per-tenant connection string. That filter was registered (Scoped) but never attached to the receive
+endpoints in production.
+
+Two never-existed pieces had to be wired (the contained, no-kernel-change path the user chose):
+
+1. **Receive side** — `ConfigureOutboundBus` now attaches the filter to every Outbound receive
+   endpoint via `bus.AddConfigureEndpointsCallback((context, _, cfg) => cfg.UseConsumeFilter(
+   typeof(TenantBindingSagaFilter<>), context))`. This runs during `ConfigureEndpoints`, so it stays
+   inside the kernel's single `AddMassTransit` (no forbidden second call, no kernel edit) and touches
+   no other module's bus (`ConfigureOutboundBus` runs only for Outbound.Api).
+2. **Publish side** — the confirm-pick/pack/ship endpoints publish their saga events *directly* via
+   `IPublishEndpoint` (not the outbox, which is the only thing that stamped `tenant_id`). There was no
+   publish-side tenant-stamp filter anywhere. `OrdersController` now routes all six saga-event publishes
+   through a `PublishWithTenantAsync<T>` helper that stamps the `tenant_id` envelope header from
+   `IRequestContext.TenantId`, so the filter on the consume side has a header to read.
+
+The happy-path test seeds the saga instance + order row at `AwaitingPick` directly (via the mapped
+`FulfillmentSagaState` EF entity — no raw-SQL column guessing), then drives confirm-pick → confirm-pack
+→ confirm-ship over real HTTP with the three/four role JWTs. **Verified:** `task proofs` →
+`HandoffWorkflowTests` 2/2 (3-role + 4-role) + `CrossRoleDenialTests` 14/14 green; Outbound unit suite
+143/1-skip (no regression from the controller publish-helper or the bus callback).
 
 ## Status (finish-line U4)
 
@@ -137,8 +160,34 @@ Outbound schema; Auth schema/seed/users NOT needed — the denial path is claim-
 the denial bodies seed orders via a direct DbContext write (bug 5 makes the HTTP seed endpoint 500).
 Verification: `dotnet build` 0/0; unit suite 841 passing (no regression from the kernel hook);
 `task proofs` → Outbound 14/14, SharedKernel-routing 5/5, ledger-property 5/5, StockSync
-noisy-neighbor 1/1. Bug 5 (CreatedAtAction) + bug 6 (saga drive-through wiring) remain OPEN — both
-outside the cross-role-RBAC scope this unit delivered.
+noisy-neighbor 1/1. **Update (finish-line U4-finish, 2026-06-02): bugs 5 + 6 are now RESOLVED** —
+`POST /orders|/seed` no longer 500, and `HandoffWorkflowTests` drives the saga to Shipped over HTTP
+(2/2 green, 3-role + 4-role). See sections 5 + 6.
+
+## 7. Broader Category=Integration suite — pre-existing never-ran-locally failures — OPEN (out of scope)
+
+Running the FULL Outbound `Category=Integration` suite locally (now that Docker is available) surfaced
+**11 failures unrelated to the cross-role/hand-off work** — they have never run green locally and are
+not gated by `[ProofFact]`, so the finish-line's `task proofs` gate never touched them. They are real
+never-ran bugs, but each is outside the U4/U4-finish scope (none is caused by the U4-finish changes —
+verified: the three touched files are `OrdersController` publish helper, `ConfigureOutboundBus`, and
+`HandoffWorkflowTests`, none of which the failures depend on):
+
+- **`OrdersListAndDetailEndpointTests.ListAsync_Invalid{Since,Until}` (4)** — `OrdersController.ListAsync`
+  (line ~403) calls `DateTime.TryParse(..., DateTimeStyles.RoundtripKind | AssumeUniversal/AdjustToUniversal)`,
+  an **invalid `DateTimeStyles` combination** that throws `ArgumentException` for ANY input. A real
+  production bug (the orders list endpoint 500s on any `since`/`until` filter), same class as bug 5 — a
+  one-line styles fix when tackled.
+- **`SagaTransitionsAuditFlowTests` / `…EndToEndSignalRTests` / `…RedeliveryFlowTests` (6)** — "0 audit
+  rows" assertions fail because these build their OWN `AddMassTransitTestHarness` that does not register
+  the `SagaTransitionObserver` in the consume scope (the Sprint-7 KTD9 `GetService<>`-nullable design:
+  no observer → no audit row). A test-harness wiring gap, not a production bug; the production path
+  registers the observer via `AddOutboundModule`.
+- **`OrderTransitionRepositoryTests.MigrateAsync_AddsOutboundSagaTransitionsTable` (1)** — an EF query
+  fails with `42703: column s.Value does not exist`, an entity-mapping mismatch in that test's query.
+
+These belong to a future "green the full Outbound integration suite locally" cleanup pass (the same
+never-ran-rot lesson below), tracked here so they are not mistaken for U4-finish regressions.
 
 ## Lesson
 
