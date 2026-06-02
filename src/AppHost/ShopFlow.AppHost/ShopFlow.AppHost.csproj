@@ -50,6 +50,12 @@
                       IsAspireProjectResource="true" />
   </ItemGroup>
 
+  <!-- Finish-line U7 — Lazada mock server resource (Aspire AddProject<>). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\tools\mocks\lazada\ShopFlow.Mocks.Lazada.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
   <!-- Sprint-5 U8 — StockSync.Api resource (Aspire AddProject<>). -->
   <ItemGroup>
     <ProjectReference Include="..\..\Services\StockSync\ShopFlow.StockSync.Api\ShopFlow.StockSync.Api.csproj"

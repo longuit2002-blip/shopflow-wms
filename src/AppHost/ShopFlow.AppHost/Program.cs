@@ -217,6 +217,14 @@ var shopeeMock = builder
     .WithExternalHttpEndpoints();
 _ = shopeeMock;
 
+// Finish-line U7 — Lazada mock, the second marketplace channel. Same
+// sibling-process posture as the Shopee mock; proves the plugin
+// architecture extends to a second channel with zero factory edits.
+var lazadaMock = builder
+    .AddProject<Projects.ShopFlow_Mocks_Lazada>("lazada-mock")
+    .WithExternalHttpEndpoints();
+_ = lazadaMock;
+
 // ── Module APIs (Sprint-5 plan U8) ───────────────────────────────────
 // StockSync.Api is the first module Api wired into the Aspire dev
 // orchestrator. Waits for the tenant-provisioning chain (catalog + dev1

@@ -68,7 +68,8 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         string DbName,
         string DbConnectionString,
         Guid ChannelId,
-        byte[] Secret
+        byte[] Secret,
+        string ChannelType
     );
 
     public IReadOnlyList<ProvisionedTenant> Tenants => _tenants;
@@ -78,8 +79,15 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
     /// Provision <paramref name="tenantCount"/> tenants, register their
     /// channels in the catalog, then build the in-process Channel.Api
     /// host. Returns the harness ready for <see cref="SendAsync"/> calls.
+    /// <paramref name="channelType"/> defaults to <c>"shopee"</c>;
+    /// finish-line U7 passes <c>"lazada"</c> for the second-channel
+    /// receive round-trip.
     /// </summary>
-    public async Task InitializeAsync(int tenantCount = 5, CancellationToken ct = default)
+    public async Task InitializeAsync(
+        int tenantCount = 5,
+        string channelType = "shopee",
+        CancellationToken ct = default
+    )
     {
         if (tenantCount <= 0)
         {
@@ -92,27 +100,32 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
 
         for (var i = 0; i < tenantCount; i++)
         {
-            var tenant = await ProvisionTenantAsync(i, ct);
+            var tenant = await ProvisionTenantAsync(i, channelType, ct);
             await RegisterTenantInCatalogAsync(controlConnStr, tenant, ct);
             _tenants.Add(tenant);
         }
 
+        var tenantTemplate = BuildTenantTemplate();
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
-            builder.ConfigureAppConfiguration(
-                (_, cfg) =>
-                {
-                    cfg.AddInMemoryCollection(
-                        new Dictionary<string, string?>
-                        {
-                            ["ControlPlane:ConnectionString"] = controlConnStr,
-                            ["ControlPlane:TenantTemplate"] = BuildTenantTemplate(),
-                            ["MessageBus:Transport"] = "InMemory",
-                        }
-                    );
-                }
-            );
+            // UseSetting writes to the web-host configuration with higher
+            // precedence than appsettings.json. ConfigureAppConfiguration's
+            // AddInMemoryCollection did NOT override the appsettings default
+            // TenantTemplate (Host=localhost;Port=6432 PgBouncer), so the
+            // catalog resolved tenant DBs to 6432 and the receive tests threw
+            // "Failed to connect to [::1]:6432" — a never-run harness-config
+            // gap. UseSetting is the reliable override surface here.
+            builder.UseSetting("ControlPlane:ConnectionString", controlConnStr);
+            builder.UseSetting("ControlPlane:TenantTemplate", tenantTemplate);
+            builder.UseSetting("MessageBus:Transport", "InMemory");
+            // The Channel.Api WAF boots non-Development, where AddShopFlowDefaults'
+            // Sprint-9 KTD7 guard throws unless a ForwardedHeaders allowlist is
+            // configured (it reads this config key directly, not IWebHostEnvironment).
+            // Trust loopback — same posture as AuthAdminAuthorizationFixture /
+            // HandoffFixture / MultiTenantAuthFixture. (The KTD7 guard postdates the
+            // Sprint-5 base the U7 subagent built on, so its harness omitted this.)
+            builder.UseSetting("Auth:ForwardedHeaders:KnownNetworks:0", "127.0.0.0/8");
         });
 
         _client = _factory.CreateClient();
@@ -156,9 +169,61 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
             "application/json"
         );
 
-        var url = $"/api/channel/webhooks/shopee/{target.ChannelId}";
+        var url = $"/api/channel/webhooks/{target.ChannelType}/{target.ChannelId}";
         using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
         req.Headers.Add("X-Shopee-Signature", signature);
+
+        return await _client.SendAsync(req, ct);
+    }
+
+    /// <summary>
+    /// Finish-line U7 — sign + POST a Lazada-shape webhook for
+    /// <paramref name="tenantIndex"/>. Builds the Lazada
+    /// <c>{event_id, event_type, data:{order_id, order_items[], delivery_carrier}}</c>
+    /// envelope and signs it under the <c>X-Lazada-Signature</c> header,
+    /// exercising the K8 channel-agnostic signature extraction path.
+    /// Pass <paramref name="eventId"/> to force a fixed event_id for replay
+    /// idempotency tests; pass <paramref name="signWithTenantIndex"/> to
+    /// sign with a foreign tenant's secret (cross-tenant negative test);
+    /// pass <paramref name="omitSignatureHeader"/> to send no signature
+    /// header at all (missing-signature negative test).
+    /// </summary>
+    public async Task<HttpResponseMessage> SendLazadaAsync(
+        int tenantIndex,
+        string eventType,
+        string orderId,
+        (string ExternalSku, int Qty)[]? items = null,
+        string deliveryCarrier = "LEX",
+        int? signWithTenantIndex = null,
+        string? eventId = null,
+        bool omitSignatureHeader = false,
+        CancellationToken ct = default
+    )
+    {
+        if (_client is null)
+        {
+            throw new InvalidOperationException(
+                "Harness not initialised. Call InitializeAsync first."
+            );
+        }
+
+        var target = _tenants[tenantIndex];
+        var signerSecret = _tenants[signWithTenantIndex ?? tenantIndex].Secret;
+
+        var bodyBytes = BuildLazadaBody(orderId, eventType, items, deliveryCarrier, eventId);
+        var signature = SignedWebhookSender.Sign(bodyBytes, signerSecret);
+
+        using var content = new ByteArrayContent(bodyBytes);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+            "application/json"
+        );
+
+        var url = $"/api/channel/webhooks/{target.ChannelType}/{target.ChannelId}";
+        using var req = new HttpRequestMessage(HttpMethod.Post, url) { Content = content };
+        if (!omitSignatureHeader)
+        {
+            req.Headers.Add("X-Lazada-Signature", signature);
+        }
 
         return await _client.SendAsync(req, ct);
     }
@@ -210,16 +275,21 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         await using var conn = new NpgsqlConnection(tenant.DbConnectionString);
         await conn.OpenAsync(ct);
         await using var cmd = conn.CreateCommand();
+        // Finish-line U7 — column names match the real product_mappings
+        // schema (ProductMappingConfiguration): mapping_method +
+        // confidence_score, NOT method/confidence. The original harness
+        // INSERT drifted from the schema and threw 42703 the first time
+        // these Docker-backed facts actually ran.
         cmd.CommandText =
             @"INSERT INTO product_mappings
-              (id, channel_id, external_sku, internal_sku, method, confidence, created_at)
-              VALUES (@id, @channel_id, @external_sku, @internal_sku, @method, @confidence, @created_at)";
+              (id, channel_id, external_sku, internal_sku, mapping_method, confidence_score, created_at)
+              VALUES (@id, @channel_id, @external_sku, @internal_sku, @mapping_method, @confidence_score, @created_at)";
         cmd.Parameters.AddWithValue("id", Guid.NewGuid());
         cmd.Parameters.AddWithValue("channel_id", tenant.ChannelId);
         cmd.Parameters.AddWithValue("external_sku", externalSku);
         cmd.Parameters.AddWithValue("internal_sku", internalSku);
-        cmd.Parameters.AddWithValue("method", MappingMethod.Manual.ToString());
-        cmd.Parameters.AddWithValue("confidence", 1.0m);
+        cmd.Parameters.AddWithValue("mapping_method", MappingMethod.Manual.ToString());
+        cmd.Parameters.AddWithValue("confidence_score", 1.0m);
         cmd.Parameters.AddWithValue("created_at", DateTime.UtcNow);
         await cmd.ExecuteNonQueryAsync(ct);
     }
@@ -247,7 +317,11 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
             .Replace("%7D", "}", StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task<ProvisionedTenant> ProvisionTenantAsync(int index, CancellationToken ct)
+    private async Task<ProvisionedTenant> ProvisionTenantAsync(
+        int index,
+        string channelType,
+        CancellationToken ct
+    )
     {
         var slug = $"t{index}-{Guid.NewGuid().ToString("N")[..6]}";
         var dbName = $"shopflow_t_{slug}";
@@ -271,7 +345,8 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
             DbName: dbName,
             DbConnectionString: connStr,
             ChannelId: Guid.NewGuid(),
-            Secret: secret
+            Secret: secret,
+            ChannelType: channelType
         );
     }
 
@@ -324,7 +399,7 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
         var channel = ChannelConnection.Create(
             channelId: tenant.ChannelId,
             tenantId: tenant.TenantId,
-            channelType: "shopee",
+            channelType: tenant.ChannelType,
             secretEncrypted: tenant.Secret
         );
         if (!channel.IsSuccess)
@@ -425,6 +500,59 @@ public sealed class TenantWebhookHarness : IAsyncDisposable
                     ["item_sku"] = "SP-DEFAULT",
                     ["model_quantity_purchased"] = 1,
                 },
+            };
+        }
+
+        return data;
+    }
+
+    private static byte[] BuildLazadaBody(
+        string orderId,
+        string eventType,
+        (string ExternalSku, int Qty)[]? items,
+        string deliveryCarrier,
+        string? eventId = null
+    )
+    {
+        eventId ??= $"evt-{Guid.NewGuid():N}";
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["event_id"] = eventId,
+            ["event_type"] = eventType,
+            ["data"] = BuildLazadaDataObject(orderId, items, deliveryCarrier),
+        };
+
+        return JsonSerializer.SerializeToUtf8Bytes(payload);
+    }
+
+    private static Dictionary<string, object?> BuildLazadaDataObject(
+        string orderId,
+        (string ExternalSku, int Qty)[]? items,
+        string deliveryCarrier
+    )
+    {
+        var data = new Dictionary<string, object?>
+        {
+            ["order_id"] = orderId,
+            ["delivery_carrier"] = deliveryCarrier,
+        };
+
+        if (items is not null)
+        {
+            data["order_items"] = items
+                .Select(it => new Dictionary<string, object?>
+                {
+                    ["sku"] = it.ExternalSku,
+                    ["quantity"] = it.Qty,
+                })
+                .ToArray();
+        }
+        else
+        {
+            data["order_items"] = new[]
+            {
+                new Dictionary<string, object?> { ["sku"] = "LZ-DEFAULT", ["quantity"] = 1 },
             };
         }
 

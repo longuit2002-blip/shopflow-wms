@@ -6,11 +6,11 @@ using ShopFlow.Channel.Application.Ports;
 namespace ShopFlow.Channel.Infrastructure.Signature;
 
 /// <summary>
-/// HMAC-SHA256 verifier for Shopee-shape webhook signatures per Sprint-4
-/// plan U3. The provider sends a base64-encoded HMAC of the raw request
-/// body keyed by the channel's secret; we recompute on our side and
-/// compare in constant time via
-/// <see cref="CryptographicOperations.FixedTimeEquals"/>.
+/// HMAC-SHA256 verifier for Lazada-shape webhook signatures (finish-line
+/// U7). Mirrors <see cref="ShopeeSignatureVerifier"/> byte-for-byte — the
+/// provider sends a base64-encoded HMAC of the raw request body keyed by
+/// the channel's secret; we recompute on our side and compare in constant
+/// time via <see cref="CryptographicOperations.FixedTimeEquals"/>.
 /// </summary>
 /// <remarks>
 /// <para>Constant-time compare is mandatory — a regular byte/string equals
@@ -20,16 +20,21 @@ namespace ShopFlow.Channel.Infrastructure.Signature;
 /// <para>The verifier never throws on bad input — receiver-side defense is
 /// "return false → 401". Empty / whitespace signature, base64 decode
 /// failure, length mismatch all reduce to false.</para>
+/// <para>K7 — the verifier is intentionally independent from the Lazada
+/// mock's signer (<c>tools/mocks/lazada/Signing/LazadaSigner.cs</c>). Both
+/// implement the same HMAC-SHA256-base64 primitive; if either drifts, the
+/// round-trip integration test fails. The duplication is the drift
+/// detector.</para>
 /// </remarks>
-public sealed class ShopeeSignatureVerifier : ISignatureVerifier
+public sealed class LazadaSignatureVerifier : ISignatureVerifier
 {
-    public string ChannelType => "shopee";
+    public string ChannelType => "lazada";
 
     /// <summary>
-    /// Shopee sends its HMAC base64 signature in <c>X-Shopee-Signature</c>.
+    /// Lazada sends its HMAC base64 signature in <c>X-Lazada-Signature</c>.
     /// The receiver reads this header per channel type (finish-line K8).
     /// </summary>
-    public string SignatureHeaderName => "X-Shopee-Signature";
+    public string SignatureHeaderName => "X-Lazada-Signature";
 
     public bool Verify(ReadOnlySpan<byte> body, string signature, ReadOnlySpan<byte> secret)
     {
@@ -38,7 +43,7 @@ public sealed class ShopeeSignatureVerifier : ISignatureVerifier
             return false;
         }
 
-        // Decode the provider-supplied signature. Shopee sends base64; if
+        // Decode the provider-supplied signature. Lazada sends base64; if
         // decoding fails treat as invalid rather than throwing.
         var providedBytes = ArrayPool<byte>.Shared.Rent(64);
         try

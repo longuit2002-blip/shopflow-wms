@@ -23,6 +23,16 @@ public interface ISignatureVerifier
     string ChannelType { get; }
 
     /// <summary>
+    /// The request header the marketplace places its signature in (e.g.
+    /// <c>"X-Shopee-Signature"</c> / <c>"X-Lazada-Signature"</c>). The
+    /// receiver reads the signature from this header per channel type so
+    /// the controller stays marketplace-agnostic (finish-line K8). Each
+    /// marketplace names its signature header differently; binding the name
+    /// to the verifier keeps the extraction extensible-by-construction.
+    /// </summary>
+    string SignatureHeaderName { get; }
+
+    /// <summary>
     /// Validate <paramref name="signature"/> against the HMAC of
     /// <paramref name="body"/> keyed by <paramref name="secret"/>. Returns
     /// false on any mismatch, missing input, or malformed signature.

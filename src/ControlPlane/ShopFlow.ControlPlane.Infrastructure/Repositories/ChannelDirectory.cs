@@ -54,7 +54,14 @@ public sealed class ChannelDirectory : IChannelDirectory
             SecretEncrypted: row.SecretEncrypted
         );
 
-        _cache.Set(key, binding, new MemoryCacheEntryOptions { SlidingExpiration = DefaultTtl });
+        // Size = 1 is mandatory: AddMemoryCache sets SizeLimit = 1000 (D2),
+        // and a Set without a size throws when SizeLimit is set. Same
+        // never-run gap as TenantCatalog.Hydrate (finish-line U7).
+        _cache.Set(
+            key,
+            binding,
+            new MemoryCacheEntryOptions { SlidingExpiration = DefaultTtl, Size = 1 }
+        );
         return binding;
     }
 
