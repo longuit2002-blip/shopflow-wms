@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using FluentAssertions;
 using ShopFlow.SharedKernel.Authorization;
+using ShopFlow.TestSupport;
 using Xunit;
 
 namespace ShopFlow.Auth.IntegrationTests.Authorization;
@@ -30,62 +31,47 @@ namespace ShopFlow.Auth.IntegrationTests.Authorization;
 /// tenant-mismatch path is the same regardless of which controller
 /// hosts the gated endpoint.</para>
 ///
-/// <para>Skip-marked locally per Sprint-1+ posture. CI's nightly +
-/// per-PR Docker-backed job removes the Skip.</para>
+/// <para>Finish-line U5: now runs against <see cref="MultiTenantAuthFixture"/>
+/// (catalog + tenant-a/tenant-b DBs migrated + role_permissions seeded) and is
+/// gated by <see cref="ProofFactAttribute"/> — <c>task proofs</c> locally, or
+/// automatically in CI.</para>
 /// </summary>
-[Collection(AuthAdminAuthorizationCollection.Name)]
+[Collection(MultiTenantAuthCollection.Name)]
 [Trait("Category", "Integration")]
 public sealed class CrossTenant403Test
 {
-    private readonly AuthAdminAuthorizationFixture _fixture;
+    private readonly MultiTenantAuthFixture _fixture;
 
-    public CrossTenant403Test(AuthAdminAuthorizationFixture fixture)
+    public CrossTenant403Test(MultiTenantAuthFixture fixture)
     {
         _fixture = fixture;
     }
 
-    // Finish-line U2 → U5. The 3 boot-blocking bugs are fixed in U2
-    // (ForwardedHeaders guard config + TenantTemplate '{db}' token in
-    // AuthAdminAuthorizationFixture, and the production JwtTokenIssuer
-    // Singleton→Scoped DI lifetime bug). The WAF now boots and serves, but
-    // this cross-tenant assertion returns 500 (not 401/403) because the
-    // fixture provisions only ONE tenant DB and no migrated catalog — the
-    // X-Tenant: tenant-b request resolves to an unprovisioned tenant. Full
-    // green needs the multi-tenant Auth WAF fixture (catalog + tenant-a/
-    // tenant-b DBs migrated + role_permissions seeded), which finish-line U5
-    // builds for the AuthCrossTenant harness; this test rejoins Category=Proof
-    // there.
-    [Fact(
-        Skip = "finish-line U5: needs the multi-tenant Auth WAF fixture (catalog + 2 tenant DBs migrated + role_permissions seeded). U2 fixed the 3 boot-blocking bugs; full cross-tenant green lands with U5."
-    )]
+    // Finish-line U5 — the multi-tenant Auth WAF fixture (catalog + tenant-a +
+    // tenant-b DBs migrated + role_permissions seeded) makes the request route
+    // for real. UseAuthorization runs BEFORE UseTenantRouting, so the full
+    // 24-key perm[] passes authorization; the ONLY remaining rejection path is
+    // the tenant boundary, which fires as a 403 conflict (header tenant-b ≠ JWT
+    // tenant-a). Proves perm[] completeness never rescues a cross-tenant request.
+    [ProofFact]
     public async Task CrossTenantJwt_WithFullPermSet_NeverReturns200()
     {
         // Arrange — build a JWT for tenant-A carrying every key in
-        // PermissionKeys.All (24 entries). The token authentication is
-        // valid; the only thing the request lacks is tenant alignment.
-        var tenantASlug = "tenant-a";
+        // PermissionKeys.All. The token authentication is valid; the only
+        // thing the request lacks is tenant alignment.
         var jwt = _fixture.JwtBuilder.Build(
-            tenantSlug: tenantASlug,
-            userId: Guid.NewGuid(),
-            includeKeys: PermissionKeys.All.ToArray()
+            tenantSlug: _fixture.TenantA.Slug,
+            userId: _fixture.TenantA.OwnerUserId,
+            includeKeys: PermissionKeys.All
         );
 
-        // CI tier provisions tenant-A + tenant-B as two distinct
-        // Postgres databases on the shared container; the resolved
-        // request host below MUST route to tenant-B (subdomain in the
-        // Host header or X-Tenant header — whichever the live
-        // TenantRoutingMiddleware honors).
-        var client = _fixture.HttpClient;
+        var client = _fixture.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", jwt);
 
-        // Override the resolved tenant via the documented routing
-        // signal. TenantRoutingMiddleware (Sprint-1-redux) honors
-        // header > JWT > subdomain in that priority; setting the
-        // X-Tenant header forces tenant-B regardless of the JWT's
-        // tenant_slug=tenant-a claim. Conflict resolution should
-        // surface as 401 (audit row + reject) per the existing
-        // 2+ source conflict rule.
-        client.DefaultRequestHeaders.Add("X-Tenant", "tenant-b");
+        // Force the resolved tenant to tenant-B via the live routing header.
+        // TenantRoutingMiddleware honors header > JWT > subdomain and rejects a
+        // 2+ source conflict; header (tenant-b) ≠ JWT (tenant-a) → 403.
+        client.DefaultRequestHeaders.Add("X-ShopFlow-Tenant", _fixture.TenantB.Slug);
 
         // Act — call any policy-gated endpoint. The full perm[]
         // guarantees the policy gate cannot reject; the only available

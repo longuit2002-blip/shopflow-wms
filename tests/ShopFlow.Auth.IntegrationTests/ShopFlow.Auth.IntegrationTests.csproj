@@ -31,6 +31,13 @@
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Api\ShopFlow.Auth.Api.csproj" />
+    <!-- Finish-line U5 — the MultiTenantAuthFixture provisions a control-plane
+         catalog + registers tenant-a/tenant-b so the WAF's
+         TenantRoutingMiddleware resolves them. ControlPlane.Migrations must be
+         on the probing path for ControlPlaneDbContext.MigrateAsync (same reason
+         HandoffFixture + StockSync.IntegrationTests reference it). -->
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +46,17 @@
          single-source. -->
     <Compile Include="..\_shared\ProofGate.cs">
       <Link>_shared\ProofGate.cs</Link>
+    </Compile>
+    <!-- Finish-line U5 — RolePermissionsSeed linked from tools/shopflow-migrate/
+         so MultiTenantAuthFixture seeds each tenant's role_permissions with the
+         canonical baselines (and AuthCrossTenantTests can diff against
+         RolePermissionsSeed.PickerBaseline). Cross-project ProjectReference to
+         the migrate tool would pull its Program entrypoint (OutputType=Exe) and
+         collide with Auth.Api's Program WAF target — same trap Sprint-10.5 U4 /
+         Sprint-12 U4 documented. The Compile-link keeps a single source of
+         truth without the transitive cost. -->
+    <Compile Include="..\..\tools\shopflow-migrate\Provisioning\RolePermissionsSeed.cs">
+      <Link>Provisioning\RolePermissionsSeed.cs</Link>
     </Compile>
   </ItemGroup>
 
