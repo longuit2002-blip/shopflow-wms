@@ -1,7 +1,7 @@
 ---
 title: Portfolio finish-line — prove the hard problems for an engineer evaluator
 created: 2026-05-27
-status: ready-for-planning
+status: in-progress
 origin: solo-brainstorm
 actors: [Engineer-evaluator, Maintainer]
 flows: [F1-engineer-evaluation, F2-clone-and-run-enough, F3-run-the-proofs]
@@ -14,6 +14,33 @@ flows: [F1-engineer-evaluation, F2-clone-and-run-enough, F3-run-the-proofs]
 Define and reach the "finish line" for the ShopFlow WMS portfolio piece, scoped for an engineer/tech-interviewer who clones, runs, and reads code. "Done" means the signature hard-problems are *demonstrably true* via tests that run green on the evaluator's own machine, routed by an engineer-oriented README — AND the product's headline identity, **multi-channel sync**, is made real by a second channel adapter (Lazada) so "multi-channel" isn't a one-channel claim. Not feature-completeness, not a live demo, not all six services booting perfectly.
 
 **Scope amendment (2026-05-27):** the initial finish-line draft deferred Lazada; on review, shipping a "multi-channel marketplace WMS" with only Shopee wired leaves the core product claim hollow and an engineer evaluator would spot it immediately. Lazada (the 2nd channel) is now **in** the finish line — it also *demonstrates* the plugin architecture (the "a new adapter is ~one line of DI registration" claim) rather than merely asserting it. TikTok remains deferred (diminishing returns after the 2nd adapter proves extensibility).
+
+---
+
+## Status update (2026-06-02) — verified progress + remaining path
+
+This finish line is **~60% executed** on branch `feat/portfolio-finish-line` (HEAD `66b306a`). Status below was verified against source + git on 2026-06-02, not taken from the sprint-changelog narrative. Target bar **reconfirmed: portfolio-demo-done** — all four hard-problems green locally + an honest 2nd channel (Lazada) + an engineer-routing README. Commercial-grade build-out (Analytics, Inbound handlers, the ComingSoon pages, TikTok/Shopify) and a full live clickable demo stay **out** by design.
+
+**Premise change since the original brainstorm.** The plan assumed "no local Docker; CI-only." **Docker now runs locally (v29.4.2)** and the U1–U4 proofs were confirmed green on this machine. The Dependencies/Assumptions line "the proving tests actually pass when run locally" is now *partly discharged* — and U5/U6/U8 are locally iterable rather than CI-roundtrip-bound (the single biggest tractability change).
+
+**Done (verified on branch):**
+- **U0** — brainstorm + plan (post-doc-review revision).
+- **U1** — proof-run opt-in (`Category=Proof` + `SHOPFLOW_RUN_PROOFS` env gate).
+- **U2** — Tier-1 proofs green locally (oversell scale gate, reservation-ledger FsCheck, cross-tenant routing 5/5); also fixed a production `JwtTokenIssuer` singleton-consumes-scoped DI bug.
+- **U3** — StockSync noisy-neighbor harness (real `FairnessCalculator`; surfaced + fixed 8 never-ran composition bugs).
+- **U4** — cross-role denial harness 14/14 green; made `Outbound.Api` boot (double-`AddMassTransit` + missing `ITenantCatalog`).
+- **U6 (partial)** — `Auth.Api` + `StockSync.Api` + `Outbound.Api` boot fixes; service ControlPlane configs consolidated to `shopflow_app` via PgBouncer; app-role/catalog ordering.
+
+**Remaining — the completion path, in dependency order:**
+1. **U5 — Auth cross-tenant isolation harness (HEAVY; completes hard-problem #3).** Build the multi-tenant Auth WAF fixture; un-Skip `CrossTenant403Test` + `AuthCrossTenantTests` (today returns 500). This is the only one of the four headline proofs not yet genuinely green.
+2. **U4 finish — 4-role hand-off happy-path (MEDIUM).** Un-Skip `HandoffWorkflowTests`; wire the saga drive-through (Picker→Packer→Dispatcher). Today only the *denial* half of AE4 is green; the *hand-off* half is still Skip-marked. **Confirmed IN scope (2026-06-02)** so AE4 is honestly "proven", not half-proven. Likely needs the deferred `POST /orders` + `/seed` 500 (`CreatedAtAction` async-suffix) fixed for the seed path.
+3. **U7 — Lazada adapter + channel-agnostic webhook signature (L; makes multi-channel honest).** Adapter + parser + verifier + DI registration + mock server + the `WebhooksController` header-extraction fix (K8). Verified blocker: `WebhooksController` hardcodes the Shopee signature header → Lazada webhooks 401 before the per-channel verifier runs.
+4. **U8 — multi-channel sync proof (MEDIUM; depends on U7).** One stock change for a dual-listed SKU → push to BOTH Shopee + Lazada through the existing coalescing/rate-limit/priority/breaker engine.
+5. **U6 finish — `task up` to the K6 floor (MEDIUM).** edoburu PgBouncer swap (K1) + native-Postgres-5432 coexistence + verify `Notification.Api` startup; or document the residue as a named README prerequisite (K6 allows this for the not-live-demo bar).
+6. **U9 — README reframe + run-locally doc (SMALL; lands late).** Lead with the four hard-problems (code ↔ proving-test ↔ run-command) + the Shopee/Lazada pluggability; demote the sprint changelog to a history doc.
+7. **U10 — clean-repo + final verification + sign-off + tag (SMALL; last).**
+
+**Sequencing rule:** proof + adapter work (U5, U4-finish, U7, U8, U6-finish) first; framing work (U9, U10) last — so the README never advertises a proof that isn't green yet, and isn't rewritten twice.
 
 ---
 
