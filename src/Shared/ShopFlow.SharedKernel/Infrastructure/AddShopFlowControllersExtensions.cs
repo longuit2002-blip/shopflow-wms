@@ -32,7 +32,22 @@ public static class AddShopFlowControllersExtensions
     public static IMvcBuilder AddShopFlowControllers(this IServiceCollection services)
     {
         return services
-            .AddControllers()
+            .AddControllers(static mvc =>
+            {
+                // Finish-line U4 (bug 5) — keep the "Async" suffix on action
+                // names. ASP.NET strips it by default, so an action declared
+                // GetByIdAsync registers as "GetById" and any
+                // CreatedAtAction(nameof(GetByIdAsync), …) link generation
+                // matches no action → 500 "No route matches the supplied
+                // values" AFTER the row is written. Every CreatedAtAction call
+                // site in the codebase uses nameof(GetByIdAsync) (Outbound
+                // OrdersController ×2 + Inbound PurchaseOrdersController), so
+                // disabling the strip fixes them all consistently. A real
+                // production bug: any client creating an order/PO hit the 500;
+                // it hid because controller unit tests assert the returned
+                // CreatedAtActionResult object without executing link generation.
+                mvc.SuppressAsyncSuffixInActionNames = false;
+            })
             .AddJsonOptions(static opts =>
             {
                 opts.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;

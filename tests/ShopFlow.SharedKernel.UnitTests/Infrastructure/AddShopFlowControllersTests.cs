@@ -63,6 +63,22 @@ public sealed class AddShopFlowControllersTests
     }
 
     [Fact]
+    public void AddShopFlowControllers_KeepsAsyncSuffixOnActionNames()
+    {
+        // Finish-line U4 (bug 5) — the "Async" suffix must NOT be stripped, or
+        // CreatedAtAction(nameof(GetByIdAsync), …) link generation 500s after
+        // the row is written. Pins SuppressAsyncSuffixInActionNames = false.
+        var services = new ServiceCollection();
+
+        services.AddShopFlowControllers();
+
+        using var sp = services.BuildServiceProvider();
+        var mvc = sp.GetRequiredService<IOptions<MvcOptions>>().Value;
+
+        mvc.SuppressAsyncSuffixInActionNames.Should().BeFalse();
+    }
+
+    [Fact]
     public void SerializingPascalCaseRecord_ProducesCamelCaseJsonKeys()
     {
         var options = ResolveJsonSerializerOptions();
