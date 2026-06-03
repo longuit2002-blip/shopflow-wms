@@ -130,7 +130,6 @@ export function Sidebar() {
       id: 'audit',
       label: t('Audit log', 'Audit log'),
       icon: FileSearch,
-      upcoming: 'Phase 3',
       permRequired: ['auth.admin.users.list'],
     },
     {
