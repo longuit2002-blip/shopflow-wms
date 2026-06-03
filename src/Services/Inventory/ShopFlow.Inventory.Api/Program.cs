@@ -1,4 +1,5 @@
 using Hellang.Middleware.ProblemDetails;
+using ShopFlow.ControlPlane.Infrastructure;
 using ShopFlow.Inventory.Infrastructure;
 using ShopFlow.SharedKernel.Infrastructure;
 
@@ -32,12 +33,21 @@ builder.Services.AddShopFlowDefaults(
         typeof(ShopFlow.Inventory.Infrastructure.InventoryDbContext).Assembly,
     }
 );
+
+// #4 fix — Inventory.Api was the only module Api missing AddControlPlane.
+// Without ITenantCatalog the TenantRoutingMiddleware cannot resolve the
+// per-request tenant DB, so every /api/v1/inventory call failed under a real
+// boot. Mirrors Channel / StockSync / Auth / Notification / Outbound order.
+builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddInventoryModule(builder.Configuration);
 
 builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();
+
+// Anonymous liveness probe (no tenant context) — mirrors Notification.Api.
+app.MapGet("/health", () => Results.Ok(new { status = "ok", module = "Inventory" }));
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseTenantRouting();
