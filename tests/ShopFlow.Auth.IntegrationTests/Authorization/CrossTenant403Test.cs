@@ -38,6 +38,7 @@ namespace ShopFlow.Auth.IntegrationTests.Authorization;
 /// </summary>
 [Collection(MultiTenantAuthCollection.Name)]
 [Trait("Category", "Integration")]
+[Trait("Category", "Proof")]
 public sealed class CrossTenant403Test
 {
     private readonly MultiTenantAuthFixture _fixture;

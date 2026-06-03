@@ -52,3 +52,7 @@ coverage/
 
 # Aspire AppHost
 .aspire/
+
+# Node (root-level tool installs; the web/ frontend has its own ignores)
+node_modules/
+**/node_modules/
