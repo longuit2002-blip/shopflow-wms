@@ -28,6 +28,7 @@ export function TenantPill({ monogram, legalName, erc, region, dbName }: TenantP
   return (
     <div
       data-tenant-pill
+      data-tour="tenant-pill"
       title={`${legalName} · ${erc}`}
       style={{
         display: 'flex',

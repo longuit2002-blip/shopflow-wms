@@ -20,6 +20,7 @@ import { Route as MfaChallengeRouteImport } from './routes/mfa/challenge'
 import { Route as AuthTenantsRouteImport } from './routes/_auth/tenants'
 import { Route as AuthSyncRouteImport } from './routes/_auth/sync'
 import { Route as AuthSettingsRouteImport } from './routes/_auth/settings'
+import { Route as AuthPickRouteImport } from './routes/_auth/pick'
 import { Route as AuthOutboundRouteImport } from './routes/_auth/outbound'
 import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AuthInventoryRouteImport } from './routes/_auth/inventory'
@@ -87,6 +88,11 @@ const AuthSyncRoute = AuthSyncRouteImport.update({
 const AuthSettingsRoute = AuthSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthPickRoute = AuthPickRouteImport.update({
+  id: '/pick',
+  path: '/pick',
   getParentRoute: () => AuthRoute,
 } as any)
 const AuthOutboundRoute = AuthOutboundRouteImport.update({
@@ -175,6 +181,7 @@ export interface FileRoutesByFullPath {
   '/inventory': typeof AuthInventoryRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/outbound': typeof AuthOutboundRoute
+  '/pick': typeof AuthPickRoute
   '/settings': typeof AuthSettingsRoute
   '/sync': typeof AuthSyncRoute
   '/tenants': typeof AuthTenantsRoute
@@ -201,6 +208,7 @@ export interface FileRoutesByTo {
   '/inventory': typeof AuthInventoryRoute
   '/onboarding': typeof AuthOnboardingRoute
   '/outbound': typeof AuthOutboundRoute
+  '/pick': typeof AuthPickRoute
   '/settings': typeof AuthSettingsRoute
   '/sync': typeof AuthSyncRoute
   '/tenants': typeof AuthTenantsRoute
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   '/_auth/inventory': typeof AuthInventoryRoute
   '/_auth/onboarding': typeof AuthOnboardingRoute
   '/_auth/outbound': typeof AuthOutboundRoute
+  '/_auth/pick': typeof AuthPickRoute
   '/_auth/settings': typeof AuthSettingsRoute
   '/_auth/sync': typeof AuthSyncRoute
   '/_auth/tenants': typeof AuthTenantsRoute
@@ -257,6 +266,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/onboarding'
     | '/outbound'
+    | '/pick'
     | '/settings'
     | '/sync'
     | '/tenants'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
     | '/inventory'
     | '/onboarding'
     | '/outbound'
+    | '/pick'
     | '/settings'
     | '/sync'
     | '/tenants'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/_auth/inventory'
     | '/_auth/onboarding'
     | '/_auth/outbound'
+    | '/_auth/pick'
     | '/_auth/settings'
     | '/_auth/sync'
     | '/_auth/tenants'
@@ -411,6 +423,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthSettingsRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/pick': {
+      id: '/_auth/pick'
+      path: '/pick'
+      fullPath: '/pick'
+      preLoaderRoute: typeof AuthPickRouteImport
       parentRoute: typeof AuthRoute
     }
     '/_auth/outbound': {
@@ -523,6 +542,7 @@ interface AuthRouteChildren {
   AuthInventoryRoute: typeof AuthInventoryRoute
   AuthOnboardingRoute: typeof AuthOnboardingRoute
   AuthOutboundRoute: typeof AuthOutboundRoute
+  AuthPickRoute: typeof AuthPickRoute
   AuthSettingsRoute: typeof AuthSettingsRoute
   AuthSyncRoute: typeof AuthSyncRoute
   AuthTenantsRoute: typeof AuthTenantsRoute
@@ -543,6 +563,7 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthInventoryRoute: AuthInventoryRoute,
   AuthOnboardingRoute: AuthOnboardingRoute,
   AuthOutboundRoute: AuthOutboundRoute,
+  AuthPickRoute: AuthPickRoute,
   AuthSettingsRoute: AuthSettingsRoute,
   AuthSyncRoute: AuthSyncRoute,
   AuthTenantsRoute: AuthTenantsRoute,

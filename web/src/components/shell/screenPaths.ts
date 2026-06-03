@@ -15,6 +15,7 @@ export const SCREEN_PATHS: Record<ScreenId, string> = {
   inventory: '/inventory',
   inbound: '/inbound',
   orders: '/orders',
+  pick: '/pick',
   channels: '/channels',
   sync: '/sync',
   settings: '/settings',

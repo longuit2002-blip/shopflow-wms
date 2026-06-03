@@ -22,6 +22,7 @@ export function LiveIndicator({ status = 'info' }: LiveIndicatorProps) {
   return (
     <div
       data-live-indicator
+      data-tour="live-indicator"
       className="fs0 nb"
       style={{
         display: 'flex',

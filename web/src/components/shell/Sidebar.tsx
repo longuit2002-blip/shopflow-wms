@@ -26,6 +26,7 @@ import {
   Boxes,
   Truck,
   ShoppingBag,
+  ClipboardCheck,
   Plug,
   RefreshCw,
   Settings,
@@ -50,6 +51,7 @@ export type ScreenId =
   | 'inventory'
   | 'inbound'
   | 'orders'
+  | 'pick'
   | 'channels'
   | 'sync'
   | 'settings'
@@ -104,6 +106,12 @@ export function Sidebar() {
       label: t('Đơn hàng', 'Orders'),
       icon: ShoppingBag,
       permRequired: ['outbound.orders.read'],
+    },
+    {
+      id: 'pick',
+      label: t('Nhặt hàng', 'Pick queue'),
+      icon: ClipboardCheck,
+      permRequired: ['outbound.orders.pick-confirm'],
     },
     {
       id: 'channels',

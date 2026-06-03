@@ -1,6 +1,7 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 import { Sidebar } from '../components/shell/Sidebar';
 import { TopBar } from '../components/shell/TopBar';
+import { GuidedTour } from '../components/shell/GuidedTour';
 import { ToastViewport } from '../components/primitives/Toast';
 
 /**
@@ -56,6 +57,7 @@ function AuthLayout() {
         </main>
       </div>
       <ToastViewport />
+      <GuidedTour />
     </div>
   );
 }
