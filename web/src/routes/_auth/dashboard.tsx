@@ -425,7 +425,9 @@ function BreachTable({ ageAdj }: { ageAdj: number }) {
             <th style={{ width: 80 }}>{t('Tuổi', 'Age')}</th>
             <th>{t('Lý do vi phạm', 'Breach reason')}</th>
             <th style={{ width: 130 }}>{t('Nhân viên nhặt', 'Picker')}</th>
-            <th style={{ width: 60 }} aria-label={t('Mở đơn', 'Open order')} />
+            <th style={{ width: 60 }}>
+              <span className="sr-only">{t('Mở đơn', 'Open order')}</span>
+            </th>
           </tr>
         </thead>
         <tbody>

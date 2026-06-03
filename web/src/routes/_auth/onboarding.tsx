@@ -456,6 +456,7 @@ function WizardStep1({ form, setForm }: { form: OnboardForm; setForm: SetForm })
         <FormField label={t('Tên pháp lý', 'Legal name')}>
           <input
             type="text"
+            aria-label={t('Tên pháp lý', 'Legal name')}
             value={form.legal}
             onChange={(e) => setForm((f) => ({ ...f, legal: e.target.value }))}
             style={{ width: '100%' }}
@@ -466,6 +467,7 @@ function WizardStep1({ form, setForm }: { form: OnboardForm; setForm: SetForm })
             value={form.region}
             onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))}
             style={{ width: '100%' }}
+            aria-label={t('Khu vực · vùng dữ liệu', 'Region · data residency')}
           >
             <option value="SG-1">SG-1 · ap-southeast-1 · Singapore</option>
             <option value="SG-2">SG-2 · ap-southeast-1b · Singapore (DR)</option>
@@ -479,6 +481,7 @@ function WizardStep1({ form, setForm }: { form: OnboardForm; setForm: SetForm })
             value={form.regKind}
             onChange={(e) => setForm((f) => ({ ...f, regKind: e.target.value }))}
             style={{ width: '100%' }}
+            aria-label={t('Loại đăng ký', 'Registration kind')}
           >
             <option value="ERC">ERC · Vietnam</option>
             <option value="UEN">UEN · Singapore</option>
@@ -488,6 +491,7 @@ function WizardStep1({ form, setForm }: { form: OnboardForm; setForm: SetForm })
         <FormField label={t('Số đăng ký', 'Registration number')}>
           <input
             type="text"
+            aria-label={t('Số đăng ký', 'Registration number')}
             value={form.regNum}
             onChange={(e) => setForm((f) => ({ ...f, regNum: e.target.value }))}
             style={{ width: '100%', fontFamily: 'var(--font-mono)' }}
@@ -504,6 +508,7 @@ function WizardStep1({ form, setForm }: { form: OnboardForm; setForm: SetForm })
             value={form.tier}
             onChange={(e) => setForm((f) => ({ ...f, tier: e.target.value }))}
             style={{ width: '100%' }}
+            aria-label={t('Gói dịch vụ', 'Tier')}
           >
             <option value="Starter">Starter · 5K SKU · 100 đơn/phút</option>
             <option value="Mid-market">Mid-market · 50K SKU · 5K đơn/phút</option>
@@ -520,6 +525,7 @@ function WizardStep1({ form, setForm }: { form: OnboardForm; setForm: SetForm })
           <input
             type="text"
             readOnly
+            aria-label={t('Định danh cơ sở dữ liệu (tự động)', 'Database identifier (auto)')}
             value={dbNameFromLegal(form.legal)}
             style={{
               width: '100%',

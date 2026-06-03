@@ -836,6 +836,7 @@ function BrandingEditor() {
             {t('Footer hoá đơn', 'Invoice footer')}
           </div>
           <textarea
+            aria-label={t('Footer hoá đơn', 'Invoice footer')}
             defaultValue={t(
               'Cảm ơn quý khách đã tin dùng Yến Sào Khánh Hoà. Mọi thắc mắc: hotline 1800-2566.',
               'Thank you for choosing Yến Sào Khánh Hoà. Contact: 1800-2566.',
