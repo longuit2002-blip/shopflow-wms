@@ -85,7 +85,6 @@ export function Sidebar() {
       id: 'dashboard',
       label: t('Tổng quan', 'Dashboard'),
       icon: LayoutDashboard,
-      upcoming: 'Sprint 7',
     },
     {
       id: 'inventory',
@@ -110,7 +109,6 @@ export function Sidebar() {
       id: 'channels',
       label: t('Kênh bán', 'Channels'),
       icon: Plug,
-      upcoming: 'Sprint 8',
     },
     {
       id: 'sync',
@@ -122,7 +120,6 @@ export function Sidebar() {
       id: 'settings',
       label: t('Cài đặt', 'Settings'),
       icon: Settings,
-      upcoming: 'Phase 3',
       groupBefore: t('Quản trị', 'Admin'),
       permRequired: ['auth.admin.users.list'],
     },
@@ -149,7 +146,6 @@ export function Sidebar() {
       id: 'onboarding',
       label: t('Khởi tạo mới', 'Onboard new'),
       icon: UserPlus,
-      upcoming: 'Phase 3',
       permRequired: ['auth.admin.users.list'],
     },
   ];
