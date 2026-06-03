@@ -2,7 +2,9 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { ResetPasswordScreen } from '../components/auth/ResetPasswordScreen';
 import { useToast } from '../hooks/useToast';
 
-interface ResetPasswordSearch {
+// Exported so the generated `routeTree.gen.ts` can name this type in its
+// emitted declarations (composite build). Type-only — no runtime effect.
+export interface ResetPasswordSearch {
   token?: string;
 }
 

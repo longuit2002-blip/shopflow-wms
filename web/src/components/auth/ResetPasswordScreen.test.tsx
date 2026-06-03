@@ -17,9 +17,7 @@ describe('ResetPasswordScreen (Sprint-9.5 U6)', () => {
   it('shows error panel when token is missing', () => {
     render(<ResetPasswordScreen token={null} />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: /invalid|không hợp lệ/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /invalid|không hợp lệ/i })).toBeInTheDocument();
     expect(screen.queryByLabelText(/New password|Mật khẩu mới/i)).not.toBeInTheDocument();
   });
 
@@ -41,18 +39,14 @@ describe('ResetPasswordScreen (Sprint-9.5 U6)', () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockResolvedValue(new Response('{}', { status: 200 }));
     const onResetComplete = vi.fn();
-    render(
-      <ResetPasswordScreen token="reset-token-abc" onResetComplete={onResetComplete} />,
-    );
+    render(<ResetPasswordScreen token="reset-token-abc" onResetComplete={onResetComplete} />);
 
     await user.type(screen.getByLabelText(/New password|Mật khẩu mới/i), 'Strong!Pass123');
     await user.type(screen.getByLabelText(/Confirm password|Xác nhận/i), 'Strong!Pass123');
-    await user.click(
-      screen.getByRole('button', { name: /Reset password|Đặt lại mật khẩu/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /Reset password|Đặt lại mật khẩu/i }));
 
     await waitFor(() => expect(onResetComplete).toHaveBeenCalledTimes(1));
-    const call = vi.mocked(globalThis.fetch).mock.calls[0];
+    const call = vi.mocked(globalThis.fetch).mock.calls[0]!;
     expect(call[0]).toBe('/api/auth/reset-password');
     const body = JSON.parse((call[1] as RequestInit).body as string);
     expect(body.token).toBe('reset-token-abc');
@@ -63,20 +57,20 @@ describe('ResetPasswordScreen (Sprint-9.5 U6)', () => {
     const user = userEvent.setup();
     vi.mocked(globalThis.fetch).mockResolvedValue(
       new Response(
-        JSON.stringify({ title: 'Invalid', detail: 'token expired', error_code: 'auth.reset_token_expired' }),
+        JSON.stringify({
+          title: 'Invalid',
+          detail: 'token expired',
+          error_code: 'auth.reset_token_expired',
+        }),
         { status: 422, headers: { 'Content-Type': 'application/json' } },
       ),
     );
     const onResetComplete = vi.fn();
-    render(
-      <ResetPasswordScreen token="expired-token" onResetComplete={onResetComplete} />,
-    );
+    render(<ResetPasswordScreen token="expired-token" onResetComplete={onResetComplete} />);
 
     await user.type(screen.getByLabelText(/New password|Mật khẩu mới/i), 'Strong!Pass123');
     await user.type(screen.getByLabelText(/Confirm password|Xác nhận/i), 'Strong!Pass123');
-    await user.click(
-      screen.getByRole('button', { name: /Reset password|Đặt lại mật khẩu/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /Reset password|Đặt lại mật khẩu/i }));
 
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toMatch(/token expired/i);

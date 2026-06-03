@@ -55,8 +55,8 @@ export const Route = createFileRoute('/_auth/orders/$orderId')({
  */
 export function inferFailureCause(transitions: OrderTransitionDto[]): string | null {
   for (let i = transitions.length - 1; i >= 0; i--) {
-    if (transitions[i].toState === 'CompensatingReservation') {
-      return transitions[i].eventType;
+    if (transitions[i]!.toState === 'CompensatingReservation') {
+      return transitions[i]!.eventType;
     }
   }
   return null;
@@ -79,8 +79,7 @@ export function OrderDetailRouteComponent() {
   useLocale();
   const { orderId } = Route.useParams();
 
-  const { data: detail, isLoading: detailLoading, error: detailErr } =
-    useOrderDetailQuery(orderId);
+  const { data: detail, isLoading: detailLoading, error: detailErr } = useOrderDetailQuery(orderId);
   const { data: transitions = [] } = useOrderTransitionsQuery(orderId);
 
   const [openLedgerSku, setOpenLedgerSku] = useState<string | null>(null);
@@ -227,11 +226,7 @@ export function OrderDetailRouteComponent() {
           <ArrowLeft size={16} aria-hidden="true" />
           {t('Quay lại', 'Back')}
         </Link>
-        <div
-          className="t-lg mono"
-          data-testid="order-detail-order-id"
-          style={{ fontWeight: 600 }}
-        >
+        <div className="t-lg mono" data-testid="order-detail-order-id" style={{ fontWeight: 600 }}>
           {detail.channelExternalOrderId}
         </div>
         {detail.currentSagaState && (
@@ -255,11 +250,7 @@ export function OrderDetailRouteComponent() {
             </Pill>
           </div>
         )}
-        <div
-          className="t-sm"
-          data-testid="order-detail-channel"
-          style={{ color: 'var(--ink-2)' }}
-        >
+        <div className="t-sm" data-testid="order-detail-channel" style={{ color: 'var(--ink-2)' }}>
           {t('Kênh', 'Channel')}: {detail.channel}
         </div>
       </header>
@@ -272,9 +263,7 @@ export function OrderDetailRouteComponent() {
         />
       </section>
 
-      {canPickConfirm
-        && detail.currentSagaState === 'AwaitingPick'
-        && !justConfirmed && (
+      {canPickConfirm && detail.currentSagaState === 'AwaitingPick' && !justConfirmed && (
         <section
           data-testid="order-detail-pick-actions"
           aria-label={t('Tác vụ Picker', 'Picker actions')}
@@ -315,9 +304,7 @@ export function OrderDetailRouteComponent() {
         </section>
       )}
 
-      {canShipConfirm
-        && detail.status === 'AwaitingShip'
-        && !justShipped && (
+      {canShipConfirm && detail.status === 'AwaitingShip' && !justShipped && (
         <section
           data-testid="order-detail-ship-actions"
           aria-label={t('Tác vụ Dispatcher', 'Dispatcher actions')}

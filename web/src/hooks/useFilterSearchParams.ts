@@ -117,9 +117,7 @@ export function useFilterSearchParams<TSchema extends Record<string, unknown>>(
   // on the route already coerced unknown / malformed inputs to undefined,
   // so anything present here is schema-shaped — but we still apply the
   // default for keys absent from the URL.
-  const fromUrl: Partial<TSchema> = isPlainRecord(rawSearch)
-    ? (rawSearch as Partial<TSchema>)
-    : {};
+  const fromUrl: Partial<TSchema> = isPlainRecord(rawSearch) ? (rawSearch as Partial<TSchema>) : {};
 
   const current: TSchema = mergeWithDefaults(defaults, fromUrl);
 
@@ -159,7 +157,15 @@ export function useFilterSearchParams<TSchema extends Record<string, unknown>>(
       });
 
       void navigate({
-        search: () => urlShape,
+        // The reducer returns a fresh URL-shaped record (it intentionally
+        // ignores the previous search — default-equal keys were already
+        // dropped above). TanStack Router types the `search` reducer against
+        // the route-tree-specific search shape resolved from `from`; this
+        // helper stays route-tree-agnostic (see the `as any` on `from`
+        // above), so the reducer is cast to match the installed router's
+        // expected signature. Runtime behaviour is unchanged.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        search: (() => urlShape) as any,
         replace: false,
       });
     },

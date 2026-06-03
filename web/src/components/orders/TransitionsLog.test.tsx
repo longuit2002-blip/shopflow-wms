@@ -89,16 +89,16 @@ describe('TransitionsLog', () => {
     expect(rows).toHaveLength(5);
 
     // Most-recent at the top: T5 (Picked → AwaitingPack).
-    expect(within(rows[0]).getByText('Picked')).toBeInTheDocument();
-    expect(within(rows[0]).getByText('AwaitingPack')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('Picked')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('AwaitingPack')).toBeInTheDocument();
 
     // Oldest at the bottom: T1 (Placed → AwaitingReservation).
-    expect(within(rows[4]).getByText('Placed')).toBeInTheDocument();
-    expect(within(rows[4]).getByText('AwaitingReservation')).toBeInTheDocument();
+    expect(within(rows[4]!).getByText('Placed')).toBeInTheDocument();
+    expect(within(rows[4]!).getByText('AwaitingReservation')).toBeInTheDocument();
 
     // The event-type displays verbatim (Sprint-7 trade-off — no human
     // labels yet).
-    expect(within(rows[0]).getByText('PackRequestedV1')).toBeInTheDocument();
+    expect(within(rows[0]!).getByText('PackRequestedV1')).toBeInTheDocument();
   });
 
   it('computes elapsed-since-previous correctly per row', () => {
@@ -152,7 +152,7 @@ describe('TransitionsLog', () => {
     expect(rows[0]).toHaveClass('cancelled');
     expect(rows[0]).toHaveAttribute('data-cancelled', 'true');
     // The bad-soft token shows up in the inline style declaration.
-    expect(rows[0].getAttribute('style') ?? '').toContain('var(--bad-soft)');
+    expect(rows[0]!.getAttribute('style') ?? '').toContain('var(--bad-soft)');
 
     // Older rows are NOT flagged cancelled.
     expect(rows[1]).not.toHaveClass('cancelled');
@@ -170,9 +170,7 @@ describe('TransitionsLog', () => {
     // English.
     setLang('en');
     render(<TransitionsLog transitions={[]} />);
-    expect(screen.getByTestId('transitions-empty')).toHaveTextContent(
-      'No transitions yet',
-    );
+    expect(screen.getByTestId('transitions-empty')).toHaveTextContent('No transitions yet');
   });
 
   it('container is axe-clean and exposes aria-live="polite"', async () => {

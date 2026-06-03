@@ -47,9 +47,7 @@ afterEach(() => {
 
 describe('LedgerDrawer', () => {
   it('renders nothing when item is null', () => {
-    const { container } = renderWithClient(
-      <LedgerDrawer item={null} onClose={() => {}} />,
-    );
+    const { container } = renderWithClient(<LedgerDrawer item={null} onClose={() => {}} />);
     expect(container).toBeEmptyDOMElement();
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
@@ -95,9 +93,7 @@ describe('LedgerDrawer', () => {
   });
 
   it('shows the error state when the ledger fetch fails', async () => {
-    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
-      jsonResponse({ title: 'boom' }, 500),
-    );
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse({ title: 'boom' }, 500));
     renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
     await waitFor(() => {
       expect(screen.getByTestId('ledger-error')).toBeInTheDocument();
@@ -113,9 +109,7 @@ describe('LedgerDrawer', () => {
   });
 
   it('does NOT poll the ledger (asserts exactly one fetch over ~250 ms)', async () => {
-    vi.mocked(globalThis.fetch).mockResolvedValue(
-      jsonResponse({ items: [], nextCursor: null }),
-    );
+    vi.mocked(globalThis.fetch).mockResolvedValue(jsonResponse({ items: [], nextCursor: null }));
     renderWithClient(<LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} />);
     await waitFor(() => {
       expect(screen.getByTestId('ledger-empty')).toBeInTheDocument();
@@ -149,11 +143,7 @@ describe('LedgerDrawer', () => {
     const onAdjustClick = vi.fn();
     const user = (await import('@testing-library/user-event')).default.setup();
     renderWithClient(
-      <LedgerDrawer
-        item={FIXTURE_ITEM}
-        onClose={() => {}}
-        onAdjustClick={onAdjustClick}
-      />,
+      <LedgerDrawer item={FIXTURE_ITEM} onClose={() => {}} onAdjustClick={onAdjustClick} />,
     );
     await user.click(screen.getByTestId('ledger-adjust-cta'));
     expect(onAdjustClick).toHaveBeenCalledWith('YS-RED-100');
@@ -164,15 +154,9 @@ describe('LedgerDrawer', () => {
       jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(
-      <LedgerDrawer
-        item={{ ...FIXTURE_ITEM, isFlashSale: true }}
-        onClose={() => {}}
-      />,
+      <LedgerDrawer item={{ ...FIXTURE_ITEM, isFlashSale: true }} onClose={() => {}} />,
     );
-    expect(screen.getByTestId('flash-toggle-YS-RED-100')).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
+    expect(screen.getByTestId('flash-toggle-YS-RED-100')).toHaveAttribute('aria-checked', 'true');
   });
 
   // ── Sprint-7.5 U7: URL-driven open + stale deep-link recovery (D-005) ──
@@ -185,13 +169,7 @@ describe('LedgerDrawer', () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
       jsonResponse({ items: [], nextCursor: null }),
     );
-    renderWithClient(
-      <LedgerDrawer
-        item={null}
-        selectedSku="YS-RED-100"
-        onClose={() => {}}
-      />,
-    );
+    renderWithClient(<LedgerDrawer item={null} selectedSku="YS-RED-100" onClose={() => {}} />);
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(screen.getByText(/YS-RED-100/)).toBeInTheDocument();
   });
@@ -308,7 +286,7 @@ describe('LedgerDrawer', () => {
     // Second fetch carried the cursor query param.
     const calls = vi.mocked(globalThis.fetch).mock.calls;
     expect(calls).toHaveLength(2);
-    const secondCallUrl = String(calls[1][0]);
+    const secondCallUrl = String(calls[1]![0]);
     expect(secondCallUrl).toContain('cursor=cursor-page-2');
   });
 
@@ -320,11 +298,7 @@ describe('LedgerDrawer', () => {
       jsonResponse({ items: [], nextCursor: null }),
     );
     renderWithClient(
-      <LedgerDrawer
-        item={FIXTURE_ITEM}
-        ledgerCursor="cursor-abc"
-        onClose={() => {}}
-      />,
+      <LedgerDrawer item={FIXTURE_ITEM} ledgerCursor="cursor-abc" onClose={() => {}} />,
     );
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalled();

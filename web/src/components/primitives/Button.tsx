@@ -10,8 +10,8 @@
 
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 
-export type ButtonVariant = 'default' | 'primary' | 'accent' | 'danger' | 'ghost';
-export type ButtonSize = 'sm' | 'default' | 'lg' | 'xl';
+export type ButtonVariant = 'default' | 'primary' | 'secondary' | 'accent' | 'danger' | 'ghost';
+export type ButtonSize = 'sm' | 'md' | 'default' | 'lg' | 'xl';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -21,6 +21,11 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
   default: '',
   primary: 'primary',
+  // `secondary` is the neutral white-fill button — the canon has no
+  // dedicated `.btn.secondary` modifier, so it maps to the bare `.btn`
+  // (same look as `default`). Callers use it for emphasis-neutral actions
+  // (Cancel, Close) that sit beside a primary action.
+  secondary: '',
   accent: 'accent',
   danger: 'danger',
   ghost: 'ghost',
@@ -28,6 +33,9 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
 
 const SIZE_CLASS: Record<ButtonSize, string> = {
   sm: 'sm',
+  // `md` is the default 32px size — the canon has no `.btn.md` modifier,
+  // so it maps to the bare `.btn` (same height as `default`).
+  md: '',
   default: '',
   lg: 'lg',
   xl: 'xl',

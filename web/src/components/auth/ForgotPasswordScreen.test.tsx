@@ -47,13 +47,11 @@ describe('ForgotPasswordScreen (Sprint-9.5 U6)', () => {
     render(<ForgotPasswordScreen />);
     await user.type(screen.getByLabelText(/Email/i), 'alice@example.com');
     await user.type(screen.getByLabelText(/Workspace/i), 'tenant-a');
-    await user.click(
-      screen.getByRole('button', { name: /Send reset link|Gửi liên kết/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /Send reset link|Gửi liên kết/i }));
 
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
     const fetchMock = vi.mocked(globalThis.fetch);
-    const call = fetchMock.mock.calls[0];
+    const call = fetchMock.mock.calls[0]!;
     expect(call[0]).toBe('/api/auth/forgot-password');
     const body = JSON.parse((call[1] as RequestInit).body as string);
     expect(body).toEqual({ email: 'alice@example.com', tenantSlug: 'tenant-a' });
@@ -67,9 +65,7 @@ describe('ForgotPasswordScreen (Sprint-9.5 U6)', () => {
     render(<ForgotPasswordScreen />);
     await user.type(screen.getByLabelText(/Email/i), 'alice@example.com');
     await user.type(screen.getByLabelText(/Workspace/i), 'tenant-a');
-    await user.click(
-      screen.getByRole('button', { name: /Send reset link|Gửi liên kết/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /Send reset link|Gửi liên kết/i }));
 
     const status = await screen.findByRole('status');
     expect(status.textContent).toMatch(/reset link within 5 minutes|liên kết đặt lại/i);

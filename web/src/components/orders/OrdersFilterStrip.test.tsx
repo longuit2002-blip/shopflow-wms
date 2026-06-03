@@ -35,12 +35,7 @@ afterEach(() => {
 
 describe('OrdersFilterStrip', () => {
   it('reflects the controlled `value.status` prop on the status select', () => {
-    render(
-      <OrdersFilterStrip
-        value={{ status: 'AwaitingPick' }}
-        onChange={() => {}}
-      />,
-    );
+    render(<OrdersFilterStrip value={{ status: 'AwaitingPick' }} onChange={() => {}} />);
     const sel = screen.getByTestId('orders-filter-status') as HTMLSelectElement;
     expect(sel.value).toBe('AwaitingPick');
   });
@@ -56,26 +51,18 @@ describe('OrdersFilterStrip', () => {
     );
 
     expect(onChange).toHaveBeenCalledTimes(1);
-    const arg = onChange.mock.calls[0][0] as OrdersFilter;
+    const arg = onChange.mock.calls[0]![0] as OrdersFilter;
     expect(arg.status).toBe('Reserved');
   });
 
   it('selecting the All option clears the status field from the emitted patch', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(
-      <OrdersFilterStrip
-        value={{ status: 'Reserved' }}
-        onChange={onChange}
-      />,
-    );
+    render(<OrdersFilterStrip value={{ status: 'Reserved' }} onChange={onChange} />);
 
-    await user.selectOptions(
-      screen.getByTestId('orders-filter-status') as HTMLSelectElement,
-      '',
-    );
+    await user.selectOptions(screen.getByTestId('orders-filter-status') as HTMLSelectElement, '');
 
-    const arg = onChange.mock.calls[0][0] as OrdersFilter;
+    const arg = onChange.mock.calls[0]![0] as OrdersFilter;
     // The strip's internal patch() helper drops empty-string fields, so
     // the URL helper sees `status` absent → treats as default → omits.
     expect('status' in arg).toBe(false);
@@ -91,7 +78,7 @@ describe('OrdersFilterStrip', () => {
       'SHOPEE',
     );
 
-    const arg = onChange.mock.calls[0][0] as OrdersFilter;
+    const arg = onChange.mock.calls[0]![0] as OrdersFilter;
     expect(arg.channel).toBe('SHOPEE');
   });
 
@@ -100,10 +87,7 @@ describe('OrdersFilterStrip', () => {
     const user = userEvent.setup();
     render(<OrdersFilterStrip value={{}} onChange={onChange} />);
 
-    await user.type(
-      screen.getByTestId('orders-filter-search') as HTMLInputElement,
-      'SHO',
-    );
+    await user.type(screen.getByTestId('orders-filter-search') as HTMLInputElement, 'SHO');
 
     expect(onChange).toHaveBeenCalledTimes(3);
     const lastArg = onChange.mock.lastCall?.[0] as OrdersFilter;
@@ -123,19 +107,14 @@ describe('OrdersFilterStrip', () => {
   it('preserves existing field values when patching a sibling field', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(
-      <OrdersFilterStrip
-        value={{ status: 'Reserved' }}
-        onChange={onChange}
-      />,
-    );
+    render(<OrdersFilterStrip value={{ status: 'Reserved' }} onChange={onChange} />);
 
     await user.selectOptions(
       screen.getByTestId('orders-filter-channel') as HTMLSelectElement,
       'LAZADA',
     );
 
-    const arg = onChange.mock.calls[0][0] as OrdersFilter;
+    const arg = onChange.mock.calls[0]![0] as OrdersFilter;
     expect(arg.status).toBe('Reserved');
     expect(arg.channel).toBe('LAZADA');
   });

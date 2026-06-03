@@ -42,17 +42,22 @@ const routerRef: RouterRef = {
 vi.mock('@tanstack/react-router', () => {
   return {
     useSearch: () => routerRef.current,
-    useNavigate: () => (opts: { search: (() => Record<string, unknown>) | Record<string, unknown>; replace?: boolean }) => {
-      const search =
-        typeof opts.search === 'function'
-          ? (opts.search as () => Record<string, unknown>)()
-          : opts.search;
-      routerRef.navigateCalls.push({ search, replace: opts.replace });
-      // Mimic the real router: the new URL state is what subsequent reads
-      // would observe (we don't actually re-render here in the unit test —
-      // `act()` callers re-invoke renderHook for the second read).
-      routerRef.current = search;
-    },
+    useNavigate:
+      () =>
+      (opts: {
+        search: (() => Record<string, unknown>) | Record<string, unknown>;
+        replace?: boolean;
+      }) => {
+        const search =
+          typeof opts.search === 'function'
+            ? (opts.search as () => Record<string, unknown>)()
+            : opts.search;
+        routerRef.navigateCalls.push({ search, replace: opts.replace });
+        // Mimic the real router: the new URL state is what subsequent reads
+        // would observe (we don't actually re-render here in the unit test —
+        // `act()` callers re-invoke renderHook for the second read).
+        routerRef.current = search;
+      },
   };
 });
 
@@ -158,8 +163,8 @@ describe('useFilterSearchParams — writing', () => {
     });
 
     expect(routerRef.navigateCalls).toHaveLength(1);
-    expect(routerRef.navigateCalls[0].search).toEqual({ filter: 'lowStock' });
-    expect(routerRef.navigateCalls[0].replace).toBe(false);
+    expect(routerRef.navigateCalls[0]!.search).toEqual({ filter: 'lowStock' });
+    expect(routerRef.navigateCalls[0]!.replace).toBe(false);
     expect(reloadSpy).not.toHaveBeenCalled();
 
     Object.defineProperty(window, 'location', { configurable: true, value: original });
@@ -181,10 +186,10 @@ describe('useFilterSearchParams — writing', () => {
     });
 
     expect(routerRef.navigateCalls).toHaveLength(1);
-    expect(routerRef.navigateCalls[0].search).toEqual({ filter: 'lowStock' });
+    expect(routerRef.navigateCalls[0]!.search).toEqual({ filter: 'lowStock' });
     // Neither `selected` nor `ledger` survived into the URL shape.
-    expect('selected' in routerRef.navigateCalls[0].search).toBe(false);
-    expect('ledger' in routerRef.navigateCalls[0].search).toBe(false);
+    expect('selected' in routerRef.navigateCalls[0]!.search).toBe(false);
+    expect('ledger' in routerRef.navigateCalls[0]!.search).toBe(false);
   });
 
   it('write with a default-equal value omits the key from URL', () => {
@@ -197,7 +202,7 @@ describe('useFilterSearchParams — writing', () => {
     });
 
     expect(routerRef.navigateCalls).toHaveLength(1);
-    expect('page' in routerRef.navigateCalls[0].search).toBe(false);
+    expect('page' in routerRef.navigateCalls[0]!.search).toBe(false);
   });
 
   it('filter change auto-resets page AND clears ledger cursor', () => {
@@ -220,7 +225,7 @@ describe('useFilterSearchParams — writing', () => {
     });
 
     expect(routerRef.navigateCalls).toHaveLength(1);
-    const search = routerRef.navigateCalls[0].search;
+    const search = routerRef.navigateCalls[0]!.search;
     expect(search.filter).toBe('lowStock');
     // page reset to default → omitted from URL.
     expect('page' in search).toBe(false);
@@ -249,7 +254,7 @@ describe('useFilterSearchParams — writing', () => {
       result.current[1]({ sort: 'availableDesc' });
     });
 
-    const search = routerRef.navigateCalls[0].search;
+    const search = routerRef.navigateCalls[0]!.search;
     expect(search.sort).toBe('availableDesc');
     expect('page' in search).toBe(false);
     expect('ledger' in search).toBe(false);
@@ -269,7 +274,7 @@ describe('useFilterSearchParams — writing', () => {
       result.current[1]({ selected: 'SKU-NEW' });
     });
 
-    const search = routerRef.navigateCalls[0].search;
+    const search = routerRef.navigateCalls[0]!.search;
     expect(search.selected).toBe('SKU-NEW');
     // page and ledger preserved from current URL.
     expect(search.page).toBe(3);
@@ -291,7 +296,7 @@ describe('useFilterSearchParams — writing', () => {
       result.current[1]({ filter: 'lowStock' });
     });
 
-    const search = routerRef.navigateCalls[0].search;
+    const search = routerRef.navigateCalls[0]!.search;
     expect(search.filter).toBe('lowStock');
     expect(search.page).toBe(3);
     expect(search.ledger).toBe('cursor-abc');
@@ -314,8 +319,8 @@ describe('useFilterSearchParams — writing', () => {
     });
 
     expect(routerRef.navigateCalls).toHaveLength(2);
-    expect(routerRef.navigateCalls[0].replace).toBe(false);
-    expect(routerRef.navigateCalls[1].replace).toBe(false);
+    expect(routerRef.navigateCalls[0]!.replace).toBe(false);
+    expect(routerRef.navigateCalls[1]!.replace).toBe(false);
   });
 
   it('omits keys whose value equals the default (page=1 absent from URL)', () => {
@@ -329,7 +334,7 @@ describe('useFilterSearchParams — writing', () => {
       result.current[1]({ filter: 'lowStock', page: 1 });
     });
 
-    expect(routerRef.navigateCalls[0].search).toEqual({ filter: 'lowStock' });
+    expect(routerRef.navigateCalls[0]!.search).toEqual({ filter: 'lowStock' });
   });
 });
 
@@ -346,6 +351,6 @@ describe('useFilterSearchParams — narrow options (no pagination/ledger)', () =
       result.current[1]({ filter: 'flashSale' });
     });
 
-    expect(routerRef.navigateCalls[0].search).toEqual({ filter: 'flashSale' });
+    expect(routerRef.navigateCalls[0]!.search).toEqual({ filter: 'flashSale' });
   });
 });

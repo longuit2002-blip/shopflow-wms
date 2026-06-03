@@ -179,9 +179,7 @@ function nodeLabel(node: PipelineNode, labels: NodeLabels): string {
  * `CompensatingReservation` return null).
  */
 function nodeForState(state: string): PipelineNode | null {
-  return (PIPELINE_NODES as readonly string[]).includes(state)
-    ? (state as PipelineNode)
-    : null;
+  return (PIPELINE_NODES as readonly string[]).includes(state) ? (state as PipelineNode) : null;
 }
 
 /**
@@ -252,7 +250,7 @@ function computeElapsedByNode(
     const idx = PIPELINE_NODES.indexOf(node);
     let exit: number | undefined;
     for (let j = idx + 1; j < PIPELINE_NODES.length; j++) {
-      const next = enteredAt[PIPELINE_NODES[j]];
+      const next = enteredAt[PIPELINE_NODES[j]!];
       if (next !== undefined) {
         exit = next;
         break;
@@ -281,13 +279,13 @@ function failureNode(transitions: OrderTransitionDto[]): PipelineNode | null {
     // No compensation row yet — the failure point is the last pipeline
     // node entered (could be the initial Created node).
     for (let i = transitions.length - 1; i >= 0; i--) {
-      const node = nodeForState(transitions[i].toState);
+      const node = nodeForState(transitions[i]!.toState);
       if (node !== null) return node;
     }
     return 'Created';
   }
   for (let i = idx - 1; i >= 0; i--) {
-    const node = nodeForState(transitions[i].toState);
+    const node = nodeForState(transitions[i]!.toState);
     if (node !== null) return node;
   }
   // Compensation fired before any forward transition (atomic-fail
@@ -295,11 +293,7 @@ function failureNode(transitions: OrderTransitionDto[]): PipelineNode | null {
   return 'Created';
 }
 
-export function SagaPipeline({
-  currentState,
-  transitions,
-  failureCause,
-}: SagaPipelineProps) {
+export function SagaPipeline({ currentState, transitions, failureCause }: SagaPipelineProps) {
   const { lang } = useLocale();
   const labels = labelsFor(lang);
 
