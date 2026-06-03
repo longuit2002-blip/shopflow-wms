@@ -43,8 +43,21 @@ var pgBouncerConfigDir = PgBouncerConfig.Render(
 var pgPassword = builder.AddParameter("pg-superuser-pwd", "postgres", secret: true);
 var pgUser = builder.AddParameter("pg-superuser-user", "postgres");
 
+// Postgres host port is config-driven (default 5432). A dev machine that already
+// runs a native Postgres on 5432 can set DevStack:PostgresHostPort=5433 (env
+// DevStack__PostgresHostPort or user-secret) to coexist; a clean clone with a
+// free 5432 is unaffected. When overridden, the migrate executables below receive
+// a matching Postgres__AdminConnectionString so their direct-DDL path follows the
+// override too. (Closes the native-5432 coexistence item from the dev-stack note.)
+var pgHostPort = int.TryParse(
+    builder.Configuration["DevStack:PostgresHostPort"],
+    out var configuredPgPort
+)
+    ? configuredPgPort
+    : 5432;
+
 var postgres = builder
-    .AddPostgres("postgres", userName: pgUser, password: pgPassword, port: 5432)
+    .AddPostgres("postgres", userName: pgUser, password: pgPassword, port: pgHostPort)
     .WithDataVolume("shopflow-postgres-data")
     .WithEnvironment("POSTGRES_DB", "postgres")
     .WithEnvironment("POSTGRES_MAX_CONNECTIONS", "500");
@@ -148,6 +161,19 @@ var migrateDev2 = builder
 // Suppress the "unused" warning — migrateDev2 is the published readiness
 // edge that later units (U8 Inventory.Api etc.) bind via WaitFor.
 _ = migrateDev2;
+
+// Native-5432 coexistence: only override the migrate admin connection when the
+// host port is non-default. A clean clone (5432) keeps the migrate appsettings
+// path unchanged (the proven bootstrap); an overriding machine gets the matching
+// direct-DDL connection so the chain targets the relocated port.
+if (pgHostPort != 5432)
+{
+    var adminConn =
+        $"Host=localhost;Port={pgHostPort};Username=postgres;Password=postgres;Database=postgres";
+    migrateCatalog.WithEnvironment("Postgres__AdminConnectionString", adminConn);
+    migrateDev1.WithEnvironment("Postgres__AdminConnectionString", adminConn);
+    migrateDev2.WithEnvironment("Postgres__AdminConnectionString", adminConn);
+}
 
 // ── Messaging + cache ───────────────────────────────────────────────────
 var redis = builder.AddRedis("redis", port: 6379);
