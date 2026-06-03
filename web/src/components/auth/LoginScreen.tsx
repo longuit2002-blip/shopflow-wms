@@ -22,6 +22,7 @@ import { Button } from '../primitives/Button';
 import { t, useLocale } from '../../hooks/useLocale';
 import { useAuth } from '../../hooks/useAuth';
 import { login, detectTenantFromHost } from '../../api/auth';
+import { PERMISSION_KEYS } from '../../api/admin';
 
 export interface LoginScreenProps {
   /** Fired after a `kind:'success'` login that promotes useAuth to `full-session`. */
@@ -60,10 +61,10 @@ export function LoginScreen({
   const [state, setState] = useState<SubmissionState>({ kind: 'idle' });
 
   const canSubmit =
-    email.trim().length > 0
-    && password.length > 0
-    && tenantSlug.trim().length > 0
-    && state.kind !== 'submitting';
+    email.trim().length > 0 &&
+    password.length > 0 &&
+    tenantSlug.trim().length > 0 &&
+    state.kind !== 'submitting';
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -96,11 +97,42 @@ export function LoginScreen({
       case 'failure':
         setState({
           kind: 'error',
-          message: result.message
-            || t('Đăng nhập thất bại. Vui lòng thử lại.', 'Login failed. Please try again.'),
+          message:
+            result.message ||
+            t('Đăng nhập thất bại. Vui lòng thử lại.', 'Login failed. Please try again.'),
         });
         return;
     }
+  }
+
+  // Dev-only: enter the app without a backend so the screens are navigable
+  // (the 6 design screens render from frontend mock data). Seeds a fake Owner
+  // session carrying every permission. Gated to the Vite dev server
+  // (MODE === 'development') — absent in vitest (MODE === 'test') and in
+  // production builds. Never a real authentication path.
+  function devSignIn() {
+    const nowSec = Math.floor(Date.now() / 1000);
+    const exp = nowSec + 8 * 60 * 60;
+    const claims = {
+      sub: 'dev-user',
+      email: 'dev@shopflow.local',
+      role: 'Owner',
+      tenant_slug: 'dev',
+      perm: PERMISSION_KEYS.map((p) => p.key),
+      iat: nowSec,
+      exp,
+    };
+    const seg = (obj: object) =>
+      btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const token = `${seg({ alg: 'none', typ: 'JWT' })}.${seg(claims)}.dev`;
+    const expiresAt = new Date(exp * 1000).toISOString();
+    setSession({
+      accessToken: token,
+      refreshToken: 'dev-no-backend',
+      accessTokenExpiresAt: expiresAt,
+      refreshTokenExpiresAt: expiresAt,
+    });
+    onLoginSuccess?.();
   }
 
   return (
@@ -170,9 +202,11 @@ export function LoginScreen({
         <FormField
           id="login-tenant"
           label={t('Workspace', 'Workspace')}
-          helper={detectedTenant
-            ? t('Phát hiện từ tên miền', 'Detected from domain')
-            : t('Nhập slug của workspace của bạn', 'Enter your workspace slug')}
+          helper={
+            detectedTenant
+              ? t('Phát hiện từ tên miền', 'Detected from domain')
+              : t('Nhập slug của workspace của bạn', 'Enter your workspace slug')
+          }
         >
           <input
             id="login-tenant"
@@ -253,15 +287,27 @@ export function LoginScreen({
             : t('Đăng nhập', 'Sign in')}
         </Button>
 
-        <p
-          className="t-xs"
-          style={{ margin: 0, color: 'var(--ink-3)', textAlign: 'center' }}
-        >
-          {t(
-            'Phiên bản v0.9.0 · chế độ phát triển',
-            'Version v0.9.0 · dev mode',
-          )}
+        <p className="t-xs" style={{ margin: 0, color: 'var(--ink-3)', textAlign: 'center' }}>
+          {t('Phiên bản v0.9.0 · chế độ phát triển', 'Version v0.9.0 · dev mode')}
         </p>
+
+        {import.meta.env.MODE === 'development' && (
+          <button
+            type="button"
+            onClick={devSignIn}
+            style={{
+              background: 'none',
+              border: '1px dashed var(--line-strong)',
+              borderRadius: 'var(--radius-md)',
+              padding: 'var(--s-2)',
+              color: 'var(--ink-3)',
+              fontSize: 12,
+              cursor: 'pointer',
+            }}
+          >
+            {t('⚡ Vào app (dev · không cần backend)', '⚡ Enter app (dev · no backend)')}
+          </button>
+        )}
       </form>
     </div>
   );
