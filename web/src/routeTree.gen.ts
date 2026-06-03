@@ -9,9 +9,13 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MfaEnrollRouteImport } from './routes/mfa/enroll'
+import { Route as MfaChallengeRouteImport } from './routes/mfa/challenge'
 import { Route as AuthTenantsRouteImport } from './routes/_auth/tenants'
 import { Route as AuthSyncRouteImport } from './routes/_auth/sync'
 import { Route as AuthSettingsRouteImport } from './routes/_auth/settings'
@@ -20,14 +24,29 @@ import { Route as AuthOnboardingRouteImport } from './routes/_auth/onboarding'
 import { Route as AuthInventoryRouteImport } from './routes/_auth/inventory'
 import { Route as AuthInboundRouteImport } from './routes/_auth/inbound'
 import { Route as AuthDashboardRouteImport } from './routes/_auth/dashboard'
+import { Route as AuthComplianceRouteImport } from './routes/_auth/compliance'
 import { Route as AuthChannelsRouteImport } from './routes/_auth/channels'
 import { Route as AuthAuditRouteImport } from './routes/_auth/audit'
 import { Route as AuthOrdersIndexRouteImport } from './routes/_auth/orders/index'
+import { Route as AuthProfileSecurityRouteImport } from './routes/_auth/profile/security'
 import { Route as AuthOrdersOrderIdRouteImport } from './routes/_auth/orders/$orderId'
+import { Route as AuthAdminUsersRouteImport } from './routes/_auth/admin/users'
+import { Route as AuthAdminRolePermissionsRouteImport } from './routes/_auth/admin/role-permissions'
+import { Route as AuthAdminLockedAccountsRouteImport } from './routes/_auth/admin/locked-accounts'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -37,6 +56,16 @@ const AuthRoute = AuthRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MfaEnrollRoute = MfaEnrollRouteImport.update({
+  id: '/mfa/enroll',
+  path: '/mfa/enroll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MfaChallengeRoute = MfaChallengeRouteImport.update({
+  id: '/mfa/challenge',
+  path: '/mfa/challenge',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthTenantsRoute = AuthTenantsRouteImport.update({
@@ -79,6 +108,11 @@ const AuthDashboardRoute = AuthDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthComplianceRoute = AuthComplianceRouteImport.update({
+  id: '/compliance',
+  path: '/compliance',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthChannelsRoute = AuthChannelsRouteImport.update({
   id: '/channels',
   path: '/channels',
@@ -94,17 +128,41 @@ const AuthOrdersIndexRoute = AuthOrdersIndexRouteImport.update({
   path: '/orders/',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthProfileSecurityRoute = AuthProfileSecurityRouteImport.update({
+  id: '/profile/security',
+  path: '/profile/security',
+  getParentRoute: () => AuthRoute,
+} as any)
 const AuthOrdersOrderIdRoute = AuthOrdersOrderIdRouteImport.update({
   id: '/orders/$orderId',
   path: '/orders/$orderId',
   getParentRoute: () => AuthRoute,
 } as any)
+const AuthAdminUsersRoute = AuthAdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthAdminRolePermissionsRoute =
+  AuthAdminRolePermissionsRouteImport.update({
+    id: '/admin/role-permissions',
+    path: '/admin/role-permissions',
+    getParentRoute: () => AuthRoute,
+  } as any)
+const AuthAdminLockedAccountsRoute = AuthAdminLockedAccountsRouteImport.update({
+  id: '/admin/locked-accounts',
+  path: '/admin/locked-accounts',
+  getParentRoute: () => AuthRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuthAuditRoute
   '/channels': typeof AuthChannelsRoute
+  '/compliance': typeof AuthComplianceRoute
   '/dashboard': typeof AuthDashboardRoute
   '/inbound': typeof AuthInboundRoute
   '/inventory': typeof AuthInventoryRoute
@@ -113,14 +171,23 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthSettingsRoute
   '/sync': typeof AuthSyncRoute
   '/tenants': typeof AuthTenantsRoute
+  '/mfa/challenge': typeof MfaChallengeRoute
+  '/mfa/enroll': typeof MfaEnrollRoute
+  '/admin/locked-accounts': typeof AuthAdminLockedAccountsRoute
+  '/admin/role-permissions': typeof AuthAdminRolePermissionsRoute
+  '/admin/users': typeof AuthAdminUsersRoute
   '/orders/$orderId': typeof AuthOrdersOrderIdRoute
+  '/profile/security': typeof AuthProfileSecurityRoute
   '/orders/': typeof AuthOrdersIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/audit': typeof AuthAuditRoute
   '/channels': typeof AuthChannelsRoute
+  '/compliance': typeof AuthComplianceRoute
   '/dashboard': typeof AuthDashboardRoute
   '/inbound': typeof AuthInboundRoute
   '/inventory': typeof AuthInventoryRoute
@@ -129,16 +196,25 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthSettingsRoute
   '/sync': typeof AuthSyncRoute
   '/tenants': typeof AuthTenantsRoute
+  '/mfa/challenge': typeof MfaChallengeRoute
+  '/mfa/enroll': typeof MfaEnrollRoute
+  '/admin/locked-accounts': typeof AuthAdminLockedAccountsRoute
+  '/admin/role-permissions': typeof AuthAdminRolePermissionsRoute
+  '/admin/users': typeof AuthAdminUsersRoute
   '/orders/$orderId': typeof AuthOrdersOrderIdRoute
+  '/profile/security': typeof AuthProfileSecurityRoute
   '/orders': typeof AuthOrdersIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_auth': typeof AuthRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/_auth/audit': typeof AuthAuditRoute
   '/_auth/channels': typeof AuthChannelsRoute
+  '/_auth/compliance': typeof AuthComplianceRoute
   '/_auth/dashboard': typeof AuthDashboardRoute
   '/_auth/inbound': typeof AuthInboundRoute
   '/_auth/inventory': typeof AuthInventoryRoute
@@ -147,16 +223,25 @@ export interface FileRoutesById {
   '/_auth/settings': typeof AuthSettingsRoute
   '/_auth/sync': typeof AuthSyncRoute
   '/_auth/tenants': typeof AuthTenantsRoute
+  '/mfa/challenge': typeof MfaChallengeRoute
+  '/mfa/enroll': typeof MfaEnrollRoute
+  '/_auth/admin/locked-accounts': typeof AuthAdminLockedAccountsRoute
+  '/_auth/admin/role-permissions': typeof AuthAdminRolePermissionsRoute
+  '/_auth/admin/users': typeof AuthAdminUsersRoute
   '/_auth/orders/$orderId': typeof AuthOrdersOrderIdRoute
+  '/_auth/profile/security': typeof AuthProfileSecurityRoute
   '/_auth/orders/': typeof AuthOrdersIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/audit'
     | '/channels'
+    | '/compliance'
     | '/dashboard'
     | '/inbound'
     | '/inventory'
@@ -165,14 +250,23 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tenants'
+    | '/mfa/challenge'
+    | '/mfa/enroll'
+    | '/admin/locked-accounts'
+    | '/admin/role-permissions'
+    | '/admin/users'
     | '/orders/$orderId'
+    | '/profile/security'
     | '/orders/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/audit'
     | '/channels'
+    | '/compliance'
     | '/dashboard'
     | '/inbound'
     | '/inventory'
@@ -181,15 +275,24 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sync'
     | '/tenants'
+    | '/mfa/challenge'
+    | '/mfa/enroll'
+    | '/admin/locked-accounts'
+    | '/admin/role-permissions'
+    | '/admin/users'
     | '/orders/$orderId'
+    | '/profile/security'
     | '/orders'
   id:
     | '__root__'
     | '/'
     | '/_auth'
+    | '/forgot-password'
     | '/login'
+    | '/reset-password'
     | '/_auth/audit'
     | '/_auth/channels'
+    | '/_auth/compliance'
     | '/_auth/dashboard'
     | '/_auth/inbound'
     | '/_auth/inventory'
@@ -198,23 +301,47 @@ export interface FileRouteTypes {
     | '/_auth/settings'
     | '/_auth/sync'
     | '/_auth/tenants'
+    | '/mfa/challenge'
+    | '/mfa/enroll'
+    | '/_auth/admin/locked-accounts'
+    | '/_auth/admin/role-permissions'
+    | '/_auth/admin/users'
     | '/_auth/orders/$orderId'
+    | '/_auth/profile/security'
     | '/_auth/orders/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
+  MfaChallengeRoute: typeof MfaChallengeRoute
+  MfaEnrollRoute: typeof MfaEnrollRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_auth': {
@@ -229,6 +356,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mfa/enroll': {
+      id: '/mfa/enroll'
+      path: '/mfa/enroll'
+      fullPath: '/mfa/enroll'
+      preLoaderRoute: typeof MfaEnrollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mfa/challenge': {
+      id: '/mfa/challenge'
+      path: '/mfa/challenge'
+      fullPath: '/mfa/challenge'
+      preLoaderRoute: typeof MfaChallengeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_auth/tenants': {
@@ -287,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthDashboardRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/compliance': {
+      id: '/_auth/compliance'
+      path: '/compliance'
+      fullPath: '/compliance'
+      preLoaderRoute: typeof AuthComplianceRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/channels': {
       id: '/_auth/channels'
       path: '/channels'
@@ -308,11 +456,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthOrdersIndexRouteImport
       parentRoute: typeof AuthRoute
     }
+    '/_auth/profile/security': {
+      id: '/_auth/profile/security'
+      path: '/profile/security'
+      fullPath: '/profile/security'
+      preLoaderRoute: typeof AuthProfileSecurityRouteImport
+      parentRoute: typeof AuthRoute
+    }
     '/_auth/orders/$orderId': {
       id: '/_auth/orders/$orderId'
       path: '/orders/$orderId'
       fullPath: '/orders/$orderId'
       preLoaderRoute: typeof AuthOrdersOrderIdRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/admin/users': {
+      id: '/_auth/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AuthAdminUsersRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/admin/role-permissions': {
+      id: '/_auth/admin/role-permissions'
+      path: '/admin/role-permissions'
+      fullPath: '/admin/role-permissions'
+      preLoaderRoute: typeof AuthAdminRolePermissionsRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_auth/admin/locked-accounts': {
+      id: '/_auth/admin/locked-accounts'
+      path: '/admin/locked-accounts'
+      fullPath: '/admin/locked-accounts'
+      preLoaderRoute: typeof AuthAdminLockedAccountsRouteImport
       parentRoute: typeof AuthRoute
     }
   }
@@ -321,6 +497,7 @@ declare module '@tanstack/react-router' {
 interface AuthRouteChildren {
   AuthAuditRoute: typeof AuthAuditRoute
   AuthChannelsRoute: typeof AuthChannelsRoute
+  AuthComplianceRoute: typeof AuthComplianceRoute
   AuthDashboardRoute: typeof AuthDashboardRoute
   AuthInboundRoute: typeof AuthInboundRoute
   AuthInventoryRoute: typeof AuthInventoryRoute
@@ -329,13 +506,18 @@ interface AuthRouteChildren {
   AuthSettingsRoute: typeof AuthSettingsRoute
   AuthSyncRoute: typeof AuthSyncRoute
   AuthTenantsRoute: typeof AuthTenantsRoute
+  AuthAdminLockedAccountsRoute: typeof AuthAdminLockedAccountsRoute
+  AuthAdminRolePermissionsRoute: typeof AuthAdminRolePermissionsRoute
+  AuthAdminUsersRoute: typeof AuthAdminUsersRoute
   AuthOrdersOrderIdRoute: typeof AuthOrdersOrderIdRoute
+  AuthProfileSecurityRoute: typeof AuthProfileSecurityRoute
   AuthOrdersIndexRoute: typeof AuthOrdersIndexRoute
 }
 
 const AuthRouteChildren: AuthRouteChildren = {
   AuthAuditRoute: AuthAuditRoute,
   AuthChannelsRoute: AuthChannelsRoute,
+  AuthComplianceRoute: AuthComplianceRoute,
   AuthDashboardRoute: AuthDashboardRoute,
   AuthInboundRoute: AuthInboundRoute,
   AuthInventoryRoute: AuthInventoryRoute,
@@ -344,7 +526,11 @@ const AuthRouteChildren: AuthRouteChildren = {
   AuthSettingsRoute: AuthSettingsRoute,
   AuthSyncRoute: AuthSyncRoute,
   AuthTenantsRoute: AuthTenantsRoute,
+  AuthAdminLockedAccountsRoute: AuthAdminLockedAccountsRoute,
+  AuthAdminRolePermissionsRoute: AuthAdminRolePermissionsRoute,
+  AuthAdminUsersRoute: AuthAdminUsersRoute,
   AuthOrdersOrderIdRoute: AuthOrdersOrderIdRoute,
+  AuthProfileSecurityRoute: AuthProfileSecurityRoute,
   AuthOrdersIndexRoute: AuthOrdersIndexRoute,
 }
 
@@ -353,7 +539,11 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
+  MfaChallengeRoute: MfaChallengeRoute,
+  MfaEnrollRoute: MfaEnrollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

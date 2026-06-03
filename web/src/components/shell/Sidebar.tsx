@@ -30,6 +30,7 @@ import {
   RefreshCw,
   Settings,
   FileSearch,
+  ShieldCheck,
   Building2,
   UserPlus,
   LogOut,
@@ -53,6 +54,7 @@ export type ScreenId =
   | 'sync'
   | 'settings'
   | 'audit'
+  | 'compliance'
   | 'tenants'
   | 'onboarding';
 
@@ -85,7 +87,12 @@ export function Sidebar() {
       icon: LayoutDashboard,
       upcoming: 'Sprint 7',
     },
-    { id: 'inventory', label: t('Tồn kho', 'Inventory'), icon: Boxes, permRequired: ['inventory.read'] },
+    {
+      id: 'inventory',
+      label: t('Tồn kho', 'Inventory'),
+      icon: Boxes,
+      permRequired: ['inventory.read'],
+    },
     {
       id: 'inbound',
       label: t('Nhập hàng', 'Inbound'),
@@ -127,6 +134,12 @@ export function Sidebar() {
       permRequired: ['auth.admin.users.list'],
     },
     {
+      id: 'compliance',
+      label: t('Tuân thủ', 'Compliance'),
+      icon: ShieldCheck,
+      permRequired: ['auth.admin.users.list'],
+    },
+    {
       id: 'tenants',
       label: t('Tenants', 'Tenants'),
       icon: Building2,
@@ -144,9 +157,7 @@ export function Sidebar() {
 
   // Sprint-9.5 U8 — fail-closed visibility per item. Items without
   // `permRequired` (Dashboard) stay visible to any authenticated user.
-  const visibleItems = items.filter(
-    (it) => !it.permRequired || hasPerm(...it.permRequired),
-  );
+  const visibleItems = items.filter((it) => !it.permRequired || hasPerm(...it.permRequired));
 
   return (
     <aside

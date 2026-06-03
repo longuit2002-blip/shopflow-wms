@@ -19,6 +19,7 @@ export const SCREEN_PATHS: Record<ScreenId, string> = {
   sync: '/sync',
   settings: '/settings',
   audit: '/audit',
+  compliance: '/compliance',
   tenants: '/tenants',
   onboarding: '/onboarding',
 };
