@@ -139,7 +139,6 @@ export function Sidebar() {
       id: 'tenants',
       label: t('Tenants', 'Tenants'),
       icon: Building2,
-      upcoming: 'Phase 3',
       permRequired: ['auth.admin.users.list'],
     },
     {
