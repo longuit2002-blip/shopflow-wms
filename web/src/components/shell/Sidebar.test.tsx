@@ -65,6 +65,7 @@ function renderSidebarAt(pathname: string) {
     '/sync',
     '/settings',
     '/audit',
+    '/compliance',
     '/tenants',
     '/onboarding',
   ].map((path) =>
@@ -92,7 +93,7 @@ describe('Sidebar', () => {
     __resetAuthForTests();
   });
 
-  it('renders 10 nav items including Inventory', async () => {
+  it('renders the full nav set including Inventory + Compliance', async () => {
     renderSidebarAt('/inventory');
     expect(await screen.findByRole('link', { name: /Tồn kho/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Tổng quan/i })).toBeInTheDocument();
@@ -102,6 +103,7 @@ describe('Sidebar', () => {
     expect(screen.getByRole('link', { name: /Đồng bộ tồn/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Cài đặt/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Audit log/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Tuân thủ/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Tenants/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Khởi tạo mới/i })).toBeInTheDocument();
   });
@@ -120,8 +122,10 @@ describe('Sidebar', () => {
     const inventory = await screen.findByRole('link', { name: /Tồn kho/i });
     expect(inventory.textContent).not.toMatch(/Sprint|Phase/);
 
-    const dashboard = screen.getByRole('link', { name: /Tổng quan/i });
-    expect(dashboard.textContent).toMatch(/Sprint 7/);
+    // Screens that shipped real lost their badge; Inbound + Stock-sync are
+    // still stubs and keep their "Sprint 8" pill.
+    const inbound = screen.getByRole('link', { name: /Nhập hàng/i });
+    expect(inbound.textContent).toMatch(/Sprint 8/);
   });
 
   it('renders English labels after locale flip', async () => {
