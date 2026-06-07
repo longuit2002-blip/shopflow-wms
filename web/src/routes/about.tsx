@@ -91,9 +91,9 @@ const h3Style: CSSProperties = {
   fontWeight: 600,
   margin: '28px 0 10px',
 };
-// `.ochre` is defined inline in about.html's <style>; the app's tokens.css does
-// not ship it — inline the rule so incumbent names keep the amber-ochre emphasis.
-const ochreStyle: CSSProperties = { color: 'var(--accent-ink)', fontWeight: 500 };
+// Subtle accent emphasis for incumbent names. (Was `ochreStyle` in the amber era;
+// renamed — it resolves to --accent-ink, now the indigo accent.)
+const accentStyle: CSSProperties = { color: 'var(--accent-ink)', fontWeight: 500 };
 
 const META_ROWS: MetaRow[] = [
   {
@@ -237,23 +237,20 @@ const PROBLEMS: Problem[] = [
 const DECISIONS: DesignDecision[] = [
   {
     icon: Palette,
-    title: t('Amber-ochre, không phải SaaS-blue chung chung', 'Amber-ochre, not generic SaaS blue'),
+    title: t('Màu là trạng thái, không phải trang trí', 'Color is status, not decoration'),
     body: (
       <p style={pStyle}>
         {t(
-          'Nước đi mặc định cho B2B SaaS Việt năm 2025 là copy bảng màu Stripe — ink xám trên trắng sạch, accent indigo hoặc sky. Tôi từ chối vì ba lý do. (1) Các badge sàn trong sản phẩm này tự mang màu thương hiệu — Shopee cam, Lazada xanh, TikTok teal-magenta, Shopify xanh lá. Một accent cùng họ tạo xung đột badge-vs-chrome ở màn Channels. (2) Màu phải đọc ra',
-          'The default move for a Vietnamese B2B SaaS in 2025 is to copy Stripe’s palette — slate ink on clean white, indigo or sky accent. I rejected it for three reasons. (1) The marketplace badges in this product carry their own brand colors — Shopee orange, Lazada blue, TikTok teal-magenta, Shopify green. An accent in the same family creates badge-vs-chrome conflict in the Channels screen. (2) The color has to read as',
-        )}{' '}
-        <em>{t('ấm như bối cảnh người bán', 'seller-context warm')}</em>
-        {t(
-          ', không lạnh kiểu VC-deck. Yến sào, cà phê, đặc sản — danh mục ấm bán bởi doanh nghiệp ấm. (3) Amber-ochre báo hiệu vận hành hơn marketing; bạn thấy nó ở biển báo sân bay, kim đồng hồ xăng, ánh tungsten ấm của một cái kho thật lúc 6 giờ sáng. Accent là',
-          ', not VC-deck cool. Yến sào, cà phê, đặc sản — warm-category catalogs sold by warm-affect businesses. (3) Amber-ochre signals operations over marketing; you see it in airport signage, in fuel-gauge needles, in the warm tungsten of an actual warehouse at 6 a.m. The accent is',
+          'Bản dựng đầu tiên đi theo mặc định warm-cream + amber-ochre — đúng cái "AI slop" bão hoà của 2025–2026 — và tôi đã gỡ nó. Hệ màu hiện tại là cool/true-neutral: nền gần trắng lạnh, chrome im lặng để dữ liệu dẫn. Màu gần như chỉ tiêu cho hai việc. (1) Trạng thái ngữ nghĩa — ok, cảnh báo, lỗi, thông tin — luôn kèm icon hoặc nhãn, không bao giờ chỉ bằng màu. (2) Nhận diện kênh: badge sàn tự mang màu thương hiệu (Shopee cam, Lazada xanh, TikTok đen, Shopify xanh lá), nên chrome phải trung tính để không đánh nhau với chúng. Accent là một indigo duy nhất',
+          'The first build followed the warm-cream + amber-ochre default — exactly the saturated "AI slop" of 2025–2026 — and I removed it. The palette is now cool/true-neutral: a cold near-white body, quiet chrome so the data leads. Color is spent on two things only. (1) Semantic status — ok, warn, bad, info — always paired with an icon or label, never color alone. (2) Channel identity: the marketplace badges carry their own brand colors (Shopee orange, Lazada blue, TikTok near-black, Shopify green), so the chrome has to stay neutral to not fight them. The accent is a single indigo',
         )}{' '}
         <span className="mono" style={{ color: 'var(--accent-ink)', fontWeight: 500 }}>
-          #8b6a2b
+          #4263EB
         </span>{' '}
-        {t('với', 'with')} <span className="mono">#C77F1F</span>{' '}
-        {t('dành cho hover và focus.', 'reserved for hover and focus states.')}
+        {t(
+          'dùng ≤10% cho focus, hành động chính và lựa chọn — một thiết bị đo, không phải brochure.',
+          'used ≤10% for focus, primary action, and selection — an instrument, not a brochure.',
+        )}
       </p>
     ),
   },
@@ -380,9 +377,9 @@ const TRADEOFFS: Tradeoff[] = [
 const NOTE_MAP: NoteMapRow[] = [
   {
     n: '01',
-    note: t('Amber-ochre, không phải SaaS blue', 'Amber-ochre, not SaaS blue'),
+    note: t('Màu là trạng thái, không phải trang trí', 'Color is status, not decoration'),
     screen: 'Inventory',
-    anchor: '[data-review="ochre"]',
+    anchor: '[data-review="palette"]',
     source: 'screen-inventory.jsx',
   },
   {
@@ -450,7 +447,7 @@ const NOTE_MAP: NoteMapRow[] = [
   },
 ];
 
-// (shared inline styles — pStyle / h2Style / h3Style / ochreStyle — are
+// (shared inline styles — pStyle / h2Style / h3Style / accentStyle — are
 // declared above the data arrays near the top of this file.)
 
 // ── Route ────────────────────────────────────────────────────────────────────
@@ -519,17 +516,17 @@ function AboutRouteComponent() {
             'Các đối thủ hiện hữu là sản phẩm thật, đang chạy.',
             'The incumbents are real, working products.',
           )}{' '}
-          <span style={ochreStyle}>Sapo</span>{' '}
+          <span style={accentStyle}>Sapo</span>{' '}
           {t(
             'cho gom đơn hợp nhất nhưng phép tính tồn kho đa-kênh chỉ best-effort — trong 11.11 cảnh báo oversell sáng đèn theo thời gian thực và bạn không thể dừng.',
             'gives unified order intake but its multi-channel inventory math is best-effort — during 11.11 oversell warnings light up in real time and you can’t stop them.',
           )}{' '}
-          <span style={ochreStyle}>Haravan</span>{' '}
+          <span style={accentStyle}>Haravan</span>{' '}
           {t(
             'mạnh về dựng website thương mại nhưng lớp WMS mỏng hơn lớp storefront; người vận hành kho lại quay về Excel.',
             'is strong on commerce-site building but its WMS layer is thinner than its storefront layer; warehouse operators end up back in Excel.',
           )}{' '}
-          <span style={ochreStyle}>KiotViet</span>{' '}
+          <span style={accentStyle}>KiotViet</span>{' '}
           {t(
             'có DNA POS sâu nhất và tích hợp hoá đơn thuế Việt tốt nhất, nhưng nó được xây cho cửa hàng vật lý với một tab marketplace thêm vào sau.',
             'has the deepest POS DNA and best Vietnamese tax-invoice integration, but it was built for brick-and-mortar with a marketplace tab added later.',

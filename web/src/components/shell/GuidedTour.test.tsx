@@ -31,7 +31,7 @@ describe('GuidedTour', () => {
     expect(dialog).toBeTruthy();
     // Step 1 of 10 + the first note's title.
     expect(dialog.textContent).toContain('1 / 10');
-    expect(dialog.textContent).toMatch(/Amber-ochre/i);
+    expect(dialog.textContent).toMatch(/màu là trạng thái/i);
   });
 
   it('advances to the next note when Next is pressed', () => {

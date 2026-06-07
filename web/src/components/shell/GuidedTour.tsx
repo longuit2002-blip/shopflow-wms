@@ -64,13 +64,13 @@ interface TourStep {
 const STEPS: readonly TourStep[] = [
   {
     id: 1,
-    anchor: '[data-review="ochre"]',
+    anchor: '[data-review="palette"]',
     screen: { vi: 'Tồn kho', en: 'Inventory' },
     screenPath: '/inventory',
-    title: { vi: 'Amber-ochre, không phải SaaS blue', en: 'Amber-ochre, not SaaS blue' },
+    title: { vi: 'Màu là trạng thái, không phải trang trí', en: 'Color is status, not decoration' },
     body: {
-      vi: 'Tôi từ chối blue mặc định. Ba lý do: (1) blue đã thành tín hiệu generic — reviewer scan 5 portfolio đầu thấy 4 cái blue. (2) ShopFlow đọc warm hơn — kho hàng, không phải fintech. (3) Blue conflict với màu kênh Lazada. Amber-ochre #C9620E không conflict với bất kỳ kênh nào.',
-      en: 'I rejected default blue. Three reasons: (1) blue has become a generic signal — a reviewer scanning 5 portfolios sees 4 of them blue. (2) ShopFlow reads warmer — a warehouse, not a fintech. (3) Blue conflicts with the Lazada channel colour. Amber-ochre #C9620E conflicts with no channel.',
+      vi: 'Bản phối warm-cream + amber-ochre ban đầu chính là mặc định "AI slop" của 2025–2026 — đã gỡ bỏ. Giờ nền là cool-neutral và chrome im lặng để dữ liệu dẫn. Màu gần như chỉ dành cho trạng thái ngữ nghĩa (ok / cảnh báo / lỗi / thông tin) và nhận diện thương hiệu từng kênh (Shopee cam, Lazada xanh, TikTok đen, Shopify xanh lá). Accent duy nhất là indigo #4263EB, dùng ≤10% cho focus, hành động chính và lựa chọn — một thiết bị đo chính xác, không phải brochure.',
+      en: 'The original warm-cream + amber-ochre palette was the 2025–2026 "AI slop" default — removed. The body is now cool-neutral and the chrome stays quiet so the data leads. Color is spent almost entirely on semantic status (ok / warn / bad / info) and per-channel brand identity (Shopee orange, Lazada blue, TikTok near-black, Shopify green). The single accent is indigo #4263EB, used ≤10% for focus, primary action, and selection — a precision instrument, not a brochure.',
     },
   },
   {

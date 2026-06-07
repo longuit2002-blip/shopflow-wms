@@ -3,7 +3,7 @@
  *
  * Centered 400-px card on bg-soft with the dot-matrix Logo at 64 px,
  * email + password inputs, a disabled TOTP placeholder ("Mã 2FA"), and
- * an amber-ochre submit button. Any non-empty (email, password) pair
+ * an indigo primary submit button. Any non-empty (email, password) pair
  * succeeds against the dev-mode `/auth/login` endpoint.
  *
  * On success: `useAuth.login(jwt)` populates the store + persists to
