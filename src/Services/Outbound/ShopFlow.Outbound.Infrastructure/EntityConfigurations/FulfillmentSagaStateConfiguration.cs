@@ -28,7 +28,8 @@ namespace ShopFlow.Outbound.Infrastructure.EntityConfigurations;
 /// <para>The <see cref="MassTransit.ISagaVersion.Version"/> property is
 /// also mapped — MT's saga repo increments it on each write for tracking.</para>
 /// </remarks>
-internal sealed class FulfillmentSagaStateConfiguration : IEntityTypeConfiguration<FulfillmentSagaState>
+internal sealed class FulfillmentSagaStateConfiguration
+    : IEntityTypeConfiguration<FulfillmentSagaState>
 {
     public void Configure(EntityTypeBuilder<FulfillmentSagaState> builder)
     {

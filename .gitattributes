@@ -12,6 +12,45 @@
 
 # PowerShell scripts conventionally use CRLF on Windows; harmless on PS Core too.
 *.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Frontend source — explicit LF (Sprint-6 introduces TypeScript / Vite stack).
+# Closes Sprint-5 methodology writeup friction mode 6 for the file types
+# this sprint creates. Existing .cs files unchanged.
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.js     text eol=lf
+*.jsx    text eol=lf
+*.mjs    text eol=lf
+*.cjs    text eol=lf
+*.json   text eol=lf
+*.html   text eol=lf
+*.css    text eol=lf
+*.scss   text eol=lf
+*.svg    text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
+*.md     text eol=lf
+
+# Lockfiles — committed but not auto-merged.
+pnpm-lock.yaml    text eol=lf -diff
+package-lock.json text eol=lf -diff
+yarn.lock         text eol=lf -diff
+
+# Binary assets — never normalize.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.eot    binary
+*.pdf    binary
+*.zip    binary
+*.gz     binary
 
 # Word documents are binary — never try to merge or normalize them.
 *.docx binary

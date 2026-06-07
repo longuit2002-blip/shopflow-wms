@@ -93,9 +93,7 @@ public sealed class SagaPerTenantBindingTests : IAsyncLifetime
         var services = new ServiceCollection();
         services.AddLogging(b => b.AddProvider(NullLoggerProvider.Instance));
 
-        services.AddSingleton<ITenantCatalog>(
-            new FakeTenantCatalog(_tenantA.Info, _tenantB.Info)
-        );
+        services.AddSingleton<ITenantCatalog>(new FakeTenantCatalog(_tenantA.Info, _tenantB.Info));
 
         // Scoped RequestContext per consume scope — TenantBindingSagaFilter
         // binds it from the envelope header at message-receive time.
@@ -157,17 +155,41 @@ public sealed class SagaPerTenantBindingTests : IAsyncLifetime
         var orderB = Guid.NewGuid();
 
         await harness.Bus.Publish(
-            new OrderPlacedV1(orderA, _tenantA.Info.Id, "ext-a", "standard", TwoLines, DateTime.UtcNow),
-            ctx => ctx.Headers.Set(TenantBindingSagaFilter<OrderPlacedV1>.TenantIdHeader, _tenantA.Info.Id.ToString())
+            new OrderPlacedV1(
+                orderA,
+                _tenantA.Info.Id,
+                "ext-a",
+                "standard",
+                TwoLines,
+                DateTime.UtcNow
+            ),
+            ctx =>
+                ctx.Headers.Set(
+                    TenantBindingSagaFilter<OrderPlacedV1>.TenantIdHeader,
+                    _tenantA.Info.Id.ToString()
+                )
         );
         await harness.Bus.Publish(
-            new OrderPlacedV1(orderB, _tenantB.Info.Id, "ext-b", "express", TwoLines, DateTime.UtcNow),
-            ctx => ctx.Headers.Set(TenantBindingSagaFilter<OrderPlacedV1>.TenantIdHeader, _tenantB.Info.Id.ToString())
+            new OrderPlacedV1(
+                orderB,
+                _tenantB.Info.Id,
+                "ext-b",
+                "express",
+                TwoLines,
+                DateTime.UtcNow
+            ),
+            ctx =>
+                ctx.Headers.Set(
+                    TenantBindingSagaFilter<OrderPlacedV1>.TenantIdHeader,
+                    _tenantB.Info.Id.ToString()
+                )
         );
 
         // Wait for BOTH consume operations to settle (Consumed.Any returns
         // true on the FIRST one, so block until both rows materialize).
-        (await harness.Consumed.SelectAsync<OrderPlacedV1>().Take(2).Count()).Should().Be(2);
+        (await harness.Consumed.SelectAsync<OrderPlacedV1>().Take(2).Count())
+            .Should()
+            .Be(2);
         await WaitForRowAsync(_tenantA.ConnectionString, orderA);
         await WaitForRowAsync(_tenantB.ConnectionString, orderB);
 
@@ -213,7 +235,9 @@ public sealed class SagaPerTenantBindingTests : IAsyncLifetime
             }
             await Task.Delay(100);
         }
-        throw new TimeoutException($"saga_state row for {correlationId} did not appear in {connStr} within 15s.");
+        throw new TimeoutException(
+            $"saga_state row for {correlationId} did not appear in {connStr} within 15s."
+        );
     }
 
     private sealed record SagaRow(Guid CorrelationId, string CurrentState, Guid TenantId);

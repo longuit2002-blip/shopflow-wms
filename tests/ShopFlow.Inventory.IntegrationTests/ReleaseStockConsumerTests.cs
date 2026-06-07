@@ -65,7 +65,11 @@ public sealed class ReleaseStockConsumerTests : IAsyncLifetime
     private async Task SeedMultiLineReservationAsync(Guid orderId)
     {
         await using var db = new InventoryDbContext(_tenant.Options);
-        var repo = new ReservationRepository(db, TimeProvider.System, _tenant.BuildRequestContext());
+        var repo = new ReservationRepository(
+            db,
+            TimeProvider.System,
+            _tenant.BuildRequestContext()
+        );
         var lines = new[]
         {
             new LineReservation(Sku.Create("SKU-A"), "L1", Quantity.From(7)),
@@ -90,13 +94,12 @@ public sealed class ReleaseStockConsumerTests : IAsyncLifetime
         var harness = sp.GetRequiredService<ITestHarness>();
         var rc = sp.GetRequiredService<RequestContext>();
 
-        await harness.Bus.Publish(
-            new ReleaseStockV1(orderId, rc.TenantId, Array.Empty<string>())
-        );
+        await harness.Bus.Publish(new ReleaseStockV1(orderId, rc.TenantId, Array.Empty<string>()));
         await harness.GetConsumerHarness<ReleaseStockConsumer>().Consumed.Any<ReleaseStockV1>();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var ledger = await verify.Reservations.AsNoTracking()
+        var ledger = await verify
+            .Reservations.AsNoTracking()
             .Where(r => r.OrderId == orderId.ToString())
             .ToListAsync();
         ledger.Should().OnlyContain(r => r.Status == ReservationStatus.Released);
@@ -117,13 +120,12 @@ public sealed class ReleaseStockConsumerTests : IAsyncLifetime
         var harness = sp.GetRequiredService<ITestHarness>();
         var rc = sp.GetRequiredService<RequestContext>();
 
-        await harness.Bus.Publish(
-            new ReleaseStockV1(orderId, rc.TenantId, new[] { "L1" })
-        );
+        await harness.Bus.Publish(new ReleaseStockV1(orderId, rc.TenantId, new[] { "L1" }));
         await harness.GetConsumerHarness<ReleaseStockConsumer>().Consumed.Any<ReleaseStockV1>();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var ledger = await verify.Reservations.AsNoTracking()
+        var ledger = await verify
+            .Reservations.AsNoTracking()
             .Where(r => r.OrderId == orderId.ToString())
             .ToListAsync();
         ledger.Single(r => r.OrderLineId == "L1").Status.Should().Be(ReservationStatus.Released);
@@ -136,7 +138,8 @@ public sealed class ReleaseStockConsumerTests : IAsyncLifetime
             .ToListAsync();
         outboxRows.Should().HaveCount(1);
         using var doc = JsonDocument.Parse(outboxRows.Single().Payload);
-        var ids = doc.RootElement.GetProperty("orderLineIds")
+        var ids = doc
+            .RootElement.GetProperty("orderLineIds")
             .EnumerateArray()
             .Select(e => e.GetString())
             .ToArray();
@@ -154,15 +157,11 @@ public sealed class ReleaseStockConsumerTests : IAsyncLifetime
         var rc = sp.GetRequiredService<RequestContext>();
 
         // First partial release
-        await harness.Bus.Publish(
-            new ReleaseStockV1(orderId, rc.TenantId, new[] { "L1" })
-        );
+        await harness.Bus.Publish(new ReleaseStockV1(orderId, rc.TenantId, new[] { "L1" }));
         await harness.GetConsumerHarness<ReleaseStockConsumer>().Consumed.Any<ReleaseStockV1>();
 
         // Redelivery of same release — nothing matches Pending, returns empty.
-        await harness.Bus.Publish(
-            new ReleaseStockV1(orderId, rc.TenantId, new[] { "L1" })
-        );
+        await harness.Bus.Publish(new ReleaseStockV1(orderId, rc.TenantId, new[] { "L1" }));
         await Task.Delay(300);
 
         await using var verify = new InventoryDbContext(_tenant.Options);

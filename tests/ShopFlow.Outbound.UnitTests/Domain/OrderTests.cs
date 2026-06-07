@@ -13,8 +13,7 @@ public sealed class OrderTests
     private static IReadOnlyList<(string Sku, int Qty, int? ExpectedWeight)> TwoLines() =>
         new[] { ("SKU-A", 2, (int?)100), ("SKU-B", 5, (int?)50) };
 
-    private static Order NewCreatedOrder() =>
-        Order.Create("ext-1", "standard", TwoLines()).Value!;
+    private static Order NewCreatedOrder() => Order.Create("ext-1", "standard", TwoLines()).Value!;
 
     // ── Create -------------------------------------------------------------
 
@@ -36,11 +35,7 @@ public sealed class OrderTests
     [Fact]
     public void Create_EmptyLines_FailsWithCode()
     {
-        var result = Order.Create(
-            "ext-1",
-            "standard",
-            Array.Empty<(string, int, int?)>()
-        );
+        var result = Order.Create("ext-1", "standard", Array.Empty<(string, int, int?)>());
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("order.no_lines");
@@ -71,11 +66,7 @@ public sealed class OrderTests
     [InlineData("   ")]
     public void Create_BlankShippingProfile_FailsWithCode(string shippingProfile)
     {
-        var result = Order.Create(
-            "ext-1",
-            shippingProfile,
-            new[] { ("SKU-A", 1, (int?)null) }
-        );
+        var result = Order.Create("ext-1", shippingProfile, new[] { ("SKU-A", 1, (int?)null) });
 
         result.IsSuccess.Should().BeFalse();
         result.ErrorCode.Should().Be("order.shipping_profile_required");
@@ -285,6 +276,85 @@ public sealed class OrderTests
     public void MarkCompensatingReservation_FromCreated_FailsInvalidState()
     {
         var order = NewCreatedOrder();
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("order.invalid_state");
+    }
+
+    // Sprint-12.5 U3 — Path C: MarkCompensatingReservation widens to allow
+    // AwaitingShip pre-state (Order aggregate's state when mark-ship-failed
+    // fires; saga state is still Packed at that moment per Sprint-12 KTD2).
+    [Fact]
+    public void MarkCompensatingReservation_FromAwaitingShip_TransitionsOk()
+    {
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+        order.MarkPacked(100);
+        order.MarkAwaitingShip();
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(OrderStatus.CompensatingReservation);
+    }
+
+    // Sprint-13 U3 — Path D: MarkCompensatingReservation widens to allow
+    // Picked pre-state (Order aggregate's state when mark-pack-failed fires;
+    // saga state is also Picked at that moment per Sprint-13 K1 — the Order
+    // never rests in AwaitingPack because ConfirmPackAsync chains
+    // MarkPacked → MarkAwaitingShip atomically).
+    [Fact]
+    public void MarkCompensatingReservation_FromPicked_TransitionsOk()
+    {
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeTrue();
+        order.Status.Should().Be(OrderStatus.CompensatingReservation);
+    }
+
+    [Fact]
+    public void MarkCompensatingReservation_FromPacked_FailsInvalidState()
+    {
+        // Packed is a transient state — ConfirmPackAsync auto-chains to
+        // AwaitingShip in one commit. If a test ever lands a row in Packed
+        // and tries to compensate, the domain correctly rejects. (Sprint-13
+        // K1 — this stays unchanged: Picked widens the allow-set, Packed
+        // does NOT, because Packed is never at rest.)
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+        order.MarkPacked(100);
+
+        var result = order.MarkCompensatingReservation();
+
+        result.IsSuccess.Should().BeFalse();
+        result.ErrorCode.Should().Be("order.invalid_state");
+    }
+
+    [Fact]
+    public void MarkCompensatingReservation_FromShipped_FailsInvalidState()
+    {
+        var order = NewCreatedOrder();
+        order.MarkAwaitingReservation();
+        order.MarkReserved();
+        order.MarkAwaitingPick();
+        order.MarkPicked();
+        order.MarkPacked(100);
+        order.MarkAwaitingShip();
+        order.MarkShipped("https://example/label.pdf", "TRACK-001");
 
         var result = order.MarkCompensatingReservation();
 

@@ -78,10 +78,7 @@ public sealed class Receiving : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
-            return Result<ReceivingLine>.Failure(
-                "sku is required.",
-                "receiving.sku_required"
-            );
+            return Result<ReceivingLine>.Failure("sku is required.", "receiving.sku_required");
         }
         if (_lines.Any(l => l.PurchaseOrderLineId == purchaseOrderLineId))
         {

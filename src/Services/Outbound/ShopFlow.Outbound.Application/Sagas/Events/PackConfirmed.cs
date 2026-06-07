@@ -11,4 +11,4 @@ namespace ShopFlow.Outbound.Application.Sagas.Events;
 /// Sprint-3-redux U4 ships the type so the state machine compiles; U6
 /// wires the controller publish.
 /// </remarks>
-public sealed record PackConfirmed(Guid OrderId, int ActualWeightTotal);
+public sealed record PackConfirmed(Guid OrderId, int ActualWeightTotal, Guid? ActorUserId = null);

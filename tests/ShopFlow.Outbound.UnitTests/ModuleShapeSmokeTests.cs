@@ -34,15 +34,22 @@ public sealed class ModuleShapeSmokeTests
 
         services.AddOutboundModule(configuration);
 
-        services.Should()
+        services
+            .Should()
             .Contain(d => d.ServiceType == typeof(OutboundDbContext))
             .Which.Lifetime.Should()
-            .Be(ServiceLifetime.Scoped, "the Outbound DbContext is bound per-request from IRequestContext.DbConnectionString");
+            .Be(
+                ServiceLifetime.Scoped,
+                "the Outbound DbContext is bound per-request from IRequestContext.DbConnectionString"
+            );
 
-        services.Should()
-            .Contain(d =>
-                d.ServiceType == typeof(IHostedService)
-                && d.ImplementationType == typeof(MultiplexedOutboxDispatcher<OutboundDbContext>),
+        services
+            .Should()
+            .Contain(
+                d =>
+                    d.ServiceType == typeof(IHostedService)
+                    && d.ImplementationType
+                        == typeof(MultiplexedOutboxDispatcher<OutboundDbContext>),
                 "the outbox dispatcher hosted service must be wired so outbound_outbox_messages drains to the bus"
             );
     }

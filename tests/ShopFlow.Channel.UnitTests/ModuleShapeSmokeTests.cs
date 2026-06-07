@@ -1,5 +1,5 @@
-using ShopFlow.Channel.Domain;
 using ShopFlow.Channel.Application;
+using ShopFlow.Channel.Domain;
 
 namespace ShopFlow.Channel.UnitTests;
 

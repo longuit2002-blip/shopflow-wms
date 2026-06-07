@@ -53,10 +53,7 @@ public sealed class WebhookEvent : BaseEntity
         }
         if (payload is null)
         {
-            return Result<WebhookEvent>.Failure(
-                "payload is required.",
-                "webhook.payload_required"
-            );
+            return Result<WebhookEvent>.Failure("payload is required.", "webhook.payload_required");
         }
 
         return Result<WebhookEvent>.Success(
@@ -103,10 +100,7 @@ public sealed class WebhookEvent : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(reason))
         {
-            return Result.Failure(
-                "failure_reason is required.",
-                "webhook.failure_reason_required"
-            );
+            return Result.Failure("failure_reason is required.", "webhook.failure_reason_required");
         }
         if (Status != WebhookProcessingStatus.Received)
         {

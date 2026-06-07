@@ -182,11 +182,26 @@ public sealed partial class InitialOutboundSchema : Migration
                 RowVersion = table.Column<byte[]>(nullable: false),
                 UpdatedAt = table.Column<DateTime>(nullable: false),
                 version = table.Column<int>(nullable: false, defaultValue: 0),
-                tenant_id = table.Column<Guid>(nullable: false, defaultValueSql: "'00000000-0000-0000-0000-000000000000'"),
-                shipping_profile = table.Column<string>(maxLength: 64, nullable: false, defaultValue: ""),
+                tenant_id = table.Column<Guid>(
+                    nullable: false,
+                    defaultValueSql: "'00000000-0000-0000-0000-000000000000'"
+                ),
+                shipping_profile = table.Column<string>(
+                    maxLength: 64,
+                    nullable: false,
+                    defaultValue: ""
+                ),
                 line_count = table.Column<int>(nullable: false, defaultValue: 0),
-                reserved_line_skus = table.Column<string>(maxLength: 2048, nullable: false, defaultValue: ""),
-                released_line_skus = table.Column<string>(maxLength: 2048, nullable: false, defaultValue: ""),
+                reserved_line_skus = table.Column<string>(
+                    maxLength: 2048,
+                    nullable: false,
+                    defaultValue: ""
+                ),
+                released_line_skus = table.Column<string>(
+                    maxLength: 2048,
+                    nullable: false,
+                    defaultValue: ""
+                ),
                 lines_awaiting_release = table.Column<int>(nullable: false, defaultValue: 0),
             },
             constraints: table => table.PrimaryKey("pk_saga_state", x => x.CorrelationId)

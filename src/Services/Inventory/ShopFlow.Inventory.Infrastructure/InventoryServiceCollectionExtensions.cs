@@ -66,6 +66,22 @@ public static class InventoryServiceCollectionExtensions
         services.AddScoped<IPutAwaySuggestionService, PutAwaySuggestionService>();
         services.AddScoped<IUnitOfWork, InventoryUnitOfWork>();
 
+        // Sprint-7.5 U3 — per-tenant rich SKU catalog. Replaces the
+        // in-memory <c>InMemorySkuMetadataStore</c> singleton +
+        // <c>TenantScopedSkuMetadataReader</c> wrapper with a real EF-
+        // backed repository scoped per request.
+        services.AddScoped<ISkuRepository, SkuRepository>();
+
+        // Sprint-7.5 U5 — Inventory emits SkuFlashSaleChangedV1 to the
+        // outbox on every flash-sale state change so StockSync's
+        // sku_flags cache stays in sync. K13 route policy:
+        // SendKind.Publish (default destination = kebab-case type name)
+        // so consumers across modules can subscribe (today: StockSync;
+        // tomorrow: Analytics).
+        services.AddOutboxRoute<ShopFlow.Contracts.Inventory.SkuFlashSaleChangedV1>(
+            ShopFlow.SharedKernel.Infrastructure.SendKind.Publish
+        );
+
         services
             .AddOptions<InventoryOptions>()
             .Bind(configuration.GetSection(InventoryOptions.SectionName));

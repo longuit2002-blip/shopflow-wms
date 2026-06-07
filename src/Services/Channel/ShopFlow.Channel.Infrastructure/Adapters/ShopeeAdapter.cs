@@ -61,13 +61,7 @@ public sealed class ShopeeAdapter : IChannelAdapter
     {
         ArgumentNullException.ThrowIfNull(envelope);
 
-        if (
-            !string.Equals(
-                envelope.EventType,
-                "order.created",
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
+        if (!string.Equals(envelope.EventType, "order.created", StringComparison.OrdinalIgnoreCase))
         {
             return Result<ExternalOrderDraft>.Failure(
                 $"shopee.order: event_type '{envelope.EventType}' is not supported by ParseOrderCreated.",
@@ -91,10 +85,7 @@ public sealed class ShopeeAdapter : IChannelAdapter
     /// <c>X-ShopFlow-Idempotency-Key</c>. The mock dedupes; real Shopee
     /// requires the upstream order/SKU keying — Phase-3 work.
     /// </remarks>
-    public async Task<Result> PushStockUpdateAsync(
-        StockUpdateRequest request,
-        CancellationToken ct
-    )
+    public async Task<Result> PushStockUpdateAsync(StockUpdateRequest request, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -114,10 +105,7 @@ public sealed class ShopeeAdapter : IChannelAdapter
                             "X-ShopFlow-Idempotency-Key",
                             request.IdempotencyKey
                         );
-                        http.Content = JsonContent.Create(
-                            payload,
-                            options: ShopeeJson.Options
-                        );
+                        http.Content = JsonContent.Create(payload, options: ShopeeJson.Options);
                         return await _httpClient.SendAsync(http, tk).ConfigureAwait(false);
                     },
                     ct
@@ -136,10 +124,7 @@ public sealed class ShopeeAdapter : IChannelAdapter
                 _ => "shopee.push.4xx",
             };
             var body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            return Result.Failure(
-                $"shopee push failed ({(int)response.StatusCode}): {body}",
-                code
-            );
+            return Result.Failure($"shopee push failed ({(int)response.StatusCode}): {body}", code);
         }
         catch (HttpRequestException ex)
         {

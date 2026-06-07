@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Auth module — Domain. Sprint-8 U1 shipped the User aggregate
+       (+ UserRole enum + UserCreated/PasswordChanged/RoleChanged events).
+       Refresh-token state lives outside the aggregate by design (Redis,
+       per KTD3); session/role-assignment as separate aggregates is
+       Sprint-9+ if RBAC complexity warrants it. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -71,8 +71,8 @@ public sealed class ReserveStockConsumer : IConsumer<ReserveStockV1>
         // Convert the wire-format lines to domain LineReservation. Sku.Create
         // validates length; Quantity.From validates non-negative. Either
         // throws on bad input → DLQ.
-        var lines = msg.Lines
-            .Select(l => new LineReservation(
+        var lines = msg
+            .Lines.Select(l => new LineReservation(
                 Sku.Create(l.Sku),
                 l.OrderLineId,
                 Quantity.From(l.Qty)

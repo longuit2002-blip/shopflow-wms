@@ -35,6 +35,15 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="Hellang.Middleware.ProblemDetails" />
+    <!--
+      Sprint-7 U5 — JwtBearer authentication is lifted from per-module
+      Program.cs into AddShopFlowDefaults. The kernel registers the auth
+      scheme so every module API inherits it (closes Sprint-6 trade-off #8).
+      The OnMessageReceived handler in AddShopFlowDefaults reads the
+      SignalR access_token query parameter and strips it before request
+      logging per doc-review SEC-001.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
   <ItemGroup>

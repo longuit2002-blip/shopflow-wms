@@ -25,18 +25,22 @@ public sealed class TenantChannelBucketRegistryTests
     private static readonly Guid TenantB = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
     private static TenantChannelBucketRegistry NewRegistry(
-        int sustain = 10, int burst = 50, int queueLimit = 100
+        int sustain = 10,
+        int burst = 50,
+        int queueLimit = 100
     )
     {
-        var options = Options.Create(new StockSyncOptions
-        {
-            TokenBucket = new StockSyncOptions.TokenBucketSettings
+        var options = Options.Create(
+            new StockSyncOptions
             {
-                Sustain = sustain,
-                Burst = burst,
-                QueueLimit = queueLimit,
-            },
-        });
+                TokenBucket = new StockSyncOptions.TokenBucketSettings
+                {
+                    Sustain = sustain,
+                    Burst = burst,
+                    QueueLimit = queueLimit,
+                },
+            }
+        );
         return new TenantChannelBucketRegistry(options);
     }
 
@@ -57,14 +61,16 @@ public sealed class TenantChannelBucketRegistryTests
         try
         {
             leases.Should().AllSatisfy(l => l.IsAcquired.Should().BeTrue());
-            sw.ElapsedMilliseconds.Should().BeLessThan(
-                500,
-                "burst of 50 tokens must be granted without waiting on replenishment"
-            );
+            sw.ElapsedMilliseconds.Should()
+                .BeLessThan(
+                    500,
+                    "burst of 50 tokens must be granted without waiting on replenishment"
+                );
         }
         finally
         {
-            foreach (var l in leases) l.Dispose();
+            foreach (var l in leases)
+                l.Dispose();
         }
     }
 
@@ -89,18 +95,21 @@ public sealed class TenantChannelBucketRegistryTests
             leases.Should().AllSatisfy(l => l.IsAcquired.Should().BeTrue());
             // 10 tokens to wait for at 10/s ≈ 1000ms; accept 600-2500ms
             // (generous to cover replenishment phase + scheduler jitter).
-            sw.ElapsedMilliseconds.Should().BeGreaterThan(
-                600,
-                "acquires past the burst must wait for the 1-second replenishment period"
-            );
-            sw.ElapsedMilliseconds.Should().BeLessThan(
-                2_500,
-                "sustain rate (10/s) should drain the post-burst tokens within ~1s"
-            );
+            sw.ElapsedMilliseconds.Should()
+                .BeGreaterThan(
+                    600,
+                    "acquires past the burst must wait for the 1-second replenishment period"
+                );
+            sw.ElapsedMilliseconds.Should()
+                .BeLessThan(
+                    2_500,
+                    "sustain rate (10/s) should drain the post-burst tokens within ~1s"
+                );
         }
         finally
         {
-            foreach (var l in leases) l.Dispose();
+            foreach (var l in leases)
+                l.Dispose();
         }
     }
 
@@ -125,15 +134,19 @@ public sealed class TenantChannelBucketRegistryTests
 
         try
         {
-            bLease.IsAcquired.Should().BeTrue("tenant B's bucket is independent of tenant A's drain");
-            sw.ElapsedMilliseconds.Should().BeLessThan(
-                100,
-                "per-(tenant, channel) isolation means tenant B doesn't pay tenant A's wait"
-            );
+            bLease
+                .IsAcquired.Should()
+                .BeTrue("tenant B's bucket is independent of tenant A's drain");
+            sw.ElapsedMilliseconds.Should()
+                .BeLessThan(
+                    100,
+                    "per-(tenant, channel) isolation means tenant B doesn't pay tenant A's wait"
+                );
         }
         finally
         {
-            foreach (var l in aLeases) l.Dispose();
+            foreach (var l in aLeases)
+                l.Dispose();
         }
     }
 
@@ -161,20 +174,26 @@ public sealed class TenantChannelBucketRegistryTests
         {
             // At least one of the three must have been rejected because
             // QueueLimit = 1 caps the pending count.
-            leases.Should().Contain(
-                l => !l.IsAcquired,
-                "queue-limit overflow surfaces as an unacquired lease, not an exception"
-            );
+            leases
+                .Should()
+                .Contain(
+                    l => !l.IsAcquired,
+                    "queue-limit overflow surfaces as an unacquired lease, not an exception"
+                );
 
             var bucket = registry.GetOrCreate(TenantA, "shopee");
-            bucket.GetStatistics()!.TotalFailedLeases.Should().BeGreaterThan(
-                0,
-                "TokenBucketRateLimiter must record the QueueLimit rejection in its statistics counter"
-            );
+            bucket
+                .GetStatistics()!
+                .TotalFailedLeases.Should()
+                .BeGreaterThan(
+                    0,
+                    "TokenBucketRateLimiter must record the QueueLimit rejection in its statistics counter"
+                );
         }
         finally
         {
-            foreach (var l in leases) l.Dispose();
+            foreach (var l in leases)
+                l.Dispose();
         }
     }
 
@@ -188,7 +207,9 @@ public sealed class TenantChannelBucketRegistryTests
         var other = registry.GetOrCreate(TenantA, "lazada");
 
         first.Should().BeSameAs(second, "buckets are keyed by (tenant, channel) pair");
-        first.Should().NotBeSameAs(other, "different channels for the same tenant get distinct buckets");
+        first
+            .Should()
+            .NotBeSameAs(other, "different channels for the same tenant get distinct buckets");
     }
 
     [Fact]

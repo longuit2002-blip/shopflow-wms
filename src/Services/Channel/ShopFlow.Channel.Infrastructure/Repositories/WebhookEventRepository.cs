@@ -36,10 +36,7 @@ public sealed class WebhookEventRepository : IWebhookEventRepository
         try
         {
             transaction = await _db
-                .Database.BeginTransactionAsync(
-                    System.Data.IsolationLevel.ReadCommitted,
-                    ct
-                )
+                .Database.BeginTransactionAsync(System.Data.IsolationLevel.ReadCommitted, ct)
                 .ConfigureAwait(false);
 
             await _db.WebhookEvents.AddAsync(webhookEvent, ct).ConfigureAwait(false);
@@ -50,7 +47,8 @@ public sealed class WebhookEventRepository : IWebhookEventRepository
             }
             catch (DbUpdateException ex)
                 when (ex.InnerException is PostgresException pg
-                    && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                    && pg.SqlState == PostgresErrorCodes.UniqueViolation
+                )
             {
                 // Replay: roll back the failed insert and resolve the existing
                 // row id by composite UNIQUE key. The orchestrator interprets

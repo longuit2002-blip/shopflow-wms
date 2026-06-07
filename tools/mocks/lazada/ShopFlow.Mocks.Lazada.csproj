@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    Lazada mock server — finish-line U7. Standalone Kestrel-hosted
+    ASP.NET service that emulates Lazada's webhook-source behaviour:
+    HMAC-SHA256-signed outgoing webhooks (X-Lazada-Signature), advertised
+    rate-limit headers, chaos-injection endpoint for 429/500 testing.
+    Aspire (dev) starts it as a sibling resource to Channel.Api — the
+    second marketplace mock alongside the Shopee mock (Sprint-4 U7).
+
+    Mirrors tools/mocks/shopee byte-for-byte where it matters. Per Channel
+    AGENTS.md §11.6, marketplace mocks live as separate processes (not
+    in-process) so integration tests exercise real HTTP + HMAC over the
+    wire.
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.Mocks.Lazada</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    No project references — the mock matches the Lazada wire format
+    independently (K7). Sharing the LazadaSigner with
+    ShopFlow.Channel.Infrastructure.Signature.LazadaSignatureVerifier is
+    intentionally avoided via a small literal duplication: the mock is
+    supposed to look like a third-party server, so re-importing our code
+    would let drift between mock + production go undetected. The signer is
+    8 lines.
+  -->
+
+</Project>

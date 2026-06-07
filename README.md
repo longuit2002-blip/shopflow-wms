@@ -2,20 +2,41 @@
 
 > Multi-channel warehouse management system for SEA marketplaces, with database-per-tenant hard isolation under PDPA SEA compliance. 12-week single-developer portfolio build.
 
-[![Stage](https://img.shields.io/badge/stage-Sprint--5%20%E2%9C%85-brightgreen)](docs/phase-gates/2026-05-17-sprint-5-signoff.md)
+[![Proofs](https://img.shields.io/badge/hard--problem%20proofs-green%20locally-brightgreen)](#the-four-hard-problems-and-the-tests-that-prove-them)
 [![License](https://img.shields.io/badge/license-TBD-lightgrey)](#license)
 
-**Current stage**: **Phase-2 Sprint-5 complete (2026-05-17)** — tagged `v0.7.0-sprint-5`. Closes Phase-2 egress with a new `ShopFlow.StockSync` module (7th logical module in the modular monolith) consuming Inventory's stock-mutation outbox stream and pushing per-channel `available_to_sell` updates through a four-layer isolation pipeline: coalescing buffer per `(tenant, sku, channel)` → per-tenant priority queue (high/normal lanes for flash-sale routing) → token bucket per `(tenant, channel)` → Polly v8 circuit breaker → `IChannelAdapter.PushStockUpdateAsync` → push-log audit row. **KTD1** replaces the literal brainstorm R1 (consume 3 transition events) with a single canonical `StockLevelChangedV1` event emitted from Inventory's 5 stock-mutating repository paths + the put-away `AdjustAtBin` path — clean cross-module shape, no Outbound coupling. `ShopeeAdapter.PushStockUpdateAsync` body fills the Sprint-4 stub with real HTTP POST + status-code → stable error-code mapping; Shopee mock gains `/api/v2/product/update_stock` + chaos toggle. SkuFlag admin API + caching wrapper (5min TTL, opens DI scope + binds tenant via K12 pattern from singleton context). 359 unit tests green (+71 from Sprint-5). +24 `Category=Integration` tests. +2 `Category=Load` scale-gate slots Skip'd per Sprint-4 U9 precedent — production primitives all proven by U3-U8 unit + integration coverage; wall-time noisy-neighbor measurement deferred to Sprint-5.5 follow-up (multi-tenant Aspire boot + real Shopee mock alongside StockSync.Api). See [Sprint-5 sign-off](docs/phase-gates/2026-05-17-sprint-5-signoff.md). **Previous**: [Sprint-4.5 sign-off](docs/phase-gates/2026-05-15-sprint-4.5-signoff.md) (`v0.6.1-sprint-4.5`). **Next**: Sprint-5.5 (close scale-gate harness), Sprint-6 (Analytics module W9-W10 — read-side projections), or Phase-3 polish (Gateway hardening, observability, portfolio README + demo).
+**This is a portfolio build, and it's honest about what's worth your time.** The differentiator isn't WMS surface area — it's depth on four hard problems, each one provable by a test you can run on your own machine in a few minutes. Clone it, run `task proofs`, read the code the proofs exercise. The sprint-by-sprint history lives in [docs/sprint-history.md](docs/sprint-history.md); it's deliberately not the lead.
 
-**Phase-2 Sprint-4.5 complete (2026-05-15)** — tagged `v0.6.1-sprint-4.5`. Closes the four Sprint-4 sign-off deferrals as a ~1-week point release: receiver `provider_event_id` now sourced from the marketplace-asserted Shopee `event_id` via `IChannelAdapterFactory.ResolveFor(channelType).ParseWebhook(...)` (body-hash stub deleted); `WebhookOrchestrator` gates on `event_type == "order.created"`, resolves per-line external→internal SKUs via `IProductMappingService`, and emits the canonical `OrderImportedV1` (or **fails the whole import** per contract canon when any line is unmapped — brainstorm R6 reversal documented); `TenantWebhookHarness` integration helper with `WebApplicationFactory<Program>`-backed Channel.Api host + multi-tenant Postgres provisioning; three `Category=Load` scale-gate bodies in place (burst-200rps × 5 tenants + replay-100× idempotency + cross-tenant signature → 401). 288 unit tests green (+19 from Sprint-4.5: 13 ShopeeAdapterParseOrderCreated + 7 WebhookOrchestrator). 1 new `Category=Integration` smoke test; 3 `Category=Load` tests runnable in CI. See [Sprint-4.5 sign-off](docs/phase-gates/2026-05-15-sprint-4.5-signoff.md). **Previous**: [Sprint-4 sign-off](docs/phase-gates/2026-05-13-sprint-4-signoff.md) (`v0.6.0-sprint-4`). **Next**: Sprint-5 Stock Sync Engine (Phase-2 W6-W8 centerpiece — coalescing buffer + per-channel token bucket + priority queue + circuit breaker + allocation engine; noisy-neighbor scale gate).
+## The four hard problems (and the tests that prove them)
 
-**Phase-1 Sprint-3-redux complete (2026-05-13)** — tagged `v0.5.0-sprint-3-redux`. **Phase-1 customer funnel closed**: Inventory holds stock (Sprint-1-redux), Inbound fills it (Sprint-2-redux), Outbound drains it (Sprint-3-redux). The Outbound module ships the full fulfillment saga (MassTransit state machine, 11 states, EF saga repository with K12 per-tenant DbContext binding via `TenantBindingSagaFilter`), 9 cross-module contracts, 3 new Inventory consumers wrapping the extended `ReservationRepository` (`TryReserveLinesAsync` + `ReleaseLinesAsync` — atomic multi-line CTE; `reservations_ledger` schema gained `order_line_id` with composite UNIQUE), `IPickQueue` per-tenant `Channel<PickRequestV1>` + `PickWaveGeneratorService` (15-min window batching, round-robin picker), mocked shipping carrier with Polly v8 retry, pick-failure compensation via Set-based release dedup, and `OrderCancelledConsumer` propagating saga terminal state to the Order row. K15 verified: `MassTransit.EntityFrameworkCore` 8.3.4 + EF Core 9 bind cleanly. K11 multi-row CTE concurrency fix landed as institutional learning ([docs/solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md](docs/solutions/2026-05-13-multi-row-cte-predicate-must-live-in-update.md)) — pre-check CTEs are unsafe under READ COMMITTED; predicate must live inside the UPDATE. W5 scale gate (`Category=Load`): 2000 orders × 3 tenants, dev-laptop Shipped p99 247-332ms/tenant + Cancelled p99 112-131ms/tenant + fairness floor 0.918-0.979 (operator-pipeline path; saga bypassed — documented limitation; production CI re-validates). ~270 unit + ~120 integration + 4 load tests green. See [Sprint-3-redux sign-off](docs/phase-gates/2026-05-13-sprint-3-redux-signoff.md). **Previous**: [Sprint-2.5 sign-off](docs/phase-gates/2026-05-13-sprint-2.5-signoff.md) (`v0.4.1-sprint-2.5`). **Next**: Phase-2 Sprint-4 (Channel Connections + webhook idempotency) cuts from `v0.5.0-sprint-3-redux`.
+Each row links the production code to the test that proves the claim. All five proof suites run green locally via **`task proofs`** (Docker + Testcontainers required — no live cloud, no mocked-out invariants).
 
-**Phase-1 Sprint-2-redux complete (2026-05-13)** — tagged `v0.4.0-sprint-2-redux`. The Inbound module ships: PurchaseOrder + Receiving aggregates with auto-state-transition state machine, per-line confirmation via `ConfirmReceivingLineService` (writes the ledger + outbox row atomically), append-only `reconciliation_tickets` log on quantity mismatch, thin HTTP controllers. Inventory schema gains zones / bins / stock_item_bins / inbound_dedup tables + nullable `home_zone_id` FK on stock_items. New cross-module flow: `ShopFlow.Contracts.Inbound.InboundConfirmedV1` event flows through the outbox dispatcher to `InboundConfirmedConsumer` in Inventory, which auto-creates stock_items, applies bin-targeted stock change via the new `AdjustAtBinAsync` (UPSERT stock_items + UPSERT stock_item_bins + UPDATE bins.occupancy_qty + INSERT stock_adjustments — all in one ReadCommitted transaction), and dedups against the `inbound_dedup(receiving_id, line_id)` table. MassTransit transport flipped from in-memory to real RabbitMQ via a config knob (`ShopFlowDefaultsOptions.MessageBusTransport`) — promoted from W6 to W4 so Sprint-3-redux's saga inherits production-shape broker semantics. 110 unit tests + 52 integration tests green. Architecture finding [docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md](docs/solutions/2026-05-13-cross-module-outbox-table-name-collision.md) captures U9's deferred cross-module flow test (Sprint-2.5 candidate). See [Sprint-2-redux sign-off](docs/phase-gates/2026-05-13-sprint-2-redux-signoff.md) for measured numbers + deviations. **Previous**: [Sprint-1-redux sign-off](docs/phase-gates/2026-05-12-sprint-1-redux-signoff.md) (`v0.3.0-sprint-1-redux`). **Next**: Sprint-2.5 (outbox table-name rename) or Sprint-3-redux (Outbound + saga) — plans TBD.
+| Hard problem | Why it's hard | Code | Proving test |
+|---|---|---|---|
+| **Oversell-safe reservation ledger** | Concurrent flash-sale reservations against the same SKU must never oversell — without taking a row lock that collapses throughput. The solution is an append-only ledger with a conditional CTE INSERT at READ COMMITTED. | [ReservationRepository](src/Services/Inventory/ShopFlow.Inventory.Infrastructure/Repositories/ReservationRepository.cs) | [MultiTenantScaleGateTests](tests/ShopFlow.Inventory.IntegrationTests/MultiTenantScaleGateTests.cs) (5 tenants × 1,000 concurrent → exactly 1,000 successes each, zero oversell) + [ReservationLedgerProperties](tests/ShopFlow.PropertyTests/ReservationLedgerProperties.cs) (FsCheck invariants) |
+| **Noisy-neighbor multi-tenant sync** | One tenant bursting 2,000 stock changes/sec must not starve the others. A four-layer pipeline isolates per tenant: coalescing buffer → priority queue → token bucket → circuit breaker. | [StockSync engine](src/Services/StockSync/ShopFlow.StockSync.Infrastructure/) | [MultiTenantStockSyncScaleGateTests](tests/ShopFlow.StockSync.IntegrationTests/MultiTenantStockSyncScaleGateTests.cs) (tenant A floods; peers hold p99 SLO + fairness floor ≥ 0.85) |
+| **Database-per-tenant isolation** | PDPA hard isolation: a request scoped to one tenant must read *only* that tenant's database, and a cross-tenant attempt must be rejected — never a silent leak. | [TenantRoutingMiddleware](src/Shared/ShopFlow.SharedKernel/Infrastructure/TenantRoutingMiddleware.cs) + per-tenant DbContext binding | [AuthCrossTenantTests](tests/ShopFlow.Auth.IntegrationTests/AuthCrossTenantTests.cs) + [CrossTenant403Test](tests/ShopFlow.Auth.IntegrationTests/Authorization/CrossTenant403Test.cs) + [CrossTenantRoutingTests](tests/ShopFlow.SharedKernel.IntegrationTests/CrossTenantRoutingTests.cs) |
+| **Cross-role RBAC, defense-in-depth** | A Picker JWT must be denied a Dispatcher action — even against an order in the right pre-state — by a per-action policy that fires before the controller's state check. Four roles hand one order down a single saga. | [Outbound per-action policies](src/Services/Outbound/ShopFlow.Outbound.Api/Controllers/OrdersController.cs) + `perm[]` JWT claims | [CrossRoleDenialTests](tests/ShopFlow.Outbound.IntegrationTests/Handoff/CrossRoleDenialTests.cs) (14 denial facts) + [HandoffWorkflowTests](tests/ShopFlow.Outbound.IntegrationTests/Handoff/HandoffWorkflowTests.cs) (Picker→Packer→Dispatcher hand-off) |
 
-Multi-tenancy redesign captured under [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md): **database-per-tenant on shared Postgres cluster** for PDPA SEA hard isolation. Canon: [product plan v3.0](docs/redesign/01-product-development-plan.md), [tech design v3.0](docs/redesign/02-technical-design-document.md). The historical Phase-0 + Sprint-1 work is preserved at branch `archive/phase-1-sprint-1-rls-shared` and tag `archive/v0.1.0-phase-0-rls-shared`.
+## Multi-channel is real, not asserted
 
-See [docs/CHANGELOG.md](docs/CHANGELOG.md) for the supersession record.
+A "multi-channel WMS" with one adapter is a hollow headline. ShopFlow ships **two** marketplace adapters — Shopee and Lazada — behind a [`ChannelAdapterFactory`](src/Services/Channel/ShopFlow.Channel.Infrastructure/Adapters/ChannelAdapterFactory.cs) that DI-enumerates by channel type, so a new channel is a pure registration with **zero framework edits**. The webhook receiver's signature extraction is channel-agnostic (each verifier declares its header). A single stock change fans out to **both** channels through the same noisy-neighbor pipeline:
+
+- [MultiChannelSyncProofTests](tests/ShopFlow.StockSync.IntegrationTests/MultiChannelSyncProofTests.cs) — one stock change → a push to Shopee **and** Lazada, each logged.
+- [LazadaWebhookReceiveTests](tests/ShopFlow.Channel.IntegrationTests/LazadaWebhookReceiveTests.cs) — a Lazada webhook is signature-verified, product-mapped, and persisted idempotently in the right tenant DB through the same pipeline Shopee uses.
+
+## Run it
+
+**Prerequisites:** Docker (for Testcontainers + the dev stack), .NET 9 SDK. If your machine already runs Postgres on `5432`, set `DevStack:PostgresHostPort` (e.g. `DevStack__PostgresHostPort=5433`) so the dev orchestrator's Postgres coexists; a clean machine with a free `5432` needs nothing.
+
+```
+task setup     # install dotnet tools (CSharpier, Husky.NET) + pre-commit hook
+task proofs    # run the five hard-problem proof suites (Docker required) — the headline
+task test      # full unit + integration + property suite (excludes Load)
+task up        # Aspire dev orchestrator — infra + dashboard + tenant provisioning
+```
+
+`task proofs` is the fast path to "is this real?" — it boots Testcontainers Postgres per suite and runs the proofs above, independent of the full `task up` stack. `task up` boots the infrastructure, the Aspire dashboard, and provisions the control-plane catalog + two dev tenants; bringing every module API up behind the gateway is an ongoing dev-stack repair tracked in [the first-boot note](docs/solutions/2026-05-27-aspire-dev-stack-first-boot-repairs.md).
 
 ## What this is
 
@@ -25,11 +46,11 @@ The full thesis with scale targets, SLOs, ADRs, and tier-by-tier rollout lives i
 
 ## Architecture stance
 
-Six bounded contexts (Inventory, Inbound, Outbound, Channel, Analytics, Gateway), bootstrapped as a **modular monolith** ([ADR-0002](docs/adr/0002-modular-monolith-first.md)) — one .NET solution, six logical modules in separate `.csproj` per bounded context, single host, in-memory MediatR. Mechanical 6-service split is a planned **W6 event** triggered by the channel adapter framework's arrival.
+Six bounded contexts (Inventory, Inbound, Outbound, Channel, Analytics, Gateway) plus Auth, StockSync, and Notification modules, bootstrapped as a **modular monolith** ([ADR-0002](docs/adr/0002-modular-monolith-first.md)) — one .NET solution, logical modules in separate `.csproj` per bounded context, single host, in-memory MediatR. Mechanical service split is a planned **W6 event** triggered by the channel adapter framework's arrival.
 
 Multi-tenancy is **database-per-tenant on a shared Postgres cluster** ([ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md)). Each tenant maps to one logical Postgres DATABASE; routing happens in middleware (header → JWT claim → subdomain priority); PgBouncer in transaction-pooling mode is the connection multiplexer. A separate `shopflow_control` database holds the tenant catalog. Right-to-erasure is `DROP DATABASE` after retention window.
 
-**Stack**: C# .NET 9 (canon declares .NET 8; Phase-0-redux pins net9.0 via `global.json` because that is the SDK available on the developer machine — see [Directory.Build.props](Directory.Build.props)), Postgres 16, **PgBouncer**, Redis, RabbitMQ, MassTransit (sagas + outbox), OpenTelemetry, Aspire AppHost (dev) + hand-maintained Docker Compose (production handoff per [ADR-0001](docs/adr/0001-aspire-vs-docker-compose.md)).
+**Stack**: C# .NET 9 (canon declares .NET 8; the repo pins net9.0 via `global.json` because that is the SDK available on the developer machine — see [Directory.Build.props](Directory.Build.props)), Postgres 16, **PgBouncer**, Redis, RabbitMQ, MassTransit (sagas + outbox), OpenTelemetry, Aspire AppHost (dev) + hand-maintained Docker Compose (production handoff per [ADR-0001](docs/adr/0001-aspire-vs-docker-compose.md)).
 
 ## Compliance posture
 
@@ -47,41 +68,33 @@ PDPA Vietnam (Decree 13/2023/ND-CP) + Singapore PDPA. Hard isolation answers "ho
 ├── docs/
 │   ├── adr/                       numbered architectural decisions (immutable; postscripts allowed)
 │   ├── plans/                     active and superseded work plans
+│   ├── brainstorms/               requirements docs (incl. the portfolio finish-line)
+│   ├── phase-gates/               per-sprint sign-offs
 │   ├── redesign/                  v3.0 markdown drafts (to be regenerated to .docx)
 │   ├── solutions/                 compounding learnings
-│   ├── source/                    .docx → .txt extracts (gitignored)
-│   ├── ideation/                  ranked candidate ideas
+│   ├── sprint-history.md          chronological release index
 │   └── CHANGELOG.md               canon supersession history
 ├── src/
 │   ├── ApiGateway/ShopFlow.Gateway/        YARP reverse proxy
 │   ├── AppHost/ShopFlow.AppHost/           Aspire dev orchestrator
 │   ├── ControlPlane/                       tenant catalog + provisioning catalog DB
-│   ├── Services/{Inventory,Inbound,Outbound,Channel,Analytics}/   bounded contexts
+│   ├── Services/{Inventory,Inbound,Outbound,Channel,Analytics,Auth,StockSync,Notification}/   bounded contexts
 │   └── Shared/{SharedKernel,SharedKernel.Analyzers,Contracts}/    cross-cutting + Roslyn rules
-├── tests/                                  unit + integration test projects
+├── tests/                                  unit + integration + property + proof projects
 ├── infrastructure/                         pgbouncer + docker-compose production handoff
 └── tools/
     ├── extract-docs.{sh,ps1}               .docx text extraction
+    ├── mocks/{shopee,lazada}/              marketplace mock servers
     ├── shopflow-migrate/                   per-tenant migration runner CLI
     └── shopflow-gate/                      phase-gate runner CLI
 ```
 
-## Getting started
+## Project status & history
 
-```
-task setup        # install dotnet tools (CSharpier, Husky.NET) + pre-commit hook
-dotnet build      # 0 warnings / 0 errors expected
-dotnet test --filter "Category!=Integration&Category!=Load"   # 80 unit tests pass
-task up           # Aspire dev orchestrator — needs Docker
-```
-
-Reading order for new contributors:
-
-1. [Sprint-1-redux reservation ledger plan](docs/plans/2026-05-11-003-phase-1-sprint-1-redux-reservation-ledger-plan.md) — next implementation slice.
-2. [Phase-0-redux sign-off](docs/phase-gates/2026-05-12-phase-0-redux-signoff.md) — what landed, what's deferred.
-3. [Tech design v3.0](docs/redesign/02-technical-design-document.md) §1 (multi-tenancy), §2 (provisioning), §4 (reservation ledger).
-4. [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md) — the supersession decision.
-5. [AGENTS.md](AGENTS.md) — the executable rule canon.
+- **Portfolio finish-line** (current): make the hard problems demonstrable + multi-channel honest — see the requirements + status in [docs/brainstorms/2026-05-27-portfolio-finish-line-requirements.md](docs/brainstorms/2026-05-27-portfolio-finish-line-requirements.md).
+- **Release chronology**: [docs/sprint-history.md](docs/sprint-history.md) — every tag from Phase-0-redux through Sprint-13, one line + sign-off link each.
+- **Supersession record**: [docs/CHANGELOG.md](docs/CHANGELOG.md) — what supersedes what.
+- **The redesign decision**: [ADR-0003](docs/adr/0003-database-per-tenant-for-compliance.md) (database-per-tenant). Canon: [product plan v3.0](docs/redesign/01-product-development-plan.md), [tech design v3.0](docs/redesign/02-technical-design-document.md).
 
 ## Historical reference
 
@@ -89,7 +102,7 @@ Phase-0 (the v2.0 RLS-shared design) and Phase-1 Sprint-1 work-in-progress live 
 - Branch: `archive/phase-1-sprint-1-rls-shared`
 - Tag: `archive/v0.1.0-phase-0-rls-shared` (annotated supersession note)
 
-Both remain in the remote forever as the "what we redesigned away from" reference. Three `docs/solutions/` learnings carry forward: EF migration attributes, FsCheck Replay format, green-against-stub property pattern.
+Both remain in the remote forever as the "what we redesigned away from" reference.
 
 ## License
 

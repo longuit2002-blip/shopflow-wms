@@ -39,8 +39,7 @@ public static class UpdateStockEndpoint
                         cancellationToken: ctx.RequestAborted
                     );
                     if (
-                        doc.RootElement.ValueKind
-                            == System.Text.Json.JsonValueKind.Object
+                        doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object
                         && doc.RootElement.TryGetProperty("item_id", out var itemIdElement)
                         && itemIdElement.ValueKind == System.Text.Json.JsonValueKind.Number
                         && itemIdElement.TryGetInt64(out var parsed)

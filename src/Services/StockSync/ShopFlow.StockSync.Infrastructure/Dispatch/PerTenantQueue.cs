@@ -103,14 +103,11 @@ public sealed class PerTenantQueue : IPerTenantQueue
     /// tenant — high-priority lane (flash-sale traffic) and
     /// normal-priority lane (baseline traffic).
     /// </summary>
-    private sealed record TenantQueuePair(
-        Channel<PushIntent> High,
-        Channel<PushIntent> Normal
-    )
+    private sealed record TenantQueuePair(Channel<PushIntent> High, Channel<PushIntent> Normal)
     {
         public static TenantQueuePair Create(int highCap, int normalCap)
         {
-            var high = Channel.CreateBounded<PushIntent>(
+            var high = System.Threading.Channels.Channel.CreateBounded<PushIntent>(
                 new BoundedChannelOptions(highCap)
                 {
                     FullMode = BoundedChannelFullMode.DropOldest,
@@ -119,7 +116,7 @@ public sealed class PerTenantQueue : IPerTenantQueue
                 }
             );
 
-            var normal = Channel.CreateBounded<PushIntent>(
+            var normal = System.Threading.Channels.Channel.CreateBounded<PushIntent>(
                 new BoundedChannelOptions(normalCap)
                 {
                     FullMode = BoundedChannelFullMode.DropOldest,

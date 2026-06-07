@@ -72,13 +72,7 @@ public sealed class WebhookOrchestrator
 
         // Event-type gating. Sprint-4.5 ships order.created only; other
         // event types persist (for audit) but emit no downstream row.
-        if (
-            !string.Equals(
-                envelope.EventType,
-                "order.created",
-                StringComparison.OrdinalIgnoreCase
-            )
-        )
+        if (!string.Equals(envelope.EventType, "order.created", StringComparison.OrdinalIgnoreCase))
         {
             return await IngestEventSkippedAsync(envelope, ct).ConfigureAwait(false);
         }
@@ -95,16 +89,15 @@ public sealed class WebhookOrchestrator
         var draftResult = adapter.ParseOrderCreated(envelope);
         if (!draftResult.IsSuccess)
         {
-            return Result<WebhookProcessOutcome>.Failure(
-                draftResult.Error!,
-                draftResult.ErrorCode
-            );
+            return Result<WebhookProcessOutcome>.Failure(draftResult.Error!, draftResult.ErrorCode);
         }
         var draft = draftResult.Value!;
 
         // Per-line mapping resolution. Any null → fail whole import per
         // OrderImportedV1 contract canon (Sprint-4 U8 + brainstorm R6 corrected).
-        var resolutions = new (ProductMappingResolution? Resolution, ExternalOrderLine Line)[draft.Lines.Count];
+        var resolutions = new (ProductMappingResolution? Resolution, ExternalOrderLine Line)[
+            draft.Lines.Count
+        ];
         var unmappedSkus = new List<string>();
         for (var i = 0; i < draft.Lines.Count; i++)
         {
@@ -171,10 +164,7 @@ public sealed class WebhookOrchestrator
             .ConfigureAwait(false);
         if (!emitResult.IsSuccess)
         {
-            return Result<WebhookProcessOutcome>.Failure(
-                emitResult.Error!,
-                emitResult.ErrorCode
-            );
+            return Result<WebhookProcessOutcome>.Failure(emitResult.Error!, emitResult.ErrorCode);
         }
 
         return Result<WebhookProcessOutcome>.Success(

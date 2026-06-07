@@ -50,9 +50,42 @@
                       IsAspireProjectResource="true" />
   </ItemGroup>
 
+  <!-- Finish-line U7 — Lazada mock server resource (Aspire AddProject<>). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\tools\mocks\lazada\ShopFlow.Mocks.Lazada.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
   <!-- Sprint-5 U8 — StockSync.Api resource (Aspire AddProject<>). -->
   <ItemGroup>
     <ProjectReference Include="..\..\Services\StockSync\ShopFlow.StockSync.Api\ShopFlow.StockSync.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
+  <!-- Sprint-6 U4 — Auth.Api resource (dev-mode fake login). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\Auth\ShopFlow.Auth.Api\ShopFlow.Auth.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
+  <!-- Sprint-9.5 U4 — Notification.Api resource (hosted-service host). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\Notification\ShopFlow.Notification.Api\ShopFlow.Notification.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
+  <!-- #4 (Inventory end-to-end) — Inventory.Api resource. The web Inventory
+       screen's reads/writes hit /api/v1/inventory/** through the gateway. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\Services\Inventory\ShopFlow.Inventory.Api\ShopFlow.Inventory.Api.csproj"
+                      IsAspireProjectResource="true" />
+  </ItemGroup>
+
+  <!-- #4 (Inventory end-to-end) — YARP Gateway resource. The single front
+       door the web dev-proxy targets at host:8080; routes /api/* + /auth/*
+       to the module APIs (addresses injected from live Aspire endpoints). -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\ApiGateway\ShopFlow.Gateway\ShopFlow.Gateway.csproj"
                       IsAspireProjectResource="true" />
   </ItemGroup>
 

@@ -68,17 +68,19 @@ public sealed class PurchaseOrderRepositoryTests : IAsyncLifetime
     public async Task StateMachineRoundTrip_OpenAndReceive_PersistsStateAndReceivedQty()
     {
         await using var dbWrite = new InboundDbContext(_tenant.Options);
-        var po = PurchaseOrder
-            .Create("SUP-2", Now.AddDays(3), new[] { ("SKU-X", 10) })
-            .Value!;
+        var po = PurchaseOrder.Create("SUP-2", Now.AddDays(3), new[] { ("SKU-X", 10) }).Value!;
         po.Open(Now).IsSuccess.Should().BeTrue();
-        po.RecordLineReceipt(po.Lines.Single().Id, 10, Now.AddMinutes(5)).IsSuccess.Should().BeTrue();
+        po.RecordLineReceipt(po.Lines.Single().Id, 10, Now.AddMinutes(5))
+            .IsSuccess.Should()
+            .BeTrue();
         await new PurchaseOrderRepository(dbWrite).AddAsync(po, CancellationToken.None);
         await dbWrite.SaveChangesAsync();
 
         await using var dbRead = new InboundDbContext(_tenant.Options);
-        var reloaded = await new PurchaseOrderRepository(dbRead)
-            .FindByIdAsync(po.Id, CancellationToken.None);
+        var reloaded = await new PurchaseOrderRepository(dbRead).FindByIdAsync(
+            po.Id,
+            CancellationToken.None
+        );
 
         reloaded.Should().NotBeNull();
         reloaded!.Status.Should().Be(PurchaseOrderStatus.Closed);
@@ -114,7 +116,9 @@ public sealed class PurchaseOrderRepositoryTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         var openList = await repo.ListOpenAsync(CancellationToken.None);
-        openList.Select(p => p.SupplierRef).Should()
+        openList
+            .Select(p => p.SupplierRef)
+            .Should()
             .ContainInOrder(new[] { "SUP-OPEN-EARLY", "SUP-OPEN-LATE" });
         openList.Should().HaveCount(2);
     }

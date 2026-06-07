@@ -19,6 +19,4 @@ namespace ShopFlow.SharedKernel.Infrastructure;
 /// correctness primitive.</para>
 /// </remarks>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
-public sealed class SkipTenantRoutingAttribute : Attribute
-{
-}
+public sealed class SkipTenantRoutingAttribute : Attribute { }

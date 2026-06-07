@@ -209,11 +209,13 @@ public sealed class PickWaveBatchingFlowTests : IAsyncLifetime
         var orderIds = new List<Guid>();
         for (var i = 0; i < count; i++)
         {
-            var order = Order.Create(
-                $"ext-batch-{profile}-{i:000}-{Guid.NewGuid():N}",
-                profile,
-                new[] { ("SKU-X", 1, (int?)100) }
-            ).Value!;
+            var order = Order
+                .Create(
+                    $"ext-batch-{profile}-{i:000}-{Guid.NewGuid():N}",
+                    profile,
+                    new[] { ("SKU-X", 1, (int?)100) }
+                )
+                .Value!;
             ctx.Orders.Add(order);
             orderIds.Add(order.Id);
         }

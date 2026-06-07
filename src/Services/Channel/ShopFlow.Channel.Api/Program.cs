@@ -25,14 +25,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddShopFlowDefaults(
     builder.Configuration,
     configure: o => o.ServiceName = "shopflow-channel",
-    assembliesToScan: new[]
-    {
-        typeof(ChannelDbContext).Assembly,
-    }
+    assembliesToScan: new[] { typeof(ChannelDbContext).Assembly }
 );
 builder.Services.AddControlPlane(builder.Configuration);
 builder.Services.AddChannelModule(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();

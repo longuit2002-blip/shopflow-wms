@@ -58,8 +58,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class SagaHappyPathTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
 
     private readonly OutboundTenantFixture _fx;
     private ProvisionedOutboundTenant _tenant = default!;
@@ -108,10 +107,12 @@ public sealed class SagaHappyPathTests : IAsyncLifetime
         await WaitForSagaStateAsync(orderId, "AwaitingReservation");
 
         // 3. Saga published ReserveStockV1 — verify it appears on the bus.
-        var reservePublished = await harness.Published.Any<ReserveStockV1>(
-            p => p.Context.Message.OrderId == orderId
+        var reservePublished = await harness.Published.Any<ReserveStockV1>(p =>
+            p.Context.Message.OrderId == orderId
         );
-        reservePublished.Should().BeTrue("saga must publish ReserveStockV1 from AwaitingReservation");
+        reservePublished
+            .Should()
+            .BeTrue("saga must publish ReserveStockV1 from AwaitingReservation");
 
         // 4. Stub Inventory side: emit StockReservedV1 immediately. The
         //    saga's StockReserved handler transitions Reserved → AwaitingPick
@@ -196,12 +197,16 @@ public sealed class SagaHappyPathTests : IAsyncLifetime
         await using (var verify = new OutboundDbContext(_tenant.Options))
         {
             var outbox = await verify.OutboxMessages.AsNoTracking().ToListAsync();
-            outbox.Should().Contain(o =>
-                o.EventType.StartsWith("ShopFlow.Contracts.Inventory.ConfirmStockV1")
-            );
-            outbox.Should().Contain(o =>
-                o.EventType.StartsWith("ShopFlow.Contracts.Outbound.TrackingPushedV1")
-            );
+            outbox
+                .Should()
+                .Contain(o =>
+                    o.EventType.StartsWith("ShopFlow.Contracts.Inventory.ConfirmStockV1")
+                );
+            outbox
+                .Should()
+                .Contain(o =>
+                    o.EventType.StartsWith("ShopFlow.Contracts.Outbound.TrackingPushedV1")
+                );
         }
     }
 
@@ -219,10 +224,12 @@ public sealed class SagaHappyPathTests : IAsyncLifetime
 
         var firstOrderId = await CreateOrderViaControllerAsync(externalId);
         var secondOrderId = await CreateOrderViaControllerAsync(externalId, expectIdempotent: true);
-        secondOrderId.Should().Be(
-            firstOrderId,
-            "duplicate POST should return the same order id (controller idempotency short-circuit)"
-        );
+        secondOrderId
+            .Should()
+            .Be(
+                firstOrderId,
+                "duplicate POST should return the same order id (controller idempotency short-circuit)"
+            );
 
         // Publish OrderPlacedV1 ONCE — that's what the outbox dispatcher
         // would do (one row → one publish). The saga must end up with
@@ -241,7 +248,9 @@ public sealed class SagaHappyPathTests : IAsyncLifetime
 
         // Database has exactly one Order row + one saga_state row.
         await using var verify = new OutboundDbContext(_tenant.Options);
-        var orderCount = await verify.Orders.CountAsync(o => o.ChannelExternalOrderId == externalId);
+        var orderCount = await verify.Orders.CountAsync(o =>
+            o.ChannelExternalOrderId == externalId
+        );
         orderCount.Should().Be(1);
 
         await using var conn = new NpgsqlConnection(_tenant.ConnectionString);
@@ -458,10 +467,7 @@ public sealed class SagaHappyPathTests : IAsyncLifetime
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
 
-        public Task Publish<T>(
-            object values,
-            CancellationToken cancellationToken = default
-        )
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
         public Task Publish<T>(

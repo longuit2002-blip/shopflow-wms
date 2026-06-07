@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using ShopFlow.Inventory.Domain;
 using ShopFlow.Inventory.Infrastructure.EntityConfigurations;
 using ShopFlow.SharedKernel.Infrastructure;
+using CatalogSku = ShopFlow.Inventory.Domain.Catalog.Sku;
 
 namespace ShopFlow.Inventory.Infrastructure;
 
@@ -68,6 +69,12 @@ public sealed class InventoryDbContext : DbContext
 
     public DbSet<InboundDedup> InboundDedup => Set<InboundDedup>();
 
+    /// <summary>
+    /// Sprint-7.5 U3 — per-tenant rich SKU catalog. Replaces the
+    /// in-memory <c>InMemorySkuMetadataStore</c> singleton.
+    /// </summary>
+    public DbSet<CatalogSku> Skus => Set<CatalogSku>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -80,5 +87,6 @@ public sealed class InventoryDbContext : DbContext
         modelBuilder.ApplyConfiguration(new BinConfiguration());
         modelBuilder.ApplyConfiguration(new StockItemBinConfiguration());
         modelBuilder.ApplyConfiguration(new InboundDedupConfiguration());
+        modelBuilder.ApplyConfiguration(new SkuConfiguration());
     }
 }

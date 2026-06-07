@@ -147,15 +147,9 @@ public sealed class PurchaseOrder : BaseEntity
         {
             return Result.Failure("already closed.", "po.already_closed");
         }
-        if (
-            Status != PurchaseOrderStatus.Open
-            && Status != PurchaseOrderStatus.PartiallyReceived
-        )
+        if (Status != PurchaseOrderStatus.Open && Status != PurchaseOrderStatus.PartiallyReceived)
         {
-            return Result.Failure(
-                $"cannot close PO in {Status} state.",
-                "po.invalid_state"
-            );
+            return Result.Failure($"cannot close PO in {Status} state.", "po.invalid_state");
         }
         if (_lines.Any(l => l.ReceivedQty < l.ExpectedQty))
         {
@@ -177,10 +171,7 @@ public sealed class PurchaseOrder : BaseEntity
     {
         if (string.IsNullOrWhiteSpace(reason))
         {
-            return Result.Failure(
-                "cancellation reason is required.",
-                "po.cancel_reason_required"
-            );
+            return Result.Failure("cancellation reason is required.", "po.cancel_reason_required");
         }
         if (Status == PurchaseOrderStatus.Cancelled)
         {
@@ -188,10 +179,7 @@ public sealed class PurchaseOrder : BaseEntity
         }
         if (Status != PurchaseOrderStatus.Draft && Status != PurchaseOrderStatus.Open)
         {
-            return Result.Failure(
-                $"cannot cancel PO in {Status} state.",
-                "po.invalid_state"
-            );
+            return Result.Failure($"cannot cancel PO in {Status} state.", "po.invalid_state");
         }
         Status = PurchaseOrderStatus.Cancelled;
         CancellationReason = reason.Trim();
@@ -222,10 +210,7 @@ public sealed class PurchaseOrder : BaseEntity
         var line = _lines.FirstOrDefault(l => l.Id == lineId);
         if (line is null)
         {
-            return Result.Failure(
-                $"line {lineId} not found on PO {Id}.",
-                "po.line_not_found"
-            );
+            return Result.Failure($"line {lineId} not found on PO {Id}.", "po.line_not_found");
         }
         var receipt = line.RecordReceipt(actualQty, now);
         if (!receipt.IsSuccess)

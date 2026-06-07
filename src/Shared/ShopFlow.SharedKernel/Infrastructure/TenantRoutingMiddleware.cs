@@ -100,8 +100,7 @@ public sealed class TenantRoutingMiddleware
         var correlationId =
             context.Request.Headers.TryGetValue(CorrelationHeader, out var hdr) && hdr.Count > 0
                 ? hdr.ToString()
-                : Activity.Current?.TraceId.ToString()
-                    ?? Guid.NewGuid().ToString("N");
+                : Activity.Current?.TraceId.ToString() ?? Guid.NewGuid().ToString("N");
 
         var userId = ExtractUserId(context.User);
 
@@ -120,9 +119,7 @@ public sealed class TenantRoutingMiddleware
                 ? Normalize(hdr.ToString())
                 : null;
 
-        var jwtSlug = context
-            .User?.FindFirst(JwtTenantClaim)
-            ?.Value is { Length: > 0 } jwt
+        var jwtSlug = context.User?.FindFirst(JwtTenantClaim)?.Value is { Length: > 0 } jwt
             ? Normalize(jwt)
             : null;
 
@@ -192,8 +189,7 @@ public sealed class TenantRoutingMiddleware
         // System.IdentityModel.Tokens.Jwt at the kernel level. Modules that
         // expose authenticated endpoints add the JwtBearer auth scheme on
         // top; the kernel only reads the resolved ClaimsPrincipal.
-        var sub = user.FindFirst("sub")?.Value
-            ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var sub = user.FindFirst("sub")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return Guid.TryParse(sub, out var id) ? id : null;
     }
 

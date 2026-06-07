@@ -29,8 +29,22 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
     <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <!-- Finish-line U3 — the catalog-provisioning helper migrates
+         ControlPlaneDbContext via MigrationsAssembly("ShopFlow.ControlPlane.Migrations");
+         that assembly must be on the test's probing path. SharedKernel.IntegrationTests
+         references it for the same reason. -->
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
     <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Api\ShopFlow.StockSync.Api.csproj" />
     <ProjectReference Include="..\..\src\Services\StockSync\ShopFlow.StockSync.Infrastructure\ShopFlow.StockSync.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Finish-line U3 — shared proof-run gate (env/CI opt-in) for the
+         noisy-neighbor scale gate. Linked single-source (same idiom as the
+         other proof projects). -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>

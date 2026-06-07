@@ -53,9 +53,8 @@ public sealed class SkuFlagTests
 
         flag.SetFlashSale(true);
 
-        flag.UpdatedAt.Should().BeNull(
-            "idempotent set must not advance UpdatedAt when value is unchanged"
-        );
+        flag.UpdatedAt.Should()
+            .BeNull("idempotent set must not advance UpdatedAt when value is unchanged");
     }
 
     [Fact]

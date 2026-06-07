@@ -27,8 +27,15 @@ namespace ShopFlow.Outbound.UnitTests.PickWaveGeneratorTests;
 /// </summary>
 public sealed class PickWaveGeneratorTests
 {
-    private static readonly DateTime FixedNow =
-        new DateTime(2026, 5, 13, 10, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime FixedNow = new DateTime(
+        2026,
+        5,
+        13,
+        10,
+        0,
+        0,
+        DateTimeKind.Utc
+    );
 
     // Per-test instance fields so each test gets a fresh InMemory db name.
     // (xUnit constructs a new instance per [Fact], so each test sees a
@@ -170,29 +177,13 @@ public sealed class PickWaveGeneratorTests
         {
             queue
                 .GetWriter(_tenantAId)
-                .TryWrite(
-                    new PickRequestV1(
-                        Guid.NewGuid(),
-                        _tenantAId,
-                        "standard",
-                        aged,
-                        1
-                    )
-                );
+                .TryWrite(new PickRequestV1(Guid.NewGuid(), _tenantAId, "standard", aged, 1));
         }
         for (var i = 0; i < 20; i++)
         {
             queue
                 .GetWriter(_tenantAId)
-                .TryWrite(
-                    new PickRequestV1(
-                        Guid.NewGuid(),
-                        _tenantAId,
-                        "express",
-                        aged,
-                        1
-                    )
-                );
+                .TryWrite(new PickRequestV1(Guid.NewGuid(), _tenantAId, "express", aged, 1));
         }
 
         await SeedOrdersForQueuedItemsAsync(sut, queue, _tenantAId);
@@ -249,11 +240,13 @@ public sealed class PickWaveGeneratorTests
             pickerSequence.Add(thisWave.PickerId);
         }
 
-        pickerSequence.Should().BeEquivalentTo(
-            new[] { "picker-1", "picker-2", "picker-3" },
-            opts => opts.WithStrictOrdering(),
-            "the round-robin cursor must step through pickers ordered by picker_id"
-        );
+        pickerSequence
+            .Should()
+            .BeEquivalentTo(
+                new[] { "picker-1", "picker-2", "picker-3" },
+                opts => opts.WithStrictOrdering(),
+                "the round-robin cursor must step through pickers ordered by picker_id"
+            );
     }
 
     // â”€â”€ Per-tenant isolation ---------------------------------------------
@@ -335,15 +328,7 @@ public sealed class PickWaveGeneratorTests
         {
             queue
                 .GetWriter(_tenantAId)
-                .TryWrite(
-                    new PickRequestV1(
-                        Guid.NewGuid(),
-                        _tenantAId,
-                        "standard",
-                        fresh,
-                        1
-                    )
-                );
+                .TryWrite(new PickRequestV1(Guid.NewGuid(), _tenantAId, "standard", fresh, 1));
         }
 
         await SeedOrdersForQueuedItemsAsync(sut, queue, _tenantAId);
@@ -373,15 +358,7 @@ public sealed class PickWaveGeneratorTests
         {
             queue
                 .GetWriter(_tenantAId)
-                .TryWrite(
-                    new PickRequestV1(
-                        Guid.NewGuid(),
-                        _tenantAId,
-                        "standard",
-                        enqueueAt,
-                        1
-                    )
-                );
+                .TryWrite(new PickRequestV1(Guid.NewGuid(), _tenantAId, "standard", enqueueAt, 1));
         }
         await SeedOrdersForQueuedItemsAsync(sut, queue, _tenantAId);
 
@@ -398,9 +375,9 @@ public sealed class PickWaveGeneratorTests
 
         await using var v2 = new OutboundDbContext(sut.OptionsByTenantId[_tenantAId]);
         (await v2.PickWaves.CountAsync()).Should().Be(1);
-        (
-            await v2.PickAssignments.CountAsync(a => a.PickWaveId == v2.PickWaves.Single().Id)
-        ).Should().Be(5);
+        (await v2.PickAssignments.CountAsync(a => a.PickWaveId == v2.PickWaves.Single().Id))
+            .Should()
+            .Be(5);
     }
 
     // â”€â”€ Test infrastructure ----------------------------------------------
@@ -479,7 +456,11 @@ public sealed class PickWaveGeneratorTests
                     .UseInMemoryDatabase(t.DbName)
                     .ConfigureWarnings(w =>
                         w.Ignore(
-                            Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning
+                            Microsoft
+                                .EntityFrameworkCore
+                                .Diagnostics
+                                .InMemoryEventId
+                                .TransactionIgnoredWarning
                         )
                     )
                     .Options
@@ -574,15 +555,15 @@ public sealed class PickWaveGeneratorTests
         var index = 0;
         foreach (var item in snapshot)
         {
-            var order = Order.Create(
-                $"seed-{tenantId:N}-{index++}",
-                item.ShippingProfile,
-                new[] { ("SKU-X", 1, (int?)1) }
-            ).Value!;
+            var order = Order
+                .Create(
+                    $"seed-{tenantId:N}-{index++}",
+                    item.ShippingProfile,
+                    new[] { ("SKU-X", 1, (int?)1) }
+                )
+                .Value!;
             // Match the queued OrderId so the generator's FindByIdAsync hits.
-            typeof(BaseEntity)
-                .GetProperty("Id")!
-                .SetValue(order, item.OrderId);
+            typeof(BaseEntity).GetProperty("Id")!.SetValue(order, item.OrderId);
             seedCtx.Orders.Add(order);
         }
         await seedCtx.SaveChangesAsync();

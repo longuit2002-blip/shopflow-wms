@@ -37,7 +37,7 @@ public sealed class StockSyncOptions
     /// High lane stays small (flash-sale traffic is bursty but short);
     /// normal lane carries baseline mirror traffic.
     /// </summary>
-    public QueueCapacity QueueCapacity { get; init; } = new();
+    public QueueCapacitySettings QueueCapacity { get; init; } = new();
 
     /// <summary>
     /// Token-bucket parameters for the per-<c>(tenant, channel)</c>
@@ -59,7 +59,7 @@ public sealed class StockSyncOptions
     /// Bounded-channel capacities for the high + normal priority lanes
     /// of <c>PerTenantQueue</c>.
     /// </summary>
-    public sealed class QueueCapacity
+    public sealed class QueueCapacitySettings
     {
         /// <summary>High-priority lane capacity (flash-sale traffic).</summary>
         public int HighCap { get; init; } = 1_000;

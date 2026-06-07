@@ -36,11 +36,7 @@ public sealed class ChannelOutbox : IChannelOutbox
         ArgumentNullException.ThrowIfNull(payload);
 
         var traceId = Activity.Current?.TraceId.ToString();
-        var json = JsonSerializer.Serialize(
-            payload,
-            payload.GetType(),
-            OutboxJsonOptions.Default
-        );
+        var json = JsonSerializer.Serialize(payload, payload.GetType(), OutboxJsonOptions.Default);
 
         await _db
             .OutboxMessages.AddAsync(

@@ -86,9 +86,7 @@ public class ArgParserTests
     [Fact]
     public void Parse_duplicate_flag_is_error()
     {
-        var result = ArgParser.Parse(
-            new[] { "provision", "--tenant=a", "--tenant=b" }
-        );
+        var result = ArgParser.Parse(new[] { "provision", "--tenant=a", "--tenant=b" });
 
         result.IsOk.Should().BeFalse();
         result.ErrorMessage.Should().Contain("duplicate flag '--tenant'");

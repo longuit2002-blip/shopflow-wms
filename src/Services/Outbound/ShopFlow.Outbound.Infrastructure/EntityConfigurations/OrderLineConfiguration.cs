@@ -31,6 +31,8 @@ internal sealed class OrderLineConfiguration : IEntityTypeConfiguration<OrderLin
         builder.Property(l => l.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(l => l.UpdatedAt).HasColumnName("updated_at");
 
-        builder.HasIndex(l => new { l.OrderId, l.Sku }).HasDatabaseName("ix_order_lines_order_id_sku");
+        builder
+            .HasIndex(l => new { l.OrderId, l.Sku })
+            .HasDatabaseName("ix_order_lines_order_id_sku");
     }
 }

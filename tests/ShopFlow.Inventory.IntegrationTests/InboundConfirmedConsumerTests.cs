@@ -104,7 +104,9 @@ public sealed class InboundConfirmedConsumerTests : IAsyncLifetime
 
         await harness.Bus.Publish(msg);
 
-        var consumed = await harness.GetConsumerHarness<InboundConfirmedConsumer>().Consumed.Any<InboundConfirmedV1>();
+        var consumed = await harness
+            .GetConsumerHarness<InboundConfirmedConsumer>()
+            .Consumed.Any<InboundConfirmedV1>();
         consumed.Should().BeTrue();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
@@ -137,7 +139,9 @@ public sealed class InboundConfirmedConsumerTests : IAsyncLifetime
         );
 
         await harness.Bus.Publish(msg);
-        await harness.GetConsumerHarness<InboundConfirmedConsumer>().Consumed.Any<InboundConfirmedV1>();
+        await harness
+            .GetConsumerHarness<InboundConfirmedConsumer>()
+            .Consumed.Any<InboundConfirmedV1>();
 
         // Second delivery with same dedup key
         await harness.Bus.Publish(msg);
@@ -176,7 +180,9 @@ public sealed class InboundConfirmedConsumerTests : IAsyncLifetime
         await harness.Bus.Publish(msg);
 
         // Consumer throws → message faulted.
-        var faulted = await harness.GetConsumerHarness<InboundConfirmedConsumer>().Consumed.Any<InboundConfirmedV1>(x => x.Exception is not null);
+        var faulted = await harness
+            .GetConsumerHarness<InboundConfirmedConsumer>()
+            .Consumed.Any<InboundConfirmedV1>(x => x.Exception is not null);
         faulted.Should().BeTrue();
 
         await using var verify = new InventoryDbContext(_tenant.Options);

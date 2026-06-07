@@ -38,20 +38,19 @@ public sealed class TenantChannelBreakerRegistryTests
         int samplingDurationSeconds = 30
     )
     {
-        var options = Options.Create(new StockSyncOptions
-        {
-            Breaker = new StockSyncOptions.BreakerSettings
+        var options = Options.Create(
+            new StockSyncOptions
             {
-                MinimumThroughput = minimumThroughput,
-                BreakDurationSeconds = breakDurationSeconds,
-                SamplingDurationSeconds = samplingDurationSeconds,
-            },
-        });
-
-        var factory = new PushPipelineFactory(
-            options,
-            NullLogger<PushPipelineFactory>.Instance
+                Breaker = new StockSyncOptions.BreakerSettings
+                {
+                    MinimumThroughput = minimumThroughput,
+                    BreakDurationSeconds = breakDurationSeconds,
+                    SamplingDurationSeconds = samplingDurationSeconds,
+                },
+            }
         );
+
+        var factory = new PushPipelineFactory(options, NullLogger<PushPipelineFactory>.Instance);
         return new TenantChannelBreakerRegistry(factory);
     }
 
@@ -61,8 +60,11 @@ public sealed class TenantChannelBreakerRegistryTests
         var registry = NewRegistry();
         var pipeline = registry.GetOrCreate(TenantA, "shopee");
 
-        var result = await pipeline
-            .ExecuteAsync(static (_, _) => ValueTask.FromResult(Result.Success()), 0, CancellationToken.None);
+        var result = await pipeline.ExecuteAsync(
+            static (_, _) => ValueTask.FromResult(Result.Success()),
+            0,
+            CancellationToken.None
+        );
 
         result.IsSuccess.Should().BeTrue();
         registry.GetState(TenantA, "shopee").Should().Be("Closed");
@@ -90,12 +92,12 @@ public sealed class TenantChannelBreakerRegistryTests
         }
 
         // 6th call must short-circuit with BrokenCircuitException.
-        var act = async () => await pipeline.ExecuteAsync(
-            static (_, _) =>
-                ValueTask.FromResult(Result.Success()),
-            0,
-            CancellationToken.None
-        );
+        var act = async () =>
+            await pipeline.ExecuteAsync(
+                static (_, _) => ValueTask.FromResult(Result.Success()),
+                0,
+                CancellationToken.None
+            );
 
         await act.Should().ThrowAsync<BrokenCircuitException>();
         registry.GetState(TenantA, "shopee").Should().Be("Open");

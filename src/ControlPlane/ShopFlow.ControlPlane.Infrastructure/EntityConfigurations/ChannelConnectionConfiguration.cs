@@ -18,10 +18,7 @@ internal sealed class ChannelConnectionConfiguration : IEntityTypeConfiguration<
 
         builder.HasKey(c => c.ChannelId);
 
-        builder
-            .Property(c => c.ChannelId)
-            .HasColumnName("channel_id")
-            .ValueGeneratedNever();
+        builder.Property(c => c.ChannelId).HasColumnName("channel_id").ValueGeneratedNever();
 
         builder.Ignore(c => c.Id);
 
@@ -43,8 +40,6 @@ internal sealed class ChannelConnectionConfiguration : IEntityTypeConfiguration<
 
         builder.Property(c => c.UpdatedAt).HasColumnName("updated_at");
 
-        builder
-            .HasIndex(c => c.TenantId)
-            .HasDatabaseName("ix_channel_connections_tenant_id");
+        builder.HasIndex(c => c.TenantId).HasDatabaseName("ix_channel_connections_tenant_id");
     }
 }

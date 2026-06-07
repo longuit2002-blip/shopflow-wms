@@ -7,6 +7,13 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
+    <!-- Sprint-8.5 U6 — OpaqueCursorTests imports ShopFlow.Inventory.Infrastructure.Pagination
+         (Sprint-7.5 U6 cursor pagination). Project-ref was missed when the test landed. -->
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <!-- Sprint-10 U1 — InventoryAuthorizePolicyCoverageTests reflects over the
+         Inventory.Api controllers to pin per-action [Authorize(Policy=...)]
+         attribution. -->
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Api\ShopFlow.Inventory.Api.csproj" />
   </ItemGroup>
 
 </Project>

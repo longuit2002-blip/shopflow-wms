@@ -12,6 +12,11 @@
     <ProjectReference Include="..\ShopFlow.StockSync.Infrastructure\ShopFlow.StockSync.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
     <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <!-- Finish-line U6 — the StockSync dispatcher pushes stock updates through
+         IChannelAdapterFactory. In the modular-monolith stage StockSync.Api
+         composes the real ChannelAdapterFactory + ShopeeAdapter via
+         AddChannelAdapterFramework (push-side only, no webhook schema). -->
+    <ProjectReference Include="..\..\Channel\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

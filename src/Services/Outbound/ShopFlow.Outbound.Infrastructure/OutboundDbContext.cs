@@ -62,6 +62,13 @@ public sealed class OutboundDbContext : DbContext
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    /// <summary>
+    /// Sprint-7 R14 — append-only audit of saga state transitions. Written
+    /// by <c>SagaTransitionObserver : IStateObserver&lt;FulfillmentSagaState&gt;</c>;
+    /// read by the Orders detail route's transitions endpoint.
+    /// </summary>
+    public DbSet<OrderTransition> OrderTransitions => Set<OrderTransition>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -72,6 +79,7 @@ public sealed class OutboundDbContext : DbContext
         modelBuilder.ApplyConfiguration(new PickAssignmentConfiguration());
         modelBuilder.ApplyConfiguration(new PickerConfiguration());
         modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration());
+        modelBuilder.ApplyConfiguration(new OrderTransitionConfiguration());
 
         // U4: register the MassTransit saga state mapping so MT's EF saga
         // repository (configured via .ExistingDbContext<OutboundDbContext>()

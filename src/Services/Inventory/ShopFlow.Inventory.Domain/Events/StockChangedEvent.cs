@@ -11,9 +11,5 @@ namespace ShopFlow.Inventory.Domain.Events;
 /// a hint to re-read; the canonical numbers live on the
 /// <c>StockItem</c> aggregate.
 /// </summary>
-public sealed record StockChangedEvent(
-    string Sku,
-    int Available,
-    int Reserved,
-    DateTime OccurredAt
-) : IDomainEvent;
+public sealed record StockChangedEvent(string Sku, int Available, int Reserved, DateTime OccurredAt)
+    : IDomainEvent;

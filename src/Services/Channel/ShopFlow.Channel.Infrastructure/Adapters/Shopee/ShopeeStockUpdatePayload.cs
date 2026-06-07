@@ -48,9 +48,6 @@ public sealed record ShopeeStockListEntry(
 /// </summary>
 internal static class ShopeeJson
 {
-    public static JsonSerializerOptions Options { get; } = new()
-    {
-        WriteIndented = false,
-        PropertyNameCaseInsensitive = true,
-    };
+    public static JsonSerializerOptions Options { get; } =
+        new() { WriteIndented = false, PropertyNameCaseInsensitive = true };
 }

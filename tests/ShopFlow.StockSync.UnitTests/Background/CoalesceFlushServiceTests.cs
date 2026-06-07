@@ -17,8 +17,7 @@ namespace ShopFlow.StockSync.UnitTests.Background;
 public sealed class CoalesceFlushServiceTests
 {
     private static readonly Guid TenantA = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly DateTime BaseTime =
-        new(2026, 5, 16, 10, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime BaseTime = new(2026, 5, 16, 10, 0, 0, DateTimeKind.Utc);
 
     private static StockSyncOptions NewOptions(int windowMs = 500) =>
         new() { CoalesceWindowMs = windowMs };
@@ -32,28 +31,34 @@ public sealed class CoalesceFlushServiceTests
 
         await svc.FlushAsync(CancellationToken.None);
 
-        await queue.DidNotReceive().EnqueueAsync(
-            Arg.Any<PushIntent>(), Arg.Any<CancellationToken>());
+        await queue
+            .DidNotReceive()
+            .EnqueueAsync(Arg.Any<PushIntent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task FlushAsync_DrainsBufferAndEnqueuesOneIntentPerEntry()
     {
         var buffer = new CoalescingBuffer();
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-X", "shopee"),
-            new CoalesceEntry(7, BaseTime, IsFlashSale: false));
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-Y", "shopee"),
-            new CoalesceEntry(3, BaseTime, IsFlashSale: true));
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-X", "lazada"),
-            new CoalesceEntry(7, BaseTime, IsFlashSale: false));
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-X", "shopee"),
+            new CoalesceEntry(7, BaseTime, IsFlashSale: false)
+        );
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-Y", "shopee"),
+            new CoalesceEntry(3, BaseTime, IsFlashSale: true)
+        );
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-X", "lazada"),
+            new CoalesceEntry(7, BaseTime, IsFlashSale: false)
+        );
 
         var queue = Substitute.For<IPerTenantQueue>();
         var svc = NewService(buffer, queue);
 
         await svc.FlushAsync(CancellationToken.None);
 
-        await queue.Received(3).EnqueueAsync(
-            Arg.Any<PushIntent>(), Arg.Any<CancellationToken>());
+        await queue.Received(3).EnqueueAsync(Arg.Any<PushIntent>(), Arg.Any<CancellationToken>());
         buffer.Count.Should().Be(0);
     }
 
@@ -66,7 +71,8 @@ public sealed class CoalesceFlushServiceTests
 
         var captured = new List<PushIntent>();
         var queue = Substitute.For<IPerTenantQueue>();
-        queue.EnqueueAsync(Arg.Any<PushIntent>(), Arg.Any<CancellationToken>())
+        queue
+            .EnqueueAsync(Arg.Any<PushIntent>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 captured.Add(call.Arg<PushIntent>());
@@ -78,8 +84,9 @@ public sealed class CoalesceFlushServiceTests
 
         captured.Should().HaveCount(1);
         var intent = captured[0];
-        intent.IdempotencyKey.Should().Be(
-            PushIntent.BuildIdempotencyKey(TenantA, "SKU-X", "shopee", BaseTime));
+        intent
+            .IdempotencyKey.Should()
+            .Be(PushIntent.BuildIdempotencyKey(TenantA, "SKU-X", "shopee", BaseTime));
         intent.TenantId.Should().Be(TenantA);
         intent.Sku.Should().Be("SKU-X");
         intent.ChannelType.Should().Be("shopee");
@@ -92,12 +99,15 @@ public sealed class CoalesceFlushServiceTests
     public async Task FlushAsync_PreservesIsFlashSaleFlagOnIntent()
     {
         var buffer = new CoalescingBuffer();
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-FLASH", "shopee"),
-            new CoalesceEntry(2, BaseTime, IsFlashSale: true));
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-FLASH", "shopee"),
+            new CoalesceEntry(2, BaseTime, IsFlashSale: true)
+        );
 
         var captured = new List<PushIntent>();
         var queue = Substitute.For<IPerTenantQueue>();
-        queue.EnqueueAsync(Arg.Any<PushIntent>(), Arg.Any<CancellationToken>())
+        queue
+            .EnqueueAsync(Arg.Any<PushIntent>(), Arg.Any<CancellationToken>())
             .Returns(call =>
             {
                 captured.Add(call.Arg<PushIntent>());
@@ -115,12 +125,18 @@ public sealed class CoalesceFlushServiceTests
     public async Task FlushAsync_EnqueueFault_DoesNotStopOtherEntries()
     {
         var buffer = new CoalescingBuffer();
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-X", "shopee"),
-            new CoalesceEntry(1, BaseTime, false));
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-Y", "shopee"),
-            new CoalesceEntry(2, BaseTime, false));
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-Z", "shopee"),
-            new CoalesceEntry(3, BaseTime, false));
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-X", "shopee"),
+            new CoalesceEntry(1, BaseTime, false)
+        );
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-Y", "shopee"),
+            new CoalesceEntry(2, BaseTime, false)
+        );
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-Z", "shopee"),
+            new CoalesceEntry(3, BaseTime, false)
+        );
 
         var queue = Substitute.For<IPerTenantQueue>();
         var callCount = 0;
@@ -151,8 +167,10 @@ public sealed class CoalesceFlushServiceTests
         // 50ms window so the test isn't slow. Verifies the timer wiring
         // — not the per-entry drain (that's covered above).
         var buffer = new CoalescingBuffer();
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-X", "shopee"),
-            new CoalesceEntry(7, BaseTime, false));
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-X", "shopee"),
+            new CoalesceEntry(7, BaseTime, false)
+        );
 
         var queue = Substitute.For<IPerTenantQueue>();
 
@@ -165,9 +183,12 @@ public sealed class CoalesceFlushServiceTests
         await Task.Delay(200, CancellationToken.None);
         await svc.StopAsync(CancellationToken.None);
 
-        await queue.Received().EnqueueAsync(
-            Arg.Is<PushIntent>(p => p.Sku == "SKU-X" && p.Available == 7),
-            Arg.Any<CancellationToken>());
+        await queue
+            .Received()
+            .EnqueueAsync(
+                Arg.Is<PushIntent>(p => p.Sku == "SKU-X" && p.Available == 7),
+                Arg.Any<CancellationToken>()
+            );
         buffer.Count.Should().Be(0);
     }
 
@@ -175,8 +196,10 @@ public sealed class CoalesceFlushServiceTests
     public async Task ExecuteAsync_NeverFlushes_BeforeFirstWindowElapses()
     {
         var buffer = new CoalescingBuffer();
-        buffer.Upsert(new CoalesceKey(TenantA, "SKU-X", "shopee"),
-            new CoalesceEntry(7, BaseTime, false));
+        buffer.Upsert(
+            new CoalesceKey(TenantA, "SKU-X", "shopee"),
+            new CoalesceEntry(7, BaseTime, false)
+        );
 
         var queue = Substitute.For<IPerTenantQueue>();
 
@@ -188,8 +211,9 @@ public sealed class CoalesceFlushServiceTests
 
         await Task.Delay(100, CancellationToken.None);
 
-        await queue.DidNotReceive().EnqueueAsync(
-            Arg.Any<PushIntent>(), Arg.Any<CancellationToken>());
+        await queue
+            .DidNotReceive()
+            .EnqueueAsync(Arg.Any<PushIntent>(), Arg.Any<CancellationToken>());
 
         await svc.StopAsync(CancellationToken.None);
     }
@@ -197,7 +221,8 @@ public sealed class CoalesceFlushServiceTests
     private static CoalesceFlushService NewService(
         ICoalescingBuffer buffer,
         IPerTenantQueue queue,
-        int windowMs = 500) =>
+        int windowMs = 500
+    ) =>
         new(
             buffer,
             queue,

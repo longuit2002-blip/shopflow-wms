@@ -90,10 +90,7 @@ public sealed class IngestWebhookService
         );
         if (!eventResult.IsSuccess)
         {
-            return Result<IngestWebhookResult>.Failure(
-                eventResult.Error!,
-                eventResult.ErrorCode
-            );
+            return Result<IngestWebhookResult>.Failure(eventResult.Error!, eventResult.ErrorCode);
         }
 
         var insertResult = await _webhookEvents
@@ -102,10 +99,7 @@ public sealed class IngestWebhookService
 
         if (!insertResult.IsSuccess)
         {
-            return Result<IngestWebhookResult>.Failure(
-                insertResult.Error!,
-                insertResult.ErrorCode
-            );
+            return Result<IngestWebhookResult>.Failure(insertResult.Error!, insertResult.ErrorCode);
         }
 
         var outcome = insertResult.Value!;
@@ -169,20 +163,14 @@ public sealed class IngestWebhookService
         );
         if (!eventResult.IsSuccess)
         {
-            return Result<IngestWebhookResult>.Failure(
-                eventResult.Error!,
-                eventResult.ErrorCode
-            );
+            return Result<IngestWebhookResult>.Failure(eventResult.Error!, eventResult.ErrorCode);
         }
 
         var webhookEvent = eventResult.Value!;
         var markResult = webhookEvent.MarkFailed(failureReason, DateTime.UtcNow);
         if (!markResult.IsSuccess)
         {
-            return Result<IngestWebhookResult>.Failure(
-                markResult.Error!,
-                markResult.ErrorCode
-            );
+            return Result<IngestWebhookResult>.Failure(markResult.Error!, markResult.ErrorCode);
         }
 
         var insertResult = await _webhookEvents
@@ -191,10 +179,7 @@ public sealed class IngestWebhookService
 
         if (!insertResult.IsSuccess)
         {
-            return Result<IngestWebhookResult>.Failure(
-                insertResult.Error!,
-                insertResult.ErrorCode
-            );
+            return Result<IngestWebhookResult>.Failure(insertResult.Error!, insertResult.ErrorCode);
         }
 
         var outcome = insertResult.Value!;

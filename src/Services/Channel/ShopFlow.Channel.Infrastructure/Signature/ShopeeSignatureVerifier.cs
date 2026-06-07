@@ -25,6 +25,12 @@ public sealed class ShopeeSignatureVerifier : ISignatureVerifier
 {
     public string ChannelType => "shopee";
 
+    /// <summary>
+    /// Shopee sends its HMAC base64 signature in <c>X-Shopee-Signature</c>.
+    /// The receiver reads this header per channel type (finish-line K8).
+    /// </summary>
+    public string SignatureHeaderName => "X-Shopee-Signature";
+
     public bool Verify(ReadOnlySpan<byte> body, string signature, ReadOnlySpan<byte> secret)
     {
         if (string.IsNullOrWhiteSpace(signature) || secret.IsEmpty)

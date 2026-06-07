@@ -50,8 +50,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class SagaCompensationFlowTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
 
     private readonly OutboundTenantFixture _fx;
     private ProvisionedOutboundTenant _tenant = default!;
@@ -185,10 +184,7 @@ public sealed class SagaCompensationFlowTests : IAsyncLifetime
                 TenantId: _tenant.Info.Id,
                 ChannelExternalOrderId: "ext-comp-pathA",
                 ShippingProfile: "standard",
-                Lines: new[]
-                {
-                    new OrderPlacedLineV1("L1", "SKU-A", 999, 100),
-                },
+                Lines: new[] { new OrderPlacedLineV1("L1", "SKU-A", 999, 100) },
                 OccurredAt: DateTime.UtcNow
             )
         );
@@ -200,10 +196,7 @@ public sealed class SagaCompensationFlowTests : IAsyncLifetime
             new StockReservationFailedV1(
                 OrderId: orderId,
                 TenantId: _tenant.Info.Id,
-                LineOutcomes: new[]
-                {
-                    new LineOutcomeV1("L1", "SKU-A", null, "Oversold"),
-                },
+                LineOutcomes: new[] { new LineOutcomeV1("L1", "SKU-A", null, "Oversold") },
                 OccurredAt: DateTime.UtcNow
             )
         );
@@ -218,9 +211,11 @@ public sealed class SagaCompensationFlowTests : IAsyncLifetime
             .Published.Select<ReleaseStockV1>()
             .Where(p => p.Context.Message.OrderId == orderId)
             .ToList();
-        released.Should().BeEmpty(
-            "Path A (atomic CTE failure) must NOT publish ReleaseStockV1 — there's nothing to release."
-        );
+        released
+            .Should()
+            .BeEmpty(
+                "Path A (atomic CTE failure) must NOT publish ReleaseStockV1 — there's nothing to release."
+            );
 
         // OrderCancelled consumer flips Order to Cancelled (Order was
         // still in Created — MarkCancelled accepts Created → Cancelled).
@@ -347,9 +342,7 @@ public sealed class SagaCompensationFlowTests : IAsyncLifetime
             }
             await Task.Delay(50);
         }
-        throw new TimeoutException(
-            $"Order {orderId} did not reach status {expected} within 10s."
-        );
+        throw new TimeoutException($"Order {orderId} did not reach status {expected} within 10s.");
     }
 
     private sealed record ControllerHarness(OrdersController Controller, OutboundDbContext Db)
@@ -420,10 +413,7 @@ public sealed class SagaCompensationFlowTests : IAsyncLifetime
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
 
-        public Task Publish<T>(
-            object values,
-            CancellationToken cancellationToken = default
-        )
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
         public Task Publish<T>(

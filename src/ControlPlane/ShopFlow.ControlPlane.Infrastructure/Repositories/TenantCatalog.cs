@@ -155,7 +155,15 @@ public sealed class TenantCatalog : ITenantCatalog
 
     private void Hydrate(TenantInfo info)
     {
-        var options = new MemoryCacheEntryOptions { SlidingExpiration = DefaultTtl };
+        // Size is MANDATORY: the backing IMemoryCache is registered with
+        // SizeLimit=1000 (AddControlPlane), and Set() throws
+        // "Cache entry must specify a value for Size when SizeLimit is set"
+        // without it. Each entry counts as 1 toward the 1000-entry LRU cap —
+        // the D2-intended sizing. (Finish-line U3: this faulted EVERY real
+        // TenantCatalog lookup — dispatcher enumeration, consumer SKU-flag
+        // reads, routing middleware — but per-PR CI uses FakeTenantCatalog, so
+        // the real cache write had never been exercised.)
+        var options = new MemoryCacheEntryOptions { SlidingExpiration = DefaultTtl, Size = 1 };
         _cache.Set(SlugKeyPrefix + info.Slug, info, options);
         _cache.Set(IdKeyPrefix + info.Id, info, options);
     }

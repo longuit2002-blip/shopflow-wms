@@ -34,10 +34,21 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
     <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <!--
+      Finish-line U7 — the harness applies control-plane migrations
+      reflectively via MigrationsAssembly("ShopFlow.ControlPlane.Migrations"),
+      so the migrations assembly must land in the test output dir. Without
+      this reference the Docker-backed receive tests throw
+      FileNotFoundException at TenantWebhookHarness.ApplyControlPlaneMigrationsAsync
+      (a never-run composition gap surfaced when these facts first executed).
+    -->
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
     <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Api\ShopFlow.Channel.Api.csproj" />
     <ProjectReference Include="..\..\src\Services\Channel\ShopFlow.Channel.Infrastructure\ShopFlow.Channel.Infrastructure.csproj" />
     <!-- Sprint-5 U6 — round-trip test boots the Shopee mock in-process via WebApplicationFactory<Program>. -->
     <ProjectReference Include="..\..\tools\mocks\shopee\ShopFlow.Mocks.Shopee.csproj" />
+    <!-- Finish-line U7 — round-trip test boots the Lazada mock in-process via WebApplicationFactory<MockEntryPoint>. -->
+    <ProjectReference Include="..\..\tools\mocks\lazada\ShopFlow.Mocks.Lazada.csproj" />
   </ItemGroup>
 
 </Project>

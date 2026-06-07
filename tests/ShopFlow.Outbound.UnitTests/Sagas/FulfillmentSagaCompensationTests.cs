@@ -59,8 +59,7 @@ public sealed class FulfillmentSagaCompensationTests
 
         services.AddMassTransitTestHarness(cfg =>
         {
-            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .InMemoryRepository();
+            cfg.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>().InMemoryRepository();
         });
 
         var sp = services.BuildServiceProvider(true);
@@ -123,8 +122,9 @@ public sealed class FulfillmentSagaCompensationTests
         // pre-check (orchestrator brief calls it out explicitly).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -146,8 +146,9 @@ public sealed class FulfillmentSagaCompensationTests
         // branch publishes ONE ReleaseStockV1 carrying both line ids.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -168,7 +169,9 @@ public sealed class FulfillmentSagaCompensationTests
             .Published.Select<ReleaseStockV1>()
             .Where(p => p.Context.Message.OrderId == orderId)
             .ToList();
-        released.Should().HaveCount(1, "the saga publishes one multi-line ReleaseStockV1 per PickFailed");
+        released
+            .Should()
+            .HaveCount(1, "the saga publishes one multi-line ReleaseStockV1 per PickFailed");
         var msg = released.Single().Context.Message;
         msg.TenantId.Should().Be(tenantId);
         msg.OrderLineIds.Should().BeEquivalentTo(new[] { "L1", "L2" });
@@ -183,8 +186,9 @@ public sealed class FulfillmentSagaCompensationTests
         // ReleaseStockV1 and StockReleasedV1.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -208,13 +212,8 @@ public sealed class FulfillmentSagaCompensationTests
             )
         );
 
-        var cancelled = await sagaHarness.Exists(
-            orderId,
-            sagaHarness.StateMachine.Cancelled
-        );
-        cancelled
-            .Should()
-            .NotBeNull("once the counter hits 0 the saga transitions to Cancelled");
+        var cancelled = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Cancelled);
+        cancelled.Should().NotBeNull("once the counter hits 0 the saga transitions to Cancelled");
 
         var saga = sagaHarness.Created.Contains(orderId)!;
         saga.LinesAwaitingRelease.Should().BeLessOrEqualTo(0);
@@ -239,8 +238,9 @@ public sealed class FulfillmentSagaCompensationTests
         // publish (release-the-empty-set is a no-op).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -271,10 +271,7 @@ public sealed class FulfillmentSagaCompensationTests
             )
         );
 
-        var cancelled = await sagaHarness.Exists(
-            orderId,
-            sagaHarness.StateMachine.Cancelled
-        );
+        var cancelled = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Cancelled);
         cancelled
             .Should()
             .NotBeNull(
@@ -304,8 +301,9 @@ public sealed class FulfillmentSagaCompensationTests
         // has no handler for StockReleasedV1 so the redelivery is ignored).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -368,8 +366,9 @@ public sealed class FulfillmentSagaCompensationTests
         // its results in tranches).
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
@@ -405,6 +404,306 @@ public sealed class FulfillmentSagaCompensationTests
         finalSaga.ReleasedLineSkus.Should().Contain("L2");
     }
 
+    // ── Sprint-12.5 U3 — Path C: ShipFailed compensation ────────────────────
+    //
+    // Saga state Packed + ShipFailed → CompensatingReservation. Reuses the
+    // Path B compensation primitives (LinesAwaitingRelease counter +
+    // ReservedLineSkus set + WhenEnter IfElse activity) unchanged. The
+    // counter survives through AwaitingPick → Picked → Packed because no
+    // transition handler clears it.
+
+    /// <summary>
+    /// Drive the saga from Initial through AwaitingPick → Picked → Packed.
+    /// Mirrors <see cref="DriveSagaToAwaitingPickAsync"/> but extends to
+    /// Packed state needed for Path C entry.
+    /// </summary>
+    private static async Task DriveSagaToPackedAsync(
+        ITestHarness harness,
+        ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState> sagaHarness,
+        Guid orderId,
+        Guid tenantId
+    )
+    {
+        await DriveSagaToAwaitingPickAsync(harness, sagaHarness, orderId, tenantId);
+
+        await harness.Bus.Publish(new PickConfirmed(orderId));
+        (await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Picked))
+            .Should()
+            .NotBeNull("PickConfirmed in AwaitingPick transitions to Picked");
+
+        await harness.Bus.Publish(new PackConfirmed(orderId, ActualWeightTotal: 250));
+        (await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Packed))
+            .Should()
+            .NotBeNull("PackConfirmed in Picked transitions to Packed");
+    }
+
+    [Fact]
+    public async Task ShipFailed_PathC_PublishesSingleReleaseStockWithReservedLineIds()
+    {
+        // Path C happy path. Saga drives to Packed with ReservedLineSkus="L1,L2"
+        // + LinesAwaitingRelease=2 (set at AwaitingReservation → Reserved,
+        // unchanged through to Packed). ShipFailed transitions to
+        // CompensatingReservation; the WhenEnter IfElse Else-branch publishes
+        // ONE ReleaseStockV1 carrying both line ids — exactly Path B's behavior.
+        await using var sp = await BuildHarnessAsync();
+        var harness = sp.GetRequiredService<ITestHarness>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
+
+        var orderId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        await DriveSagaToPackedAsync(harness, sagaHarness, orderId, tenantId);
+
+        // Before ShipFailed: counter + line set populated unchanged from Reserved.
+        var beforeShipFail = sagaHarness.Created.Contains(orderId)!;
+        beforeShipFail.LinesAwaitingRelease.Should().Be(2);
+        beforeShipFail.ReservedLineSkus.Should().Contain("L1");
+        beforeShipFail.ReservedLineSkus.Should().Contain("L2");
+
+        await harness.Bus.Publish(new ShipFailed(orderId, "carrier rejected label"));
+
+        var compensating = await sagaHarness.Exists(
+            orderId,
+            sagaHarness.StateMachine.CompensatingReservation
+        );
+        compensating
+            .Should()
+            .NotBeNull("ShipFailed in Packed transitions to CompensatingReservation");
+
+        var released = harness
+            .Published.Select<ReleaseStockV1>()
+            .Where(p => p.Context.Message.OrderId == orderId)
+            .ToList();
+        released
+            .Should()
+            .HaveCount(1, "Path C publishes one multi-line ReleaseStockV1, same as Path B");
+        var msg = released.Single().Context.Message;
+        msg.TenantId.Should().Be(tenantId);
+        msg.OrderLineIds.Should().BeEquivalentTo(new[] { "L1", "L2" });
+    }
+
+    [Fact]
+    public async Task ShipFailed_ThenStockReleasedForAllLines_TransitionsToCancelled()
+    {
+        // Path C full flow: ShipFailed → ReleaseStockV1 → StockReleasedV1
+        // for both lines → counter 2 → 0 → Cancelled. Identical to Path B's
+        // counter-drain behavior — Sprint-12.5 KTD5 reuse claim under test.
+        await using var sp = await BuildHarnessAsync();
+        var harness = sp.GetRequiredService<ITestHarness>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
+
+        var orderId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        await DriveSagaToPackedAsync(harness, sagaHarness, orderId, tenantId);
+
+        await harness.Bus.Publish(new ShipFailed(orderId, "damaged in loading"));
+        (await sagaHarness.Exists(orderId, sagaHarness.StateMachine.CompensatingReservation))
+            .Should()
+            .NotBeNull();
+
+        await harness.Bus.Publish(
+            new StockReleasedV1(
+                OrderId: orderId,
+                TenantId: tenantId,
+                OrderLineIds: new[] { "L1", "L2" },
+                OccurredAt: DateTime.UtcNow
+            )
+        );
+
+        var cancelled = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Cancelled);
+        cancelled
+            .Should()
+            .NotBeNull("Path C drains identically to Path B once StockReleased arrives");
+
+        (await harness.Published.Any<OrderCancelled>(x => x.Context.Message.OrderId == orderId))
+            .Should()
+            .BeTrue("Cancelled on-enter publishes OrderCancelled — Path C parity with Path B");
+    }
+
+    // ── Sprint-13 U3 — Path D: PackFailed compensation ──────────────────────
+    //
+    // Saga state Picked + PackFailed → CompensatingReservation. Reuses the
+    // Path B / Path C compensation primitives (LinesAwaitingRelease counter +
+    // ReservedLineSkus set + WhenEnter IfElse activity) unchanged (K4). The
+    // counter survives through AwaitingPick → Picked because no transition
+    // handler clears it. Per K1, Picked is the pre-state (NOT AwaitingPack —
+    // the saga never enters AwaitingPack; it goes Picked → Packed directly).
+
+    /// <summary>
+    /// Drive the saga from Initial through AwaitingPick → Picked. Mirrors
+    /// <see cref="DriveSagaToPackedAsync"/> but stops at Picked, the Path D
+    /// entry state.
+    /// </summary>
+    private static async Task DriveSagaToPickedAsync(
+        ITestHarness harness,
+        ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState> sagaHarness,
+        Guid orderId,
+        Guid tenantId
+    )
+    {
+        await DriveSagaToAwaitingPickAsync(harness, sagaHarness, orderId, tenantId);
+
+        await harness.Bus.Publish(new PickConfirmed(orderId));
+        (await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Picked))
+            .Should()
+            .NotBeNull("PickConfirmed in AwaitingPick transitions to Picked");
+    }
+
+    [Fact]
+    public async Task PackFailed_PathD_PublishesSingleReleaseStockWithReservedLineIds()
+    {
+        // Path D happy path. Saga drives to Picked with ReservedLineSkus="L1,L2"
+        // + LinesAwaitingRelease=2 (set at AwaitingReservation → Reserved,
+        // unchanged through to Picked). PackFailed transitions to
+        // CompensatingReservation; the WhenEnter IfElse Else-branch publishes
+        // ONE ReleaseStockV1 carrying both line ids — exactly Path B/C behavior.
+        await using var sp = await BuildHarnessAsync();
+        var harness = sp.GetRequiredService<ITestHarness>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
+
+        var orderId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        await DriveSagaToPickedAsync(harness, sagaHarness, orderId, tenantId);
+
+        // Before PackFailed: counter + line set populated unchanged from Reserved.
+        var beforePackFail = sagaHarness.Created.Contains(orderId)!;
+        beforePackFail.LinesAwaitingRelease.Should().Be(2);
+        beforePackFail.ReservedLineSkus.Should().Contain("L1");
+        beforePackFail.ReservedLineSkus.Should().Contain("L2");
+
+        await harness.Bus.Publish(new PackFailed(orderId, "item damaged at pack station"));
+
+        var compensating = await sagaHarness.Exists(
+            orderId,
+            sagaHarness.StateMachine.CompensatingReservation
+        );
+        compensating
+            .Should()
+            .NotBeNull("PackFailed in Picked transitions to CompensatingReservation");
+
+        var released = harness
+            .Published.Select<ReleaseStockV1>()
+            .Where(p => p.Context.Message.OrderId == orderId)
+            .ToList();
+        released
+            .Should()
+            .HaveCount(1, "Path D publishes one multi-line ReleaseStockV1, same as Path B/C");
+        var msg = released.Single().Context.Message;
+        msg.TenantId.Should().Be(tenantId);
+        msg.OrderLineIds.Should().BeEquivalentTo(new[] { "L1", "L2" });
+    }
+
+    [Fact]
+    public async Task PackFailed_ThenStockReleasedForAllLines_TransitionsToCancelled()
+    {
+        // Path D full flow: PackFailed → ReleaseStockV1 → StockReleasedV1
+        // for both lines → counter 2 → 0 → Cancelled. Identical to Path B/C
+        // counter-drain behavior — Sprint-13 K4 reuse claim under test.
+        await using var sp = await BuildHarnessAsync();
+        var harness = sp.GetRequiredService<ITestHarness>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
+
+        var orderId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        await DriveSagaToPickedAsync(harness, sagaHarness, orderId, tenantId);
+
+        await harness.Bus.Publish(new PackFailed(orderId, "crushed corner"));
+        (await sagaHarness.Exists(orderId, sagaHarness.StateMachine.CompensatingReservation))
+            .Should()
+            .NotBeNull();
+
+        await harness.Bus.Publish(
+            new StockReleasedV1(
+                OrderId: orderId,
+                TenantId: tenantId,
+                OrderLineIds: new[] { "L1", "L2" },
+                OccurredAt: DateTime.UtcNow
+            )
+        );
+
+        var cancelled = await sagaHarness.Exists(orderId, sagaHarness.StateMachine.Cancelled);
+        cancelled
+            .Should()
+            .NotBeNull("Path D drains identically to Path B/C once StockReleased arrives");
+
+        (await harness.Published.Any<OrderCancelled>(x => x.Context.Message.OrderId == orderId))
+            .Should()
+            .BeTrue("Cancelled on-enter publishes OrderCancelled — Path D parity with Path B/C");
+    }
+
+    [Fact]
+    public async Task PackFailed_InWrongState_IsIgnoredAsOutOfBand()
+    {
+        // Saga still in AwaitingPick (no PickConfirmed yet). PackFailed has
+        // no When mapping in AwaitingPick — MT treats it as out-of-band and
+        // the saga stays put. Defends against a controller-side race where
+        // the operator hits mark-pack-failed before the saga has progressed
+        // to Picked. Also pins the redelivery-after-CompensatingReservation
+        // case implicitly: once the saga has moved past Picked, the
+        // During(Picked, When(PackFailed)) clause no longer applies.
+        await using var sp = await BuildHarnessAsync();
+        var harness = sp.GetRequiredService<ITestHarness>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
+
+        var orderId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        await DriveSagaToAwaitingPickAsync(harness, sagaHarness, orderId, tenantId);
+
+        await harness.Bus.Publish(new PackFailed(orderId, "premature"));
+        await Task.Delay(200);
+
+        var saga = sagaHarness.Created.Contains(orderId)!;
+        saga.CurrentState.Should()
+            .Be("AwaitingPick", "saga ignores PackFailed outside Picked state");
+
+        var released = harness
+            .Published.Select<ReleaseStockV1>()
+            .Where(p => p.Context.Message.OrderId == orderId)
+            .ToList();
+        released.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ShipFailed_InWrongState_IsIgnoredAsOutOfBand()
+    {
+        // Saga still in AwaitingPick (no PackConfirmed yet). ShipFailed has
+        // no When mapping in AwaitingPick — MT treats it as out-of-band and
+        // the saga stays put. Defends against a controller-side race where
+        // the operator hits mark-ship-failed before the saga has progressed
+        // past Picked.
+        await using var sp = await BuildHarnessAsync();
+        var harness = sp.GetRequiredService<ITestHarness>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
+
+        var orderId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        await DriveSagaToAwaitingPickAsync(harness, sagaHarness, orderId, tenantId);
+
+        await harness.Bus.Publish(new ShipFailed(orderId, "premature"));
+        await Task.Delay(200);
+
+        var saga = sagaHarness.Created.Contains(orderId)!;
+        saga.CurrentState.Should()
+            .Be("AwaitingPick", "saga ignores ShipFailed outside Packed state");
+
+        var released = harness
+            .Published.Select<ReleaseStockV1>()
+            .Where(p => p.Context.Message.OrderId == orderId)
+            .ToList();
+        released.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task PickFailed_InWrongState_IsIgnoredAsOutOfBand()
     {
@@ -416,20 +715,14 @@ public sealed class FulfillmentSagaCompensationTests
         // AwaitingReservation.
         await using var sp = await BuildHarnessAsync();
         var harness = sp.GetRequiredService<ITestHarness>();
-        var sagaHarness =
-            sp.GetRequiredService<ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>>();
+        var sagaHarness = sp.GetRequiredService<
+            ISagaStateMachineTestHarness<FulfillmentSaga, FulfillmentSagaState>
+        >();
 
         var orderId = Guid.NewGuid();
         var tenantId = Guid.NewGuid();
         await harness.Bus.Publish(
-            new OrderPlacedV1(
-                orderId,
-                tenantId,
-                "ext-oob",
-                "standard",
-                TwoLines(),
-                DateTime.UtcNow
-            )
+            new OrderPlacedV1(orderId, tenantId, "ext-oob", "standard", TwoLines(), DateTime.UtcNow)
         );
         (await sagaHarness.Exists(orderId, sagaHarness.StateMachine.AwaitingReservation))
             .Should()

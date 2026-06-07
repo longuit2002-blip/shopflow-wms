@@ -52,7 +52,10 @@ public sealed class PostgresPropertyFixture : IAsyncLifetime
             await cmd.ExecuteNonQueryAsync();
         }
 
-        ConnectionString = new NpgsqlConnectionStringBuilder(admin) { Database = dbName }.ConnectionString;
+        ConnectionString = new NpgsqlConnectionStringBuilder(admin)
+        {
+            Database = dbName,
+        }.ConnectionString;
 
         Options = new DbContextOptionsBuilder<InventoryDbContext>()
             .UseNpgsql(

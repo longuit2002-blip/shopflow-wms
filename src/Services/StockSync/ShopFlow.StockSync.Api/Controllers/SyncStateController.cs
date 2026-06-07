@@ -34,10 +34,7 @@ public sealed class SyncStateController : ControllerBase
     private readonly ICoalescingBuffer _buffer;
     private readonly IOptions<StockSyncOptions> _options;
 
-    public SyncStateController(
-        ICoalescingBuffer buffer,
-        IOptions<StockSyncOptions> options
-    )
+    public SyncStateController(ICoalescingBuffer buffer, IOptions<StockSyncOptions> options)
     {
         ArgumentNullException.ThrowIfNull(buffer);
         ArgumentNullException.ThrowIfNull(options);

@@ -63,7 +63,10 @@ public sealed class DbContextOutsideFactoryAnalyzer : DiagnosticAnalyzer
     {
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
-        context.RegisterSyntaxNodeAction(AnalyzeObjectCreation, SyntaxKind.ObjectCreationExpression);
+        context.RegisterSyntaxNodeAction(
+            AnalyzeObjectCreation,
+            SyntaxKind.ObjectCreationExpression
+        );
         context.RegisterSyntaxNodeAction(AnalyzeLiteral, SyntaxKind.StringLiteralExpression);
     }
 
@@ -129,11 +132,7 @@ public sealed class DbContextOutsideFactoryAnalyzer : DiagnosticAnalyzer
         }
 
         context.ReportDiagnostic(
-            Diagnostic.Create(
-                Rule,
-                literal.GetLocation(),
-                "Hard-coded connection string"
-            )
+            Diagnostic.Create(Rule, literal.GetLocation(), "Hard-coded connection string")
         );
     }
 

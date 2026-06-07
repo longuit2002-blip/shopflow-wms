@@ -51,7 +51,9 @@ public sealed class ReservationExpiryWorkerTests
                 logger: NullLogger<ReservationExpiryWorker>.Instance
             );
 
-        act.Should().Throw<ArgumentOutOfRangeException>().WithMessage("*ExpiryPollIntervalSeconds*");
+        act.Should()
+            .Throw<ArgumentOutOfRangeException>()
+            .WithMessage("*ExpiryPollIntervalSeconds*");
     }
 
     [Fact]
@@ -237,8 +239,7 @@ public sealed class ReservationExpiryWorkerTests
         await using var conn = new NpgsqlConnection(tenant.ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText =
-            "SELECT COUNT(*) FROM reservations_ledger WHERE status = 'Expired'";
+        cmd.CommandText = "SELECT COUNT(*) FROM reservations_ledger WHERE status = 'Expired'";
         var scalar = (long)(await cmd.ExecuteScalarAsync())!;
         return (int)scalar;
     }
@@ -262,7 +263,8 @@ public sealed class ReservationExpiryWorkerTests
         await using var conn = new NpgsqlConnection(tenant.ConnectionString);
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM inventory_outbox_messages WHERE payload::text LIKE @p";
+        cmd.CommandText =
+            "SELECT COUNT(*) FROM inventory_outbox_messages WHERE payload::text LIKE @p";
         cmd.Parameters.AddWithValue("p", "%" + payloadSubstring + "%");
         var scalar = (long)(await cmd.ExecuteScalarAsync())!;
         return (int)scalar;

@@ -27,8 +27,6 @@ public sealed class PickWaveRepository : IPickWaveRepository
 
     public Task<PickWave?> FindByIdAsync(Guid id, CancellationToken ct)
     {
-        return _db
-            .PickWaves.Include(w => w.Assignments)
-            .FirstOrDefaultAsync(w => w.Id == id, ct);
+        return _db.PickWaves.Include(w => w.Assignments).FirstOrDefaultAsync(w => w.Id == id, ct);
     }
 }

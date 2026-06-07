@@ -73,7 +73,8 @@ public sealed class SkuFlagRepository : ISkuFlagRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pg
-                && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
         {
             // Concurrent admin write (or test priming) already inserted a
             // row with the same SKU primary key. Detach to keep the
@@ -84,10 +85,76 @@ public sealed class SkuFlagRepository : ISkuFlagRepository
             _db.Entry(newFlag).State = EntityState.Detached;
         }
 
-        var existing = await _db
-            .SkuFlags.FirstAsync(f => f.Sku == sku, ct)
-            .ConfigureAwait(false);
+        var existing = await _db.SkuFlags.FirstAsync(f => f.Sku == sku, ct).ConfigureAwait(false);
         existing.SetFlashSale(isFlashSale);
         await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task<bool> ApplyEventAsync(
+        Guid tenantId,
+        string sku,
+        bool isFlashSale,
+        DateTime occurredAt,
+        CancellationToken ct
+    )
+    {
+        _ = tenantId;
+        ArgumentException.ThrowIfNullOrWhiteSpace(sku);
+
+        // Look up existing row to apply the OccurredAt guard before any
+        // write. If the stored row's effective timestamp
+        // (UpdatedAt ?? CreatedAt) is newer than the incoming event,
+        // drop the write — Sprint-7.5 KTD3.
+        var existing = await _db
+            .SkuFlags.AsTracking()
+            .FirstOrDefaultAsync(f => f.Sku == sku, ct)
+            .ConfigureAwait(false);
+
+        if (existing is not null)
+        {
+            var storedAt = existing.UpdatedAt ?? existing.CreatedAt;
+            if (storedAt > occurredAt)
+            {
+                // Stale write — log + skip. The caller surfaces this as
+                // a "stale flash-sale event dropped" Debug entry.
+                return false;
+            }
+
+            existing.SetFlashSale(isFlashSale);
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            return true;
+        }
+
+        // No prior row: insert. Race with another consumer is caught by
+        // UNIQUE-23505 fallback below.
+        var fresh = SkuFlag.Create(sku, isFlashSale);
+        await _db.SkuFlags.AddAsync(fresh, ct).ConfigureAwait(false);
+
+        try
+        {
+            await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+            return true;
+        }
+        catch (DbUpdateException ex)
+            when (ex.InnerException is PostgresException pg
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
+        {
+            _db.Entry(fresh).State = EntityState.Detached;
+        }
+
+        // Re-resolve + re-apply the guard now that the racing row landed.
+        var landed = await _db
+            .SkuFlags.AsTracking()
+            .FirstAsync(f => f.Sku == sku, ct)
+            .ConfigureAwait(false);
+        var landedAt = landed.UpdatedAt ?? landed.CreatedAt;
+        if (landedAt > occurredAt)
+        {
+            return false;
+        }
+        landed.SetFlashSale(isFlashSale);
+        await _db.SaveChangesAsync(ct).ConfigureAwait(false);
+        return true;
     }
 }

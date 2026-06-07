@@ -38,7 +38,8 @@ public sealed class InboundDedupRepository : IInboundDedupRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pg
-                && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
         {
             // Duplicate redelivery — detach the conflicting entry so the
             // DbContext stays usable for the caller's ACK path.

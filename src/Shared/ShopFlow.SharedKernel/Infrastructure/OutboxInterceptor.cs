@@ -92,7 +92,11 @@ public sealed class OutboxInterceptor : SaveChangesInterceptor
                         Id = Guid.NewGuid(),
                         TenantId = tenantId,
                         EventType = ev.GetType().AssemblyQualifiedName!,
-                        Payload = JsonSerializer.Serialize(ev, ev.GetType(), OutboxJsonOptions.Default),
+                        Payload = JsonSerializer.Serialize(
+                            ev,
+                            ev.GetType(),
+                            OutboxJsonOptions.Default
+                        ),
                         TraceId = traceId,
                         CreatedAt = DateTime.UtcNow,
                     }

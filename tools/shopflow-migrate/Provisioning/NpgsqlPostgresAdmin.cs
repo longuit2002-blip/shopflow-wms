@@ -64,20 +64,13 @@ public sealed class NpgsqlPostgresAdmin : IPostgresAdmin
     {
         ValidateIdentifier(roleName, nameof(roleName));
         await using var conn = await OpenAsync(ct).ConfigureAwait(false);
-        await using var cmd = new NpgsqlCommand(
-            "SELECT 1 FROM pg_roles WHERE rolname = @n",
-            conn
-        );
+        await using var cmd = new NpgsqlCommand("SELECT 1 FROM pg_roles WHERE rolname = @n", conn);
         cmd.Parameters.AddWithValue("n", roleName);
         var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
         return result is not null;
     }
 
-    public async Task EnsureLoginRoleAsync(
-        string roleName,
-        string password,
-        CancellationToken ct
-    )
+    public async Task EnsureLoginRoleAsync(string roleName, string password, CancellationToken ct)
     {
         ValidateIdentifier(roleName, nameof(roleName));
         if (string.IsNullOrEmpty(password))
@@ -113,11 +106,7 @@ public sealed class NpgsqlPostgresAdmin : IPostgresAdmin
 
         await using (var conn = await OpenAsync(ct).ConfigureAwait(false))
         {
-            await Exec(
-                conn,
-                $"GRANT CONNECT ON DATABASE \"{dbName}\" TO \"{roleName}\"",
-                ct
-            )
+            await Exec(conn, $"GRANT CONNECT ON DATABASE \"{dbName}\" TO \"{roleName}\"", ct)
                 .ConfigureAwait(false);
         }
 
@@ -162,11 +151,7 @@ public sealed class NpgsqlPostgresAdmin : IPostgresAdmin
         );
     }
 
-    public async Task RevokeTenantConnectAsync(
-        string dbName,
-        string roleName,
-        CancellationToken ct
-    )
+    public async Task RevokeTenantConnectAsync(string dbName, string roleName, CancellationToken ct)
     {
         ValidateIdentifier(dbName, nameof(dbName));
         ValidateIdentifier(roleName, nameof(roleName));

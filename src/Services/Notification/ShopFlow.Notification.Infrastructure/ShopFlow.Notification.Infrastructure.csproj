@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Notification module — Infrastructure. Sprint-9.5 U1 ships the
+       DbContext + 3 EF entity configurations + the InitialNotificationSchema
+       per-tenant migration. U2 adds the mailer + template renderer
+       impls; U3 ships the 4 MT consumers + AddNotificationModule
+       composition root + the background dispatcher hosted service. -->
+
+  <PropertyGroup>
+    <!--
+      MailKit GHSA-9j88-vvj5-vhgr — moderate-severity advisory in the
+      MimeKit transitive dep graph; affects the 4.x line and has no
+      patched release at Sprint-9.5 ship time. The Notification module
+      uses MailKit only for outbound SMTP via SmtpClient (no IMAP /
+      cryptography paths) where the advisory's MIME-parsing surface
+      isn't reachable. Documented exception per AGENTS.md NU1902
+      pattern (OpenTelemetry GHSA-4625-4j76-fww9 precedent). Operational
+      pre-flight (docs/plans/...sprint-9.5...plan.md "Operational
+      Pre-Flight") gates re-evaluation on first prod deploy.
+    -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Notification.Application\ShopFlow.Notification.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Notification.Domain\ShopFlow.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+    <!-- Sprint-9.5 U3 — Notification consumers depend on
+         Auth.Application's IUserRepository for the Owner-fan-out path
+         on RefreshReuseDetectedV1 + AccountLockedV1. Cross-module
+         coupling accepted at modular-monolith stage (W6 split would
+         re-engineer this via shared read model or gRPC). -->
+    <ProjectReference Include="..\..\Auth\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
+    <ProjectReference Include="..\..\Auth\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Templates ship as embedded resources so the rendered output is
+         exactly what was reviewed at PR-time; no per-tenant template
+         override (Sprint-10+ may add). -->
+    <EmbeddedResource Include="Templates\*.tmpl" />
+  </ItemGroup>
+
+</Project>

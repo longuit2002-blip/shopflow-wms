@@ -7,10 +7,14 @@
 ;     shopflow-migrate connects to Postgres directly (bypass).
 ;
 ; Placeholders rewritten by ShopFlow.AppHost.PgBouncerConfig at dev startup
-; (and by the prod handoff manifest at deploy time):
-;   {databases}                — newline-delimited [databases] entries
-;   {auth_file}                — path to userlist.txt inside container
-;   {admin_users}              — comma-separated PgBouncer admin users
+; (and by the prod handoff manifest at deploy time). Do NOT write the literal
+; brace-tokens in these comments: PgBouncerConfig.Render does a plain string
+; Replace across the WHOLE file, so a token here would splice the multi-line
+; [databases] block into the comment region, yielding "value without section"
+; entries that crash vanilla PgBouncer (edoburu). Tokens, brace-free:
+;   databases   — placed under the [databases] header below (newline-delimited)
+;   auth_file   — substituted into the auth_file line (path to userlist.txt)
+;   admin_users — substituted into admin_users / stats_users (comma-separated)
 ;
 ; The template is also the prod source-of-truth: the same file ships to
 ; the production handoff (infrastructure/pgbouncer/) and is rendered at

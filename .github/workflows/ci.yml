@@ -1,22 +1,27 @@
 name: ci
 
-# Per-PR CI workflow for Phase-0-redux (plan U10).
+# Per-PR CI workflow.
 #
-# Stages, in order:
+# .NET stages (build-and-unit-test → integration-test), original
+# Phase-0-redux plan U10 contract:
 #   1. restore + build (warn-as-error from Directory.Build.props)
 #   2. csharpier --check (formatting gate; pre-commit equivalent)
 #   3. unit tests (Category != Integration && Category != Load)
 #   4. migration smoke + cross-tenant routing tests
-#      (Category == Integration; the load-bearing per-PR carve-out
-#      per AGENTS.md §8.61 — the bulk of the integration suite runs
+#      (Category == Integration; load-bearing per-PR carve-out per
+#      AGENTS.md §8.61 — the bulk of the integration suite runs
 #      nightly in chaos-nightly.yml.)
 #   5. analyzers — implicit, build fails on ShopFlow0001-0004 violations
 #      (.editorconfig severity is Error since U10).
 #
+# Frontend stage (Sprint-6 plan U13):
+#   - typecheck → lint → vitest run (incl. a11y smoke) → vite build.
+#   - Runs in parallel with the .NET jobs; both gates must pass to merge.
+#
 # Testcontainers needs a Docker daemon on the runner; GitHub-hosted
-# ubuntu-latest provides one out of the box. The integration job runs
-# after the unit job so a unit-test failure short-circuits the slower
-# integration lane.
+# ubuntu-latest provides one out of the box. The .NET integration job
+# runs after the unit job so a unit-test failure short-circuits the
+# slower integration lane.
 
 on:
   push:
@@ -87,3 +92,41 @@ jobs:
           tests/ShopFlow.SharedKernel.IntegrationTests/ShopFlow.SharedKernel.IntegrationTests.csproj
           --filter "Category=Integration"
           --logger "console;verbosity=normal"
+
+  frontend:
+    name: frontend (typecheck + lint + test + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm (pinned via package.json packageManager)
+        uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test (vitest run incl. a11y smoke)
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

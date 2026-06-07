@@ -32,7 +32,13 @@ public class TenantProvisionerTests
         var options = new DbContextOptionsBuilder<ControlPlaneDbContext>()
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .ConfigureWarnings(w =>
-                w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning)
+                w.Ignore(
+                    Microsoft
+                        .EntityFrameworkCore
+                        .Diagnostics
+                        .InMemoryEventId
+                        .TransactionIgnoredWarning
+                )
             )
             .Options;
         return new ControlPlaneDbContext(options);
@@ -99,9 +105,7 @@ public class TenantProvisionerTests
     public async Task Provision_resumes_from_failed_state()
     {
         using var catalog = NewCatalog();
-        var tenant = Tenant
-            .Create("acme", "shopflow_t_acme", "ap-southeast-1", "free")
-            .Value!;
+        var tenant = Tenant.Create("acme", "shopflow_t_acme", "ap-southeast-1", "free").Value!;
         tenant.BeginProvisioning();
         tenant.MarkProvisioningFailed("postgres timeout");
         catalog.Tenants.Add(tenant);
@@ -174,9 +178,7 @@ public class TenantProvisionerTests
     public async Task Provision_rejects_archived_tenant()
     {
         using var catalog = NewCatalog();
-        var tenant = Tenant
-            .Create("acme", "shopflow_t_acme", "ap-southeast-1", "free")
-            .Value!;
+        var tenant = Tenant.Create("acme", "shopflow_t_acme", "ap-southeast-1", "free").Value!;
         tenant.BeginProvisioning();
         tenant.MarkProvisioned();
         tenant.BeginArchiving();
@@ -218,9 +220,7 @@ public class TenantProvisionerTests
 
     private static void SeedReadyTenant(ControlPlaneDbContext db, string slug)
     {
-        var tenant = Tenant
-            .Create(slug, $"shopflow_t_{slug}", "ap-southeast-1", "free")
-            .Value!;
+        var tenant = Tenant.Create(slug, $"shopflow_t_{slug}", "ap-southeast-1", "free").Value!;
         tenant.BeginProvisioning();
         tenant.MarkProvisioned();
         db.Tenants.Add(tenant);

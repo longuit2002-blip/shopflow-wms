@@ -17,16 +17,18 @@ public sealed class ProductMappingsController : ControllerBase
     private readonly IProductMappingRepository _repo;
     private readonly IProductMappingService _service;
 
-    public ProductMappingsController(
-        IProductMappingRepository repo,
-        IProductMappingService service
-    )
+    public ProductMappingsController(IProductMappingRepository repo, IProductMappingService service)
     {
         _repo = repo;
         _service = service;
     }
 
-    public sealed record CreateMappingRequest(Guid ChannelId, string ExternalSku, string InternalSku);
+    public sealed record CreateMappingRequest(
+        Guid ChannelId,
+        string ExternalSku,
+        string InternalSku
+    );
+
     public sealed record ResolveRequest(Guid ChannelId, string ExternalSku);
 
     /// <summary>
@@ -61,15 +63,17 @@ public sealed class ProductMappingsController : ControllerBase
         }
 
         var mapping = result.Value!;
-        return Ok(new
-        {
-            id = mapping.Id,
-            channelId = mapping.ChannelId,
-            externalSku = mapping.ExternalSku.Value,
-            internalSku = mapping.InternalSku,
-            method = mapping.Method.ToString(),
-            confidence = mapping.ConfidenceScore,
-        });
+        return Ok(
+            new
+            {
+                id = mapping.Id,
+                channelId = mapping.ChannelId,
+                externalSku = mapping.ExternalSku.Value,
+                internalSku = mapping.InternalSku,
+                method = mapping.Method.ToString(),
+                confidence = mapping.ConfidenceScore,
+            }
+        );
     }
 
     /// <summary>
@@ -107,15 +111,17 @@ public sealed class ProductMappingsController : ControllerBase
         var rows = await _repo
             .ListByChannelAsync(channelId, page, pageSize, ct)
             .ConfigureAwait(false);
-        return Ok(rows.Select(r => new
-        {
-            id = r.Id,
-            channelId = r.ChannelId,
-            externalSku = r.ExternalSku.Value,
-            internalSku = r.InternalSku,
-            method = r.Method.ToString(),
-            confidence = r.ConfidenceScore,
-            createdAt = r.CreatedAt,
-        }));
+        return Ok(
+            rows.Select(r => new
+            {
+                id = r.Id,
+                channelId = r.ChannelId,
+                externalSku = r.ExternalSku.Value,
+                internalSku = r.InternalSku,
+                method = r.Method.ToString(),
+                confidence = r.ConfidenceScore,
+                createdAt = r.CreatedAt,
+            })
+        );
     }
 }

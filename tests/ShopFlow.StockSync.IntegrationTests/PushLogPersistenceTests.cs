@@ -76,7 +76,11 @@ public sealed class PushLogPersistenceTests
             var repo1 = new PushLogRepository(db1);
             await repo1.AppendAsync(
                 PushLogEntry.MarkSucceeded(
-                    tenant.Info.Id, "shopee", "SKU-2", 7, key,
+                    tenant.Info.Id,
+                    "shopee",
+                    "SKU-2",
+                    7,
+                    key,
                     latencyMs: 20,
                     observedAt: ObservedAt,
                     pushedAt: PushedAt
@@ -93,7 +97,11 @@ public sealed class PushLogPersistenceTests
             // insert silently and the first row stays canonical.
             await repo2.AppendAsync(
                 PushLogEntry.MarkSucceeded(
-                    tenant.Info.Id, "shopee", "SKU-2", 7, key,
+                    tenant.Info.Id,
+                    "shopee",
+                    "SKU-2",
+                    7,
+                    key,
                     latencyMs: 999,
                     observedAt: ObservedAt,
                     pushedAt: PushedAt
@@ -116,7 +124,10 @@ public sealed class PushLogPersistenceTests
         var repo = new PushLogRepository(db);
 
         var entry = PushLogEntry.MarkFailed(
-            tenant.Info.Id, "shopee", "SKU-3", 5,
+            tenant.Info.Id,
+            "shopee",
+            "SKU-3",
+            5,
             KeyFor(tenant.Info.Id, "SKU-3", "shopee"),
             errorCode: "shopee.push.5xx",
             latencyMs: 1200,
@@ -141,7 +152,10 @@ public sealed class PushLogPersistenceTests
         var repo = new PushLogRepository(db);
 
         var entry = PushLogEntry.MarkBreakerOpen(
-            tenant.Info.Id, "shopee", "SKU-4", 9,
+            tenant.Info.Id,
+            "shopee",
+            "SKU-4",
+            9,
             KeyFor(tenant.Info.Id, "SKU-4", "shopee"),
             observedAt: ObservedAt,
             rejectedAt: PushedAt

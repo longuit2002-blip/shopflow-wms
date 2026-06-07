@@ -59,7 +59,8 @@ public sealed class Quantity : ValueObject
         return From(Value - other.Value);
     }
 
-    public override string ToString() => Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    public override string ToString() =>
+        Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
     protected override IEnumerable<object?> GetEqualityComponents()
     {

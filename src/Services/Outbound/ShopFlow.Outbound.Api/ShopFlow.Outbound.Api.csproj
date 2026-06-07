@@ -10,6 +10,12 @@
   <ItemGroup>
     <ProjectReference Include="..\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
     <ProjectReference Include="..\ShopFlow.Outbound.Infrastructure\ShopFlow.Outbound.Infrastructure.csproj" />
+    <!-- Finish-line U4 — ITenantCatalog (TenantRoutingMiddleware + the SignalR
+         hub filter + the relay consumers depend on it) is registered by
+         AddControlPlane. Outbound.Api never referenced this, so the host could
+         not build once the double-AddMassTransit blocker was removed. Mirrors
+         StockSync.Api. -->
+    <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
     <ProjectReference Include="..\..\..\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
   </ItemGroup>

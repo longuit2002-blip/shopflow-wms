@@ -1,0 +1,37 @@
+/* Settings, Compliance, Audit additions
+ *
+ * Sprint-6 U2 — direct port from design canon `tokens-settings.css`.
+ * Sprint-6 only renders the Inventory screen so most of these classes are
+ * unused; they're shipped intact so future sprints (Settings, Compliance,
+ * Audit) can render against them without re-creating the tokens.
+ */
+
+.tier-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 14px; height: 14px;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700;
+  border-radius: 7px;
+  flex: none;
+}
+.tier-badge.tier-1 { background: var(--accent-soft); color: var(--accent-ink); border: 1px solid var(--accent-line); }
+.tier-badge.tier-2 { background: var(--bg-sunken); color: var(--ink-2); border: 1px solid var(--line); }
+.tier-badge.tier-3 { background: transparent; color: var(--ink-4); border: 1px dashed var(--line-strong); }
+
+.cat-chip {
+  font-size: 10.5px; padding: 1px 6px; background: var(--bg-sunken); color: var(--ink-2);
+  border: 1px solid var(--line); border-radius: 2px; white-space: nowrap;
+}
+
+.obj-chip {
+  font-size: 9.5px; font-weight: 600; padding: 1px 5px; border-radius: 2px;
+  background: var(--ink); color: var(--ink-inv); letter-spacing: 0.04em;
+  font-family: var(--font-mono); flex: none;
+}
+
+table.t-data.audit tbody tr.sel,
+table.t-data.audit tbody tr.sel:hover { background: var(--accent-soft); }
+table.t-data.audit tbody tr:hover { background: var(--bg-soft); }
+
+table.t-data.perm-matrix tbody tr.perm-group-row td { padding: 8px 14px; }
+table.t-data.perm-matrix th,
+table.t-data.perm-matrix td { padding-top: 7px; padding-bottom: 7px; }

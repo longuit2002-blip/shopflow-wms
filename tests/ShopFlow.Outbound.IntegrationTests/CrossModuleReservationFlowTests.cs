@@ -72,8 +72,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class CrossModuleReservationFlowTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
 
     private readonly CrossModuleTenantFixture _fx;
     private ProvisionedCrossModuleTenant _tenant = default!;
@@ -286,8 +285,9 @@ public sealed class CrossModuleReservationFlowTests : IAsyncLifetime
         ledger.Should().Be(0);
 
         // Stock unchanged.
-        var stock = (await verify.StockItems.AsNoTracking().ToListAsync())
-            .Single(s => s.Sku.Value == "SKU-A");
+        var stock = (await verify.StockItems.AsNoTracking().ToListAsync()).Single(s =>
+            s.Sku.Value == "SKU-A"
+        );
         stock.Available.Value.Should().Be(100);
         stock.Reserved.Value.Should().Be(0);
     }
@@ -323,9 +323,9 @@ public sealed class CrossModuleReservationFlowTests : IAsyncLifetime
         services.AddSingleton<IPickQueue, ShopFlow.Outbound.Infrastructure.PickQueue.PickQueue>();
 
         // Inventory side — DbContext + repositories the consumers need.
-        services.AddScoped<InventoryDbContext>(
-            _ => new InventoryDbContext(_tenant.InventoryOptions)
-        );
+        services.AddScoped<InventoryDbContext>(_ => new InventoryDbContext(
+            _tenant.InventoryOptions
+        ));
         services.AddScoped<IReservationRepository, ReservationRepository>();
         services.AddScoped<IStockItemRepository, StockItemRepository>();
         services.AddScoped<IInboundDedupRepository, InboundDedupRepository>();
@@ -507,12 +507,11 @@ public sealed class CrossModuleReservationFlowTests : IAsyncLifetime
             ?? throw new InvalidOperationException(
                 $"Outbox row references unknown type: {eventTypeName}"
             );
-        var deserialized =
-            System.Text.Json.JsonSerializer.Deserialize(
-                payload,
-                eventType,
-                ShopFlow.SharedKernel.Infrastructure.OutboxJsonOptions.Default
-            )!;
+        var deserialized = System.Text.Json.JsonSerializer.Deserialize(
+            payload,
+            eventType,
+            ShopFlow.SharedKernel.Infrastructure.OutboxJsonOptions.Default
+        )!;
 
         var sp = _hostServices!;
         var harness = sp.GetRequiredService<ITestHarness>();
@@ -591,7 +590,11 @@ public sealed class CrossModuleReservationFlowTests : IAsyncLifetime
         );
     }
 
-    private async Task WaitForLedgerStatusAsync(Guid orderId, string expectedStatus, int expectedRows)
+    private async Task WaitForLedgerStatusAsync(
+        Guid orderId,
+        string expectedStatus,
+        int expectedRows
+    )
     {
         var deadline = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < deadline)
@@ -681,10 +684,7 @@ public sealed class CrossModuleReservationFlowTests : IAsyncLifetime
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
 
-        public Task Publish<T>(
-            object values,
-            CancellationToken cancellationToken = default
-        )
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
         public Task Publish<T>(

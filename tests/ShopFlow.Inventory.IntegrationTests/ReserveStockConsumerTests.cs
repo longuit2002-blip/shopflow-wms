@@ -100,7 +100,8 @@ public sealed class ReserveStockConsumerTests : IAsyncLifetime
         doc.RootElement.GetProperty("lineOutcomes").GetArrayLength().Should().Be(2);
 
         // Ledger holds 2 rows for the order.
-        var ledger = await verify.Reservations.AsNoTracking()
+        var ledger = await verify
+            .Reservations.AsNoTracking()
             .Where(r => r.OrderId == orderId.ToString())
             .ToListAsync();
         ledger.Should().HaveCount(2);
@@ -154,15 +155,18 @@ public sealed class ReserveStockConsumerTests : IAsyncLifetime
             .Be("Oversold");
 
         // Atomic: no ledger rows for the order.
-        var ledger = await verify.Reservations.AsNoTracking()
+        var ledger = await verify
+            .Reservations.AsNoTracking()
             .CountAsync(r => r.OrderId == orderId.ToString());
         ledger.Should().Be(0);
 
         // Stock unchanged.
-        var stockA = (await verify.StockItems.AsNoTracking().ToListAsync())
-            .Single(s => s.Sku.Value == "SKU-A");
-        var stockB = (await verify.StockItems.AsNoTracking().ToListAsync())
-            .Single(s => s.Sku.Value == "SKU-B");
+        var stockA = (await verify.StockItems.AsNoTracking().ToListAsync()).Single(s =>
+            s.Sku.Value == "SKU-A"
+        );
+        var stockB = (await verify.StockItems.AsNoTracking().ToListAsync()).Single(s =>
+            s.Sku.Value == "SKU-B"
+        );
         stockA.Available.Value.Should().Be(50);
         stockB.Available.Value.Should().Be(10);
     }
@@ -178,10 +182,7 @@ public sealed class ReserveStockConsumerTests : IAsyncLifetime
         var msg = new ReserveStockV1(
             OrderId: orderId,
             TenantId: rc.TenantId,
-            Lines: new[]
-            {
-                new ReserveStockLineV1("L1", "SKU-A", 5),
-            },
+            Lines: new[] { new ReserveStockLineV1("L1", "SKU-A", 5) },
             Ttl: TimeSpan.FromMinutes(15)
         );
 
@@ -192,14 +193,17 @@ public sealed class ReserveStockConsumerTests : IAsyncLifetime
         await Task.Delay(300); // allow second consumption
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var ledgerCount = await verify.Reservations.AsNoTracking()
+        var ledgerCount = await verify
+            .Reservations.AsNoTracking()
             .CountAsync(r => r.OrderId == orderId.ToString());
         ledgerCount.Should().Be(1); // idempotency via composite UNIQUE
 
         // Consumer is idempotent at the repo, so two reserve events emit.
         var outboxCount = await verify
             .OutboxMessages.AsNoTracking()
-            .CountAsync(o => o.EventType.StartsWith("ShopFlow.Contracts.Inventory.StockReservedV1"));
+            .CountAsync(o =>
+                o.EventType.StartsWith("ShopFlow.Contracts.Inventory.StockReservedV1")
+            );
         outboxCount.Should().Be(2);
     }
 
@@ -212,10 +216,7 @@ public sealed class ReserveStockConsumerTests : IAsyncLifetime
         var msg = new ReserveStockV1(
             OrderId: Guid.NewGuid(),
             TenantId: Guid.NewGuid(), // wrong tenant — does not match RequestContext binding
-            Lines: new[]
-            {
-                new ReserveStockLineV1("L1", "SKU-A", 1),
-            },
+            Lines: new[] { new ReserveStockLineV1("L1", "SKU-A", 1) },
             Ttl: TimeSpan.FromMinutes(15)
         );
 
@@ -226,7 +227,8 @@ public sealed class ReserveStockConsumerTests : IAsyncLifetime
         faulted.Should().BeTrue();
 
         await using var verify = new InventoryDbContext(_tenant.Options);
-        var rows = await verify.Reservations.AsNoTracking()
+        var rows = await verify
+            .Reservations.AsNoTracking()
             .CountAsync(r => r.OrderId == msg.OrderId.ToString());
         rows.Should().Be(0);
     }

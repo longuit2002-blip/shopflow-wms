@@ -49,7 +49,8 @@ public sealed class ProductMappingRepository : IProductMappingRepository
         }
         catch (DbUpdateException ex)
             when (ex.InnerException is PostgresException pg
-                && pg.SqlState == PostgresErrorCodes.UniqueViolation)
+                && pg.SqlState == PostgresErrorCodes.UniqueViolation
+            )
         {
             _db.Entry(newMapping.Value!).State = EntityState.Detached;
 
@@ -74,10 +75,7 @@ public sealed class ProductMappingRepository : IProductMappingRepository
         ArgumentNullException.ThrowIfNull(externalSku);
         return _db
             .ProductMappings.AsNoTracking()
-            .FirstOrDefaultAsync(
-                m => m.ChannelId == channelId && m.ExternalSku == externalSku,
-                ct
-            );
+            .FirstOrDefaultAsync(m => m.ChannelId == channelId && m.ExternalSku == externalSku, ct);
     }
 
     public async Task<IReadOnlyList<ProductMapping>> ListByChannelAsync(
@@ -87,9 +85,12 @@ public sealed class ProductMappingRepository : IProductMappingRepository
         CancellationToken ct
     )
     {
-        if (page < 1) page = 1;
-        if (pageSize < 1) pageSize = 50;
-        if (pageSize > 500) pageSize = 500;
+        if (page < 1)
+            page = 1;
+        if (pageSize < 1)
+            pageSize = 50;
+        if (pageSize > 500)
+            pageSize = 500;
 
         return await _db
             .ProductMappings.AsNoTracking()

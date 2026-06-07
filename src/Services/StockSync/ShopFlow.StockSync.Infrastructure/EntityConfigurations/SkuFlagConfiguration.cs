@@ -21,16 +21,9 @@ internal sealed class SkuFlagConfiguration : IEntityTypeConfiguration<SkuFlag>
 
         builder.HasKey(s => s.Sku).HasName("pk_stock_sync_sku_flag");
 
-        builder
-            .Property(s => s.Sku)
-            .HasColumnName("sku")
-            .HasMaxLength(64)
-            .IsRequired();
+        builder.Property(s => s.Sku).HasColumnName("sku").HasMaxLength(64).IsRequired();
 
-        builder
-            .Property(s => s.IsFlashSale)
-            .HasColumnName("is_flash_sale")
-            .IsRequired();
+        builder.Property(s => s.IsFlashSale).HasColumnName("is_flash_sale").IsRequired();
 
         builder.Property(s => s.CreatedAt).HasColumnName("created_at").IsRequired();
 

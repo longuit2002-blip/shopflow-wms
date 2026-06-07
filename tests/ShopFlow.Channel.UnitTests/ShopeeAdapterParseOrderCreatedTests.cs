@@ -25,7 +25,10 @@ public sealed class ShopeeAdapterParseOrderCreatedTests
         return new ShopeeAdapter(parser, pipeline, httpClient);
     }
 
-    private static WebhookEnvelope EnvelopeForOrderCreated(string rawPayload, string eventType = "order.created") =>
+    private static WebhookEnvelope EnvelopeForOrderCreated(
+        string rawPayload,
+        string eventType = "order.created"
+    ) =>
         new(
             ChannelId: ChannelId,
             ProviderEventId: "evt-1",
@@ -37,10 +40,7 @@ public sealed class ShopeeAdapterParseOrderCreatedTests
     private static string HappyPathPayload(int lineCount = 2, string? shippingCarrier = "GHN") =>
         BuildPayload(
             ordersn: "ORDER-SP-001",
-            items: Enumerable
-                .Range(1, lineCount)
-                .Select(i => ($"SP-SKU-{i:000}", i + 1))
-                .ToArray(),
+            items: Enumerable.Range(1, lineCount).Select(i => ($"SP-SKU-{i:000}", i + 1)).ToArray(),
             shippingCarrier: shippingCarrier
         );
 
@@ -51,7 +51,9 @@ public sealed class ShopeeAdapterParseOrderCreatedTests
     )
     {
         var sb = new StringBuilder();
-        sb.Append("{ \"event_id\": \"evt-1\", \"event_type\": \"order.created\", \"shop_id\": 42, \"timestamp\": 1730000000, \"data\": { ");
+        sb.Append(
+            "{ \"event_id\": \"evt-1\", \"event_type\": \"order.created\", \"shop_id\": 42, \"timestamp\": 1730000000, \"data\": { "
+        );
         var dataParts = new List<string>();
         if (ordersn is not null)
         {
@@ -69,9 +71,7 @@ public sealed class ShopeeAdapterParseOrderCreatedTests
         }
         if (shippingCarrier is not null)
         {
-            dataParts.Add(
-                $"\"package_list\": [{{ \"shipping_carrier\": \"{shippingCarrier}\" }}]"
-            );
+            dataParts.Add($"\"package_list\": [{{ \"shipping_carrier\": \"{shippingCarrier}\" }}]");
         }
         sb.Append(string.Join(", ", dataParts));
         sb.Append(" } }");

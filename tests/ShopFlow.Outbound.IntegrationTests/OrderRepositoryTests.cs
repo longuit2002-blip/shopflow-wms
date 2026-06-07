@@ -81,8 +81,10 @@ public sealed class OrderRepositoryTests : IAsyncLifetime
         await dbWrite.SaveChangesAsync();
 
         await using var dbRead = new OutboundDbContext(_tenant.Options);
-        var found = await new OrderRepository(dbRead)
-            .FindByExternalIdAsync("ext-find-by-external", CancellationToken.None);
+        var found = await new OrderRepository(dbRead).FindByExternalIdAsync(
+            "ext-find-by-external",
+            CancellationToken.None
+        );
 
         found.Should().NotBeNull();
         found!.Id.Should().Be(order.Id);
@@ -105,9 +107,7 @@ public sealed class OrderRepositoryTests : IAsyncLifetime
     public async Task StateMachineRoundTrip_TransitionsAndShipmentMetadata_PersistAcrossReload()
     {
         await using var dbWrite = new OutboundDbContext(_tenant.Options);
-        var order = Order
-            .Create("ext-state", "standard", new[] { ("SKU-S", 1, (int?)200) })
-            .Value!;
+        var order = Order.Create("ext-state", "standard", new[] { ("SKU-S", 1, (int?)200) }).Value!;
         order.MarkAwaitingReservation();
         order.MarkReserved();
         order.MarkAwaitingPick();
@@ -119,8 +119,10 @@ public sealed class OrderRepositoryTests : IAsyncLifetime
         await dbWrite.SaveChangesAsync();
 
         await using var dbRead = new OutboundDbContext(_tenant.Options);
-        var reloaded = await new OrderRepository(dbRead)
-            .FindByIdAsync(order.Id, CancellationToken.None);
+        var reloaded = await new OrderRepository(dbRead).FindByIdAsync(
+            order.Id,
+            CancellationToken.None
+        );
 
         reloaded.Should().NotBeNull();
         reloaded!.Status.Should().Be(OrderStatus.Shipped);

@@ -82,7 +82,10 @@ public sealed class InboundToInventoryFlowTests : IAsyncLifetime
         // was the Sprint-2-redux U9 failure mode (outbox_messages name
         // collision). Sprint-2.5's per-module prefix lets them coexist.
         var inboundOptions = new DbContextOptionsBuilder<InboundDbContext>()
-            .UseNpgsql(_tenantConn, npg => npg.MigrationsAssembly("ShopFlow.Inbound.Infrastructure"))
+            .UseNpgsql(
+                _tenantConn,
+                npg => npg.MigrationsAssembly("ShopFlow.Inbound.Infrastructure")
+            )
             .Options;
         await using (var ctx = new InboundDbContext(inboundOptions))
         {
@@ -211,10 +214,12 @@ public sealed class InboundToInventoryFlowTests : IAsyncLifetime
             .Consumed.Select<InboundConfirmedV1>()
             .Where(c => c.Exception is not null)
             .ToList();
-        faulted.Should().BeEmpty(
-            "consumer must not fault — first fault: "
-                + (faulted.FirstOrDefault()?.Exception?.ToString() ?? "<none>")
-        );
+        faulted
+            .Should()
+            .BeEmpty(
+                "consumer must not fault — first fault: "
+                    + (faulted.FirstOrDefault()?.Exception?.ToString() ?? "<none>")
+            );
 
         // ── Assert Inventory stock was applied to the shared tenant DB.
         await using var verify = new InventoryDbContext(inventoryOpts);
@@ -307,7 +312,9 @@ public sealed class InboundToInventoryFlowTests : IAsyncLifetime
             ctx => ctx.Headers.Set("tenant_id", _tenantId.ToString())
         );
 
-        await harness.GetConsumerHarness<InboundConfirmedConsumer>().Consumed.Any<InboundConfirmedV1>();
+        await harness
+            .GetConsumerHarness<InboundConfirmedConsumer>()
+            .Consumed.Any<InboundConfirmedV1>();
 
         // Inventory stock reflects ACTUAL qty (95), not expected (100) —
         // the discrepancy is captured in the ticket, the stock change is
@@ -343,13 +350,17 @@ public sealed class InboundToInventoryFlowTests : IAsyncLifetime
         services.AddSingleton<RequestContext>(rc);
         services.AddSingleton<IRequestContext>(rc);
 
-        services.AddScoped<InventoryDbContext>(_ =>
-            new InventoryDbContext(
-                new DbContextOptionsBuilder<InventoryDbContext>().UseNpgsql(_tenantConn).Options
-            )
-        );
-        services.AddScoped<IStockItemRepository, ShopFlow.Inventory.Infrastructure.Repositories.StockItemRepository>();
-        services.AddScoped<IInboundDedupRepository, ShopFlow.Inventory.Infrastructure.Repositories.InboundDedupRepository>();
+        services.AddScoped<InventoryDbContext>(_ => new InventoryDbContext(
+            new DbContextOptionsBuilder<InventoryDbContext>().UseNpgsql(_tenantConn).Options
+        ));
+        services.AddScoped<
+            IStockItemRepository,
+            ShopFlow.Inventory.Infrastructure.Repositories.StockItemRepository
+        >();
+        services.AddScoped<
+            IInboundDedupRepository,
+            ShopFlow.Inventory.Infrastructure.Repositories.InboundDedupRepository
+        >();
 
         services.AddMassTransitTestHarness(cfg =>
         {

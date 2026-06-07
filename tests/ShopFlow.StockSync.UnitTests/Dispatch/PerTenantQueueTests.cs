@@ -20,19 +20,25 @@ public sealed class PerTenantQueueTests
 
     private static PerTenantQueue NewQueue(int highCap = 1_000, int normalCap = 10_000)
     {
-        var options = Options.Create(new StockSyncOptions
-        {
-            QueueCapacity = new StockSyncOptions.QueueCapacity
+        var options = Options.Create(
+            new StockSyncOptions
             {
-                HighCap = highCap,
-                NormalCap = normalCap,
-            },
-        });
+                QueueCapacity = new StockSyncOptions.QueueCapacitySettings
+                {
+                    HighCap = highCap,
+                    NormalCap = normalCap,
+                },
+            }
+        );
         return new PerTenantQueue(options);
     }
 
     private static PushIntent Intent(
-        Guid tenantId, string sku, bool flash, int available = 0, int observedMs = 0
+        Guid tenantId,
+        string sku,
+        bool flash,
+        int available = 0,
+        int observedMs = 0
     )
     {
         var observedAt = BaseTime.AddMilliseconds(observedMs);
@@ -64,7 +70,9 @@ public sealed class PerTenantQueueTests
         // The very first read must surface the flash-sale entry.
         var first = await queue.ReadNextAsync(TenantA, ct);
 
-        first.Sku.Should().Be("SKU-FLASH", "high lane has strict priority over a fully-loaded normal lane");
+        first
+            .Sku.Should()
+            .Be("SKU-FLASH", "high lane has strict priority over a fully-loaded normal lane");
         first.IsFlashSale.Should().BeTrue();
     }
 
@@ -77,9 +85,10 @@ public sealed class PerTenantQueueTests
 
         var act = async () => await queue.ReadNextAsync(TenantA, cts.Token);
 
-        await act.Should().ThrowAsync<OperationCanceledException>(
-            "with both lanes empty the reader must block until either an item arrives or the token cancels"
-        );
+        await act.Should()
+            .ThrowAsync<OperationCanceledException>(
+                "with both lanes empty the reader must block until either an item arrives or the token cancels"
+            );
     }
 
     [Fact]
@@ -112,14 +121,18 @@ public sealed class PerTenantQueueTests
 
         for (var i = 1; i <= 5; i++)
         {
-            await queue.EnqueueAsync(Intent(TenantA, $"H{i}", flash: true, available: i, observedMs: i), ct);
+            await queue.EnqueueAsync(
+                Intent(TenantA, $"H{i}", flash: true, available: i, observedMs: i),
+                ct
+            );
         }
 
         var r1 = await queue.ReadNextAsync(TenantA, ct);
         var r2 = await queue.ReadNextAsync(TenantA, ct);
         var r3 = await queue.ReadNextAsync(TenantA, ct);
 
-        r1.Available.Should().Be(3, "oldest two entries dropped — high-lane capacity 3 keeps the latest three");
+        r1.Available.Should()
+            .Be(3, "oldest two entries dropped — high-lane capacity 3 keeps the latest three");
         r2.Available.Should().Be(4);
         r3.Available.Should().Be(5);
     }
@@ -133,10 +146,16 @@ public sealed class PerTenantQueueTests
         // Saturate tenant A normal lane (4 writes against cap=2 → drops 1,2; keeps 3,4).
         for (var i = 1; i <= 4; i++)
         {
-            await queue.EnqueueAsync(Intent(TenantA, $"A-N{i}", flash: false, available: i, observedMs: i), ct);
+            await queue.EnqueueAsync(
+                Intent(TenantA, $"A-N{i}", flash: false, available: i, observedMs: i),
+                ct
+            );
         }
         // Tenant B writes one normal entry — must be unaffected.
-        await queue.EnqueueAsync(Intent(TenantB, "B-N1", flash: false, available: 100, observedMs: 100), ct);
+        await queue.EnqueueAsync(
+            Intent(TenantB, "B-N1", flash: false, available: 100, observedMs: 100),
+            ct
+        );
 
         var aFirst = await queue.ReadNextAsync(TenantA, ct);
         var aSecond = await queue.ReadNextAsync(TenantA, ct);

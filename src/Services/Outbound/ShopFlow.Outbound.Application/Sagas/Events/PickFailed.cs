@@ -12,4 +12,4 @@ namespace ShopFlow.Outbound.Application.Sagas.Events;
 /// Sprint-3-redux U4 ships the type so the state machine compiles; U7
 /// wires the controller publish + the compensation transition body.
 /// </remarks>
-public sealed record PickFailed(Guid OrderId, string Reason);
+public sealed record PickFailed(Guid OrderId, string Reason, Guid? ActorUserId = null);

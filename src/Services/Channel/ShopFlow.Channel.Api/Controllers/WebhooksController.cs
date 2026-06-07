@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using ShopFlow.Channel.Application.Adapters;
 using ShopFlow.Channel.Application.Ports;
 using ShopFlow.Channel.Application.Webhooks;
@@ -39,15 +40,24 @@ public sealed class WebhooksController : ControllerBase
     private readonly ITenantCatalog _tenantCatalog;
     private readonly ISignatureVerifierFactory _verifierFactory;
     private readonly IChannelAdapterFactory _adapterFactory;
-    private readonly WebhookOrchestrator _orchestrator;
     private readonly RequestContext _requestContext;
 
+    // NOTE: WebhookOrchestrator is intentionally NOT constructor-injected.
+    // Its dependency graph (IngestWebhookService → IChannelOutbox /
+    // IWebhookEventRepository → scoped ChannelDbContext via
+    // PerRequestDbContextFactory) reads IRequestContext.DbConnectionString
+    // at construction time. MVC activates the controller's ctor deps BEFORE
+    // the action runs, but RequestContext.Bind only happens mid-action
+    // (Step 4, after HMAC clears). Eager injection therefore threw
+    // "tenant scope accessed before the request boundary populated it" the
+    // first time this receiver ran through the WAF (a never-run composition
+    // gap). Resolving the orchestrator from HttpContext.RequestServices
+    // AFTER Bind keeps the scoped DbContext bound to the right tenant DB.
     public WebhooksController(
         IChannelDirectory channelDirectory,
         ITenantCatalog tenantCatalog,
         ISignatureVerifierFactory verifierFactory,
         IChannelAdapterFactory adapterFactory,
-        WebhookOrchestrator orchestrator,
         RequestContext requestContext
     )
     {
@@ -55,7 +65,6 @@ public sealed class WebhooksController : ControllerBase
         _tenantCatalog = tenantCatalog;
         _verifierFactory = verifierFactory;
         _adapterFactory = adapterFactory;
-        _orchestrator = orchestrator;
         _requestContext = requestContext;
     }
 
@@ -69,7 +78,6 @@ public sealed class WebhooksController : ControllerBase
     public async Task<IActionResult> Receive(
         [FromRoute] string channelType,
         [FromRoute] Guid channelId,
-        [FromHeader(Name = "X-Shopee-Signature")] string? signature,
         CancellationToken ct
     )
     {
@@ -80,11 +88,7 @@ public sealed class WebhooksController : ControllerBase
             return NotFound(new { error = "unknown channel" });
         }
 
-        if (!string.Equals(
-            binding.ChannelType,
-            channelType,
-            StringComparison.OrdinalIgnoreCase
-        ))
+        if (!string.Equals(binding.ChannelType, channelType, StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(new { error = "channel type mismatch" });
         }
@@ -102,16 +106,27 @@ public sealed class WebhooksController : ControllerBase
         var verifier = _verifierFactory.Resolve(binding.ChannelType);
         if (verifier is null)
         {
-            // No verifier registered for this channel type — Sprint-6+ will
-            // add Lazada/TikTok adapters. Surface loudly.
-            return StatusCode(StatusCodes.Status501NotImplemented, new
-            {
-                error = $"no verifier registered for channel type '{binding.ChannelType}'",
-            });
+            // No verifier registered for this channel type — surface loudly.
+            // Adding a marketplace (Lazada in finish-line U7) is a pure DI
+            // add; this 501 only fires for channel types with no verifier.
+            return StatusCode(
+                StatusCodes.Status501NotImplemented,
+                new { error = $"no verifier registered for channel type '{binding.ChannelType}'" }
+            );
         }
 
-        if (string.IsNullOrWhiteSpace(signature)
-            || !verifier.Verify(bodyBytes, signature, binding.SecretEncrypted))
+        // K8 — channel-agnostic signature extraction. Each marketplace names
+        // its signature header differently (X-Shopee-Signature /
+        // X-Lazada-Signature); the verifier owns the header name so the
+        // controller stays marketplace-agnostic. Read the header the resolved
+        // verifier expects rather than a hard-coded X-Shopee-Signature.
+        var headers = BuildHeaderSnapshot();
+        var signature = headers.TryGetValue(verifier.SignatureHeaderName, out var sig) ? sig : null;
+
+        if (
+            string.IsNullOrWhiteSpace(signature)
+            || !verifier.Verify(bodyBytes, signature, binding.SecretEncrypted)
+        )
         {
             return Unauthorized(new { error = "signature verification failed" });
         }
@@ -133,13 +148,12 @@ public sealed class WebhooksController : ControllerBase
         var adapter = _adapterFactory.TryResolve(binding.ChannelType);
         if (adapter is null)
         {
-            return StatusCode(StatusCodes.Status501NotImplemented, new
-            {
-                error = $"no adapter registered for channel type '{binding.ChannelType}'",
-            });
+            return StatusCode(
+                StatusCodes.Status501NotImplemented,
+                new { error = $"no adapter registered for channel type '{binding.ChannelType}'" }
+            );
         }
 
-        var headers = BuildHeaderSnapshot();
         var envelopeResult = adapter.ParseWebhook(channelId, bodyBytes, headers);
         if (!envelopeResult.IsSuccess)
         {
@@ -153,46 +167,51 @@ public sealed class WebhooksController : ControllerBase
         // per-line mapping resolution + OrderImportedV1 assembly + the
         // fail-whole-import path. Sprint-4.5 U3 — produces a WebhookProcessOutcome
         // that maps cleanly onto the 200-shape responses below.
-        var processResult = await _orchestrator
+        //
+        // Resolve the orchestrator NOW (post-Bind) from the request scope —
+        // its scoped ChannelDbContext binds to the tenant DB resolved above.
+        // See the ctor note on why this is not constructor-injected.
+        var orchestrator = HttpContext.RequestServices.GetRequiredService<WebhookOrchestrator>();
+        var processResult = await orchestrator
             .ProcessAsync(envelope, binding.ChannelType, binding.TenantId, ct)
             .ConfigureAwait(false);
 
         if (!processResult.IsSuccess)
         {
-            return BadRequest(
-                new { error = processResult.Error, code = processResult.ErrorCode }
-            );
+            return BadRequest(new { error = processResult.Error, code = processResult.ErrorCode });
         }
 
         var outcome = processResult.Value!;
         return outcome.Status switch
         {
-            WebhookProcessStatus.OrderImported => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-                status = "order_imported",
-            }),
-            WebhookProcessStatus.ImportFailed => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-                status = "import_failed",
-                reason = "unmapped_skus",
-                unmapped = outcome.UnmappedSkus,
-            }),
-            WebhookProcessStatus.EventSkipped => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-                status = "no_downstream",
-                eventType = envelope.EventType,
-            }),
-            _ => Ok(new
-            {
-                eventId = outcome.EventId,
-                isDuplicate = outcome.IsDuplicate,
-            }),
+            WebhookProcessStatus.OrderImported => Ok(
+                new
+                {
+                    eventId = outcome.EventId,
+                    isDuplicate = outcome.IsDuplicate,
+                    status = "order_imported",
+                }
+            ),
+            WebhookProcessStatus.ImportFailed => Ok(
+                new
+                {
+                    eventId = outcome.EventId,
+                    isDuplicate = outcome.IsDuplicate,
+                    status = "import_failed",
+                    reason = "unmapped_skus",
+                    unmapped = outcome.UnmappedSkus,
+                }
+            ),
+            WebhookProcessStatus.EventSkipped => Ok(
+                new
+                {
+                    eventId = outcome.EventId,
+                    isDuplicate = outcome.IsDuplicate,
+                    status = "no_downstream",
+                    eventType = envelope.EventType,
+                }
+            ),
+            _ => Ok(new { eventId = outcome.EventId, isDuplicate = outcome.IsDuplicate }),
         };
     }
 

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Auth module — Infrastructure. Sprint-8 U3 ships AuthDbContext +
+       UserConfiguration + the AddUsers per-tenant migration +
+       UserRepository (case-insensitive email lookup, 23505 → EmailInUse
+       Result). U4 adds Argon2idPasswordHasher; U5 the Redis refresh
+       store; U6 the JwtTokenIssuer. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" />
+    <PackageReference Include="StackExchange.Redis" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="Otp.NET" />
+  </ItemGroup>
+
+</Project>

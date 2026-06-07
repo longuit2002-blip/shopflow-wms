@@ -27,22 +27,22 @@ public sealed class SkuFlagCacheTests
     private static readonly Guid TenantA = Guid.Parse("11111111-1111-1111-1111-111111111111");
     private static readonly Guid TenantB = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-    private static TenantInfo TenantInfoFor(Guid id, string slug = "acme") => new(
-        Id: id,
-        Slug: slug,
-        DbName: $"shopflow_t_{slug}",
-        DbConnectionString: $"Host=localhost;Database=shopflow_t_{slug}",
-        Region: "ap-southeast-1",
-        Tier: "free",
-        Status: TenantStatus.Ready
-    );
+    private static TenantInfo TenantInfoFor(Guid id, string slug = "acme") =>
+        new(
+            Id: id,
+            Slug: slug,
+            DbName: $"shopflow_t_{slug}",
+            DbConnectionString: $"Host=localhost;Database=shopflow_t_{slug}",
+            Region: "ap-southeast-1",
+            Tier: "free",
+            Status: TenantStatus.Ready
+        );
 
     [Fact]
     public async Task IsFlashSale_FirstRead_HitsInnerRepoAndCachesResult()
     {
         var inner = Substitute.For<ISkuFlagRepository>();
-        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>())
-            .Returns(true);
+        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>()).Returns(true);
         var fixture = new CacheFixture(inner, TenantInfoFor(TenantA));
 
         var first = await fixture.Cache.IsFlashSaleAsync(TenantA, "SKU-X", CancellationToken.None);
@@ -56,8 +56,7 @@ public sealed class SkuFlagCacheTests
     public async Task IsFlashSale_WithinTtl_ReusesCachedValue()
     {
         var inner = Substitute.For<ISkuFlagRepository>();
-        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>())
-            .Returns(true);
+        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>()).Returns(true);
         var fixture = new CacheFixture(inner, TenantInfoFor(TenantA));
 
         _ = await fixture.Cache.IsFlashSaleAsync(TenantA, "SKU-X", CancellationToken.None);
@@ -72,8 +71,7 @@ public sealed class SkuFlagCacheTests
     public async Task IsFlashSale_AfterTtlExpires_RefreshesFromInnerRepo()
     {
         var inner = Substitute.For<ISkuFlagRepository>();
-        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>())
-            .Returns(true, false); // first call -> true; second call -> false (toggled via admin)
+        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>()).Returns(true, false); // first call -> true; second call -> false (toggled via admin)
         var fixture = new CacheFixture(inner, TenantInfoFor(TenantA));
 
         var first = await fixture.Cache.IsFlashSaleAsync(TenantA, "SKU-X", CancellationToken.None);
@@ -89,8 +87,7 @@ public sealed class SkuFlagCacheTests
     public async Task SetFlashSale_EvictsCacheEntry_NextReadGoesToInnerRepo()
     {
         var inner = Substitute.For<ISkuFlagRepository>();
-        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>())
-            .Returns(true, false);
+        inner.IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>()).Returns(true, false);
         var fixture = new CacheFixture(inner, TenantInfoFor(TenantA));
 
         // Populate cache with true.
@@ -101,12 +98,16 @@ public sealed class SkuFlagCacheTests
 
         // Next read takes the DB path and gets the new value.
         var afterFlip = await fixture.Cache.IsFlashSaleAsync(
-            TenantA, "SKU-X", CancellationToken.None);
+            TenantA,
+            "SKU-X",
+            CancellationToken.None
+        );
 
         afterFlip.Should().BeFalse();
         await inner.Received(2).IsFlashSaleAsync(TenantA, "SKU-X", Arg.Any<CancellationToken>());
-        await inner.Received(1).SetFlashSaleAsync(
-            TenantA, "SKU-X", false, Arg.Any<CancellationToken>());
+        await inner
+            .Received(1)
+            .SetFlashSaleAsync(TenantA, "SKU-X", false, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -117,14 +118,24 @@ public sealed class SkuFlagCacheTests
         inner.IsFlashSaleAsync(TenantB, "SKU-X", Arg.Any<CancellationToken>()).Returns(false);
 
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog.LookupByIdAsync(TenantA, Arg.Any<CancellationToken>())
+        catalog
+            .LookupByIdAsync(TenantA, Arg.Any<CancellationToken>())
             .Returns(TenantInfoFor(TenantA, "tenant-a"));
-        catalog.LookupByIdAsync(TenantB, Arg.Any<CancellationToken>())
+        catalog
+            .LookupByIdAsync(TenantB, Arg.Any<CancellationToken>())
             .Returns(TenantInfoFor(TenantB, "tenant-b"));
         var fixture = new CacheFixture(inner, catalog);
 
-        var tenantA = await fixture.Cache.IsFlashSaleAsync(TenantA, "SKU-X", CancellationToken.None);
-        var tenantB = await fixture.Cache.IsFlashSaleAsync(TenantB, "SKU-X", CancellationToken.None);
+        var tenantA = await fixture.Cache.IsFlashSaleAsync(
+            TenantA,
+            "SKU-X",
+            CancellationToken.None
+        );
+        var tenantB = await fixture.Cache.IsFlashSaleAsync(
+            TenantB,
+            "SKU-X",
+            CancellationToken.None
+        );
 
         tenantA.Should().BeTrue();
         tenantB.Should().BeFalse();
@@ -147,8 +158,9 @@ public sealed class SkuFlagCacheTests
         var result = await fixture.Cache.IsFlashSaleAsync(TenantA, "", CancellationToken.None);
 
         result.Should().BeFalse();
-        await inner.DidNotReceive().IsFlashSaleAsync(
-            Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await inner
+            .DidNotReceive()
+            .IsFlashSaleAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -156,12 +168,12 @@ public sealed class SkuFlagCacheTests
     {
         var inner = Substitute.For<ISkuFlagRepository>();
         var catalog = Substitute.For<ITenantCatalog>();
-        catalog.LookupByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+        catalog
+            .LookupByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns((TenantInfo?)null);
         var fixture = new CacheFixture(inner, catalog);
 
-        var act = () => fixture.Cache.IsFlashSaleAsync(
-            TenantA, "SKU-X", CancellationToken.None);
+        var act = () => fixture.Cache.IsFlashSaleAsync(TenantA, "SKU-X", CancellationToken.None);
 
         await act.Should().ThrowAsync<InvalidOperationException>();
     }
@@ -175,14 +187,17 @@ public sealed class SkuFlagCacheTests
         var inner = Substitute.For<ISkuFlagRepository>();
         var holder = new SlugHolder();
         var fixture = new CacheFixture(
-            inner, TenantInfoFor(TenantA, "tenant-a"), slugHolder: holder);
+            inner,
+            TenantInfoFor(TenantA, "tenant-a"),
+            slugHolder: holder
+        );
 
-        await fixture.Cache.SetFlashSaleAsync(
-            TenantA, "SKU-X", true, CancellationToken.None);
+        await fixture.Cache.SetFlashSaleAsync(TenantA, "SKU-X", true, CancellationToken.None);
 
         holder.LastSlug.Should().Be("tenant-a");
-        await inner.Received(1).SetFlashSaleAsync(
-            TenantA, "SKU-X", true, Arg.Any<CancellationToken>());
+        await inner
+            .Received(1)
+            .SetFlashSaleAsync(TenantA, "SKU-X", true, Arg.Any<CancellationToken>());
     }
 
     // ----------------------------------------------------------------------
@@ -202,24 +217,28 @@ public sealed class SkuFlagCacheTests
         public CacheFixture(
             ISkuFlagRepository inner,
             TenantInfo tenant,
-            SlugHolder? slugHolder = null)
-            : this(inner, BuildSingleTenantCatalog(tenant), slugHolder)
-        { }
+            SlugHolder? slugHolder = null
+        )
+            : this(inner, BuildSingleTenantCatalog(tenant), slugHolder) { }
 
         public CacheFixture(
             ISkuFlagRepository inner,
             ITenantCatalog catalog,
-            SlugHolder? slugHolder = null)
+            SlugHolder? slugHolder = null
+        )
         {
             var services = new ServiceCollection();
             services.AddScoped<RequestContext>();
             services.AddScoped<IRequestContext>(sp => sp.GetRequiredService<RequestContext>());
+            // Finish-line U3 — the wrapper now resolves ITenantCatalog from the
+            // per-call scope (not a captured ctor field), so register the
+            // substitute here for the scope to hand back.
+            services.AddScoped<ITenantCatalog>(_ => catalog);
             var sp = services.BuildServiceProvider();
             var scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
 
             Cache = new CachingSkuFlagRepository(
                 scopeFactory,
-                catalog,
                 Clock,
                 NullLogger<CachingSkuFlagRepository>.Instance,
                 innerResolver: scopeSp =>
@@ -248,7 +267,9 @@ public sealed class SkuFlagCacheTests
     private sealed class TestTimeProvider : TimeProvider
     {
         private DateTimeOffset _now = new(2026, 5, 17, 9, 0, 0, TimeSpan.Zero);
+
         public void Advance(TimeSpan by) => _now = _now.Add(by);
+
         public override DateTimeOffset GetUtcNow() => _now;
     }
 }

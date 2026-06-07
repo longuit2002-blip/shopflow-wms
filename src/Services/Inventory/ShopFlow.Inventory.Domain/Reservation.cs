@@ -97,17 +97,11 @@ public sealed class Reservation : BaseEntity
         }
         if (quantity.Value == 0)
         {
-            return Result<Reservation>.Failure(
-                "quantity must be > 0",
-                "reservation.quantity_zero"
-            );
+            return Result<Reservation>.Failure("quantity must be > 0", "reservation.quantity_zero");
         }
         if (ttl <= TimeSpan.Zero)
         {
-            return Result<Reservation>.Failure(
-                "ttl must be > 0",
-                "reservation.ttl_non_positive"
-            );
+            return Result<Reservation>.Failure("ttl must be > 0", "reservation.ttl_non_positive");
         }
 
         var resolvedLineId = string.IsNullOrWhiteSpace(orderLineId)

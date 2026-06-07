@@ -44,7 +44,8 @@ public sealed class HybridProductMappingServiceTests
         result.Method.Should().Be(MappingMethod.Exact);
         result.Confidence.Should().Be(1m);
 
-        await repo.DidNotReceive().ReadAllByChannelAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
+        await repo.DidNotReceive()
+            .ReadAllByChannelAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -54,11 +55,13 @@ public sealed class HybridProductMappingServiceTests
         repo.FindExactAsync(Arg.Any<Guid>(), Arg.Any<ExternalSku>(), Arg.Any<CancellationToken>())
             .Returns((ProductMapping?)null);
         repo.ReadAllByChannelAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
-            .Returns(new[]
-            {
-                NewMapping("sku-001", "INT-001", MappingMethod.Manual),
-                NewMapping("sku-002", "INT-002", MappingMethod.Manual),
-            });
+            .Returns(
+                new[]
+                {
+                    NewMapping("sku-001", "INT-001", MappingMethod.Manual),
+                    NewMapping("sku-002", "INT-002", MappingMethod.Manual),
+                }
+            );
 
         var sut = new HybridProductMappingService(repo);
 
@@ -112,7 +115,8 @@ public sealed class HybridProductMappingServiceTests
 
         (await sut.ResolveAsync(ChannelId, "", default)).Should().BeNull();
         (await sut.ResolveAsync(ChannelId, "   ", default)).Should().BeNull();
-        await repo.DidNotReceive().FindExactAsync(Arg.Any<Guid>(), Arg.Any<ExternalSku>(), Arg.Any<CancellationToken>());
+        await repo.DidNotReceive()
+            .FindExactAsync(Arg.Any<Guid>(), Arg.Any<ExternalSku>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

@@ -19,6 +19,9 @@
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="MassTransit" />
+    <!-- Sprint-10.5 U4 — WebApplicationFactory<Program> for the 403
+         wire-shape integration suite under Authorization/. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -27,6 +30,28 @@
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <!-- Sprint-10.5 U4 — booting Inventory.Api in-process for the 403 suite. -->
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Api\ShopFlow.Inventory.Api.csproj" />
+    <!-- Sprint-10.5 U4 — NarrowedJwtBuilder is linked as a Compile item
+         from Auth.IntegrationTests/Authorization/ rather than via a
+         ProjectReference. Cross-test-project ProjectReference is the
+         plan's prescribed shape but transitively pulls Auth.Api.dll,
+         producing a duplicate-Program collision against the local
+         Inventory.Api Program declaration. The linked-file pattern
+         keeps the helper single-sourced (one file on disk) without the
+         assembly-level transitive cost. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ShopFlow.Auth.IntegrationTests\Authorization\NarrowedJwtBuilder.cs">
+      <Link>Authorization\NarrowedJwtBuilder.cs</Link>
+    </Compile>
+    <!-- Finish-line U1 — shared proof-run gate (env/CI opt-in). Linked
+         (not a shared project) per the same single-source idiom as
+         NarrowedJwtBuilder above. -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>

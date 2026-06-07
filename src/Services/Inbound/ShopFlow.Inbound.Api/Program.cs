@@ -12,6 +12,11 @@ using ShopFlow.SharedKernel.Infrastructure;
 //   2. services.AddInboundModule(configuration)     — module specifics
 //      (InboundDbContext, repositories, MultiplexedOutboxDispatcher
 //      hosted service, ConfirmReceivingLineService)
+//
+// Sprint-10 KTD3 — UseAuthentication() + UseAuthorization() are now wired
+// here (they were missing pre-Sprint-10, leaving PurchaseOrdersController
+// unauthenticated). Kept hand-wired (not via UseShopFlowSecurityPipeline)
+// per KTD4 for cross-business-module consistency with Inventory/Outbound.
 // ─────────────────────────────────────────────────────────────────────────
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,10 +31,20 @@ builder.Services.AddShopFlowDefaults(
     }
 );
 builder.Services.AddInboundModule(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddShopFlowControllers();
 
 var app = builder.Build();
 app.UseProblemDetails();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseTenantRouting();
 app.MapControllers();
 await app.RunAsync().ConfigureAwait(false);
+
+/// <summary>
+/// Sprint-10.5 U4 — exposed as <c>public partial</c> so
+/// <c>WebApplicationFactory&lt;Program&gt;</c> can boot the Inbound host
+/// in-process for the 403 wire-shape integration suite under
+/// <c>tests/ShopFlow.Inbound.IntegrationTests/Authorization/</c>.
+/// </summary>
+public partial class Program;

@@ -38,4 +38,26 @@ public interface ISkuFlagRepository
     /// so concurrent admin writes don't surface as 500s.
     /// </summary>
     Task SetFlashSaleAsync(Guid tenantId, string sku, bool isFlashSale, CancellationToken ct);
+
+    /// <summary>
+    /// Sprint-7.5 U5 — consumer entry point for <c>SkuFlashSaleChangedV1</c>
+    /// events from Inventory. Combines the UNIQUE-23505 idempotent upsert
+    /// with an OccurredAt-vs-stored guard: when the existing row's
+    /// <c>UpdatedAt</c> (or <c>CreatedAt</c> when never updated) is newer
+    /// than <paramref name="occurredAt"/>, the call is a no-op (stale write
+    /// rejected). The guard is independent of dispatcher partitioning so
+    /// flap A→B→A converges on the final intended state even under W6
+    /// competing consumers when per-(tenant, sku) FIFO can't be preserved.
+    /// </summary>
+    /// <returns>
+    /// <c>true</c> if the row was inserted or updated; <c>false</c> if the
+    /// write was rejected as stale (older OccurredAt than the stored row).
+    /// </returns>
+    Task<bool> ApplyEventAsync(
+        Guid tenantId,
+        string sku,
+        bool isFlashSale,
+        DateTime occurredAt,
+        CancellationToken ct
+    );
 }

@@ -65,10 +65,7 @@ public sealed class ReconciliationTicket : BaseEntity
         }
         if (string.IsNullOrWhiteSpace(sku))
         {
-            return Result<ReconciliationTicket>.Failure(
-                "sku is required.",
-                "ticket.sku_required"
-            );
+            return Result<ReconciliationTicket>.Failure("sku is required.", "ticket.sku_required");
         }
         return Result<ReconciliationTicket>.Success(
             new ReconciliationTicket

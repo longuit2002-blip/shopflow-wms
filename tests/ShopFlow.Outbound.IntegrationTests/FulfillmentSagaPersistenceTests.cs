@@ -106,7 +106,9 @@ public sealed class FulfillmentSagaPersistenceTests : IAsyncLifetime
         );
 
         // Wait for the saga to be consumed AND the EF write to land.
-        (await harness.Consumed.Any<OrderPlacedV1>()).Should().BeTrue();
+        (await harness.Consumed.Any<OrderPlacedV1>())
+            .Should()
+            .BeTrue();
 
         // The saga write commits when the consume scope disposes — give
         // MT a moment to flush the EF saga repository's SaveChangesAsync.
@@ -224,6 +226,8 @@ public sealed class FulfillmentSagaPersistenceTests : IAsyncLifetime
             }
             await Task.Delay(100);
         }
-        throw new TimeoutException($"saga_state row for {correlationId} did not appear within 10s.");
+        throw new TimeoutException(
+            $"saga_state row for {correlationId} did not appear within 10s."
+        );
     }
 }

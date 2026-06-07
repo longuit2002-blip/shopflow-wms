@@ -50,8 +50,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class PackShipEndpointTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
 
     private readonly OutboundTenantFixture _fx;
     private ProvisionedOutboundTenant _tenant = default!;
@@ -354,10 +353,7 @@ public sealed class PackShipEndpointTests : IAsyncLifetime
     /// every confirm-* endpoint. Bypasses the saga; the saga's view of
     /// state is irrelevant for the endpoint behaviour under test.
     /// </summary>
-    private async Task<Guid> SeedOrderInStateAsync(
-        OrderStatus status,
-        int? expectedWeight = 100
-    )
+    private async Task<Guid> SeedOrderInStateAsync(OrderStatus status, int? expectedWeight = 100)
     {
         var orderId = Guid.NewGuid();
         var lineId = Guid.NewGuid();
@@ -378,10 +374,7 @@ public sealed class PackShipEndpointTests : IAsyncLifetime
         orderCmd.Parameters.AddWithValue("id", orderId);
         orderCmd.Parameters.AddWithValue("ext", "ext-" + orderId.ToString("N")[..8]);
         orderCmd.Parameters.AddWithValue("status", (int)status);
-        orderCmd.Parameters.AddWithValue(
-            "exp",
-            (object?)expectedTotal ?? DBNull.Value
-        );
+        orderCmd.Parameters.AddWithValue("exp", (object?)expectedTotal ?? DBNull.Value);
         orderCmd.Parameters.AddWithValue("t", now);
         await orderCmd.ExecuteNonQueryAsync();
 
@@ -392,10 +385,7 @@ public sealed class PackShipEndpointTests : IAsyncLifetime
             """;
         lineCmd.Parameters.AddWithValue("id", lineId);
         lineCmd.Parameters.AddWithValue("oid", orderId);
-        lineCmd.Parameters.AddWithValue(
-            "ew",
-            (object?)expectedWeight ?? DBNull.Value
-        );
+        lineCmd.Parameters.AddWithValue("ew", (object?)expectedWeight ?? DBNull.Value);
         lineCmd.Parameters.AddWithValue("t", now);
         await lineCmd.ExecuteNonQueryAsync();
 
@@ -405,9 +395,7 @@ public sealed class PackShipEndpointTests : IAsyncLifetime
     private async Task AssertOrderStatusAsync(Guid orderId, OrderStatus expected)
     {
         await using var verify = new OutboundDbContext(_tenant.Options);
-        var order = await verify
-            .Orders.AsNoTracking()
-            .SingleAsync(o => o.Id == orderId);
+        var order = await verify.Orders.AsNoTracking().SingleAsync(o => o.Id == orderId);
         order.Status.Should().Be(expected);
     }
 
@@ -564,10 +552,7 @@ public sealed class PackShipEndpointTests : IAsyncLifetime
             return Task.CompletedTask;
         }
 
-        public Task Publish<T>(
-            object values,
-            CancellationToken cancellationToken = default
-        )
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
         public Task Publish<T>(
@@ -612,8 +597,7 @@ public sealed class PackShipEndpointTests : IAsyncLifetime
                         MaxRetryAttempts = 3,
                         Delay = TimeSpan.FromMilliseconds(50),
                         BackoffType = DelayBackoffType.Constant,
-                        ShouldHandle =
-                            new PredicateBuilder().Handle<TransientShippingException>(),
+                        ShouldHandle = new PredicateBuilder().Handle<TransientShippingException>(),
                     }
                 )
                 .Build();
@@ -628,9 +612,7 @@ public sealed class PackShipEndpointTests : IAsyncLifetime
                         _attempts++;
                         if (_attempts <= _failuresUntilSuccess)
                         {
-                            throw new TransientShippingException(
-                                $"programmed fail #{_attempts}"
-                            );
+                            throw new TransientShippingException($"programmed fail #{_attempts}");
                         }
                         var trk = "TRK-PROG-" + Guid.NewGuid().ToString("N")[..10];
                         var label = new ShippingLabel(

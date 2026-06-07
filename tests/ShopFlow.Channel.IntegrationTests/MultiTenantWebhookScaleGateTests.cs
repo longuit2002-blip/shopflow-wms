@@ -108,25 +108,29 @@ public sealed class MultiTenantWebhookScaleGateTests
 
         foreach (var (tenantIndex, p99) in p99ByTenant)
         {
-            p99.Should().BeLessThan(
-                p99TargetMs,
-                $"tenant {tenantIndex} receiver-side p99 must be < {p99TargetMs}ms under burst"
-            );
+            p99.Should()
+                .BeLessThan(
+                    p99TargetMs,
+                    $"tenant {tenantIndex} receiver-side p99 must be < {p99TargetMs}ms under burst"
+                );
         }
-        fairness.Should().BeGreaterThanOrEqualTo(
-            fairnessFloorTarget,
-            $"per-tenant fairness floor must be ≥ {fairnessFloorTarget} (min/max p99 across tenants)"
-        );
+        fairness
+            .Should()
+            .BeGreaterThanOrEqualTo(
+                fairnessFloorTarget,
+                $"per-tenant fairness floor must be ≥ {fairnessFloorTarget} (min/max p99 across tenants)"
+            );
 
         // Sanity — each tenant's DB has its full webhooks_per_tenant + 1 warmup
         // count after the burst.
         for (var i = 0; i < tenantCount; i++)
         {
             var rows = await harness.CountWebhookEventsAsync(i);
-            rows.Should().Be(
-                webhooksPerTenant + 1,
-                $"tenant {i} must have {webhooksPerTenant + 1} webhook_events rows (1 warmup + {webhooksPerTenant} burst)"
-            );
+            rows.Should()
+                .Be(
+                    webhooksPerTenant + 1,
+                    $"tenant {i} must have {webhooksPerTenant + 1} webhook_events rows (1 warmup + {webhooksPerTenant} burst)"
+                );
         }
     }
 
@@ -162,15 +166,16 @@ public sealed class MultiTenantWebhookScaleGateTests
         // Exactly one webhook_events row + one channel_outbox_messages row —
         // 99 replays caught by UNIQUE-23505, no double outbox write.
         var webhookEventCount = await harness.CountWebhookEventsAsync(0);
-        webhookEventCount.Should().Be(
-            1,
-            "UNIQUE(channel_id, provider_event_id) must catch all 99 replays"
-        );
+        webhookEventCount
+            .Should()
+            .Be(1, "UNIQUE(channel_id, provider_event_id) must catch all 99 replays");
         var outboxCount = await harness.CountOutboxRowsAsync(0);
-        outboxCount.Should().Be(
-            1,
-            "exactly 1 OrderImportedV1 outbox row per (channel_id, provider_event_id) regardless of replay count"
-        );
+        outboxCount
+            .Should()
+            .Be(
+                1,
+                "exactly 1 OrderImportedV1 outbox row per (channel_id, provider_event_id) regardless of replay count"
+            );
     }
 
     [Fact]
@@ -194,7 +199,9 @@ public sealed class MultiTenantWebhookScaleGateTests
 
         // Zero rows in EITHER tenant's DB — receiver bails before
         // touching the tenant DB.
-        (await harness.CountWebhookEventsAsync(0)).Should().Be(0);
+        (await harness.CountWebhookEventsAsync(0))
+            .Should()
+            .Be(0);
         (await harness.CountWebhookEventsAsync(1)).Should().Be(0);
         (await harness.CountOutboxRowsAsync(0)).Should().Be(0);
         (await harness.CountOutboxRowsAsync(1)).Should().Be(0);

@@ -16,12 +16,20 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" />
     <!-- Sprint-4 U8 — NSubstitute for OrderImportedConsumer test doubles. -->
     <PackageReference Include="NSubstitute" />
+    <!-- Sprint-8.5 U7 — FakeTimeProvider for SagaTransitionObserverTests
+         deterministic timestamp control. See
+         docs/solutions/2026-05-20-microsoft-extensions-timeprovider-testing-cpm.md. -->
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Domain\ShopFlow.Outbound.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Application\ShopFlow.Outbound.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Infrastructure\ShopFlow.Outbound.Infrastructure.csproj" />
+    <!-- Sprint-10 U2 — reflection-based authorize policy coverage tests
+         (OutboundAuthorizePolicyCoverageTests) inspect OrdersController's
+         per-action [Authorize(Policy=...)] attributes. -->
+    <ProjectReference Include="..\..\src\Services\Outbound\ShopFlow.Outbound.Api\ShopFlow.Outbound.Api.csproj" />
   </ItemGroup>
 
 </Project>

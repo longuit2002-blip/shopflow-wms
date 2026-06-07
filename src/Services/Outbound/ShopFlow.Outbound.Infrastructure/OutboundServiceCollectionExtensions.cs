@@ -7,6 +7,7 @@ using Polly.Retry;
 using ShopFlow.Outbound.Application.Ports;
 using ShopFlow.Outbound.Application.Sagas;
 using ShopFlow.Outbound.Infrastructure.Outbox;
+using ShopFlow.Outbound.Infrastructure.Persistence;
 using ShopFlow.Outbound.Infrastructure.Repositories;
 using ShopFlow.Outbound.Infrastructure.Sagas;
 using ShopFlow.Outbound.Infrastructure.Shipping;
@@ -37,9 +38,17 @@ public static class OutboundServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configuration);
 
+        // Sprint-7.5 U8 — the SagaTransitionDuplicateInterceptor pre-checks
+        // OrderTransition adds against the new composite UNIQUE on
+        // outbound_saga_transitions and detaches duplicates so MT-redelivered
+        // consume scopes never trigger the 23505. Scoped lifetime so the
+        // logger resolves against the same scope as the DbContext.
+        services.AddScoped<SagaTransitionDuplicateInterceptor>();
+
         services.AddScoped<OutboundDbContext>(sp =>
         {
             var ctx = sp.GetRequiredService<IRequestContext>();
+            var dupeInterceptor = sp.GetRequiredService<SagaTransitionDuplicateInterceptor>();
             var options = new DbContextOptionsBuilder<OutboundDbContext>()
                 .UseNpgsql(
                     ctx.DbConnectionString,
@@ -48,6 +57,7 @@ public static class OutboundServiceCollectionExtensions
                             typeof(OutboundServiceCollectionExtensions).Assembly.GetName().Name
                         )
                 )
+                .AddInterceptors(dupeInterceptor)
                 .Options;
             return new OutboundDbContext(options);
         });
@@ -55,6 +65,29 @@ public static class OutboundServiceCollectionExtensions
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IUnitOfWork, OutboundUnitOfWork>();
         services.AddScoped<IOutboundOutbox, OutboundOutbox>();
+
+        // Sprint-7 U1 — append-only saga-transitions audit surface.
+        // Scoped so it shares the per-tenant OutboundDbContext registered
+        // above; the saga's IStateObserver (U2) resolves this repository
+        // from the consume scope's IServiceProvider so the audit write
+        // commits atomically with the saga state row.
+        services.AddScoped<IOrderTransitionRepository, OrderTransitionRepository>();
+
+        // Sprint-7 U2 — SagaTransitionObserver writes one audit row +
+        // appends one SagaTransitionedV1 to the outbox per state transition.
+        // Scoped lifetime so it shares the consume-scope DbContext + outbox
+        // surface with the saga's MT EF repository commit (co-transactional).
+        // FulfillmentSaga's static RecordTransitionAsync helper resolves
+        // this via ctx.GetPayload<IServiceProvider>() at every TransitionTo
+        // site (including WhenEnter IfElse branches + If counter-drain
+        // branch per the Sprint-7 doc-review IStateObserver decision).
+        services.AddScoped<Application.Sagas.SagaTransitionObserver>();
+
+        // Sprint-7 U2 — route SagaTransitionedV1 outbox rows through the
+        // multiplexed dispatcher as a Publish (broadcast). The relay
+        // consumer (Sprint-7 U6) subscribes from a queue per the standard
+        // MT pub/sub binding and pushes to the tenant-scoped SignalR group.
+        services.AddOutboxRoute<ShopFlow.Contracts.Outbound.SagaTransitionedV1>(SendKind.Publish);
 
         // U5 — pick wave generator dependencies. PickQueue is Singleton
         // so the per-tenant Channel registry survives across consume
@@ -65,27 +98,14 @@ public static class OutboundServiceCollectionExtensions
         services.AddScoped<IPickWaveRepository, PickWaveRepository>();
         services.AddScoped<IPickerRepository, PickerRepository>();
 
-        // U4 — FulfillmentSaga state machine + MT EF saga repository
-        // against saga_state. The saga itself is registered here so the
-        // bus-level AddMassTransit() in AddShopFlowDefaults can resolve
-        // it via DI. The EntityFrameworkRepository pattern uses MT's
-        // .ExistingDbContext<OutboundDbContext>() which resolves the
-        // scoped OutboundDbContext registered above — that DbContext
-        // reads IRequestContext.DbConnectionString at construction, so
-        // when TenantBindingSagaFilter (K12 primary path) binds the
-        // tenant BEFORE the saga repo runs, the DbContext lands in the
-        // correct per-tenant DB.
-        services.AddMassTransit(bus =>
-        {
-            bus.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
-                .EntityFrameworkRepository(r =>
-                {
-                    r.ExistingDbContext<OutboundDbContext>();
-                    // Postgres-specific row-lock statement for the saga
-                    // repository's pessimistic concurrency (R5).
-                    r.UsePostgres();
-                });
-        });
+        // U4 — FulfillmentSaga state machine + MT EF saga repository + the
+        // SignalR relay consumers are configured inside the kernel's SINGLE
+        // AddMassTransit via the ShopFlowDefaultsOptions.ConfigureBus hook
+        // (Outbound.Api/Program.cs passes ConfigureOutboundBus below).
+        // MassTransit forbids a second AddMassTransit() per container — a
+        // second call here is exactly what kept the Outbound.Api host from
+        // building (finish-line U4; see
+        // docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md).
 
         // U4 K12 (primary path) — the open-generic filter is registered
         // here as Scoped so MT's pipe-builder can resolve it per message.
@@ -132,9 +152,9 @@ public static class OutboundServiceCollectionExtensions
                 )
                 .Build()
         );
-        services.AddSingleton<IMockShippingProvider>(sp =>
-            new MockShippingProvider(sp.GetRequiredService<ResiliencePipeline>())
-        );
+        services.AddSingleton<IMockShippingProvider>(sp => new MockShippingProvider(
+            sp.GetRequiredService<ResiliencePipeline>()
+        ));
 
         // U6 — ChannelTrackingConsumer auto-registered via AddConsumers(asm)
         // in the kernel-wide AddShopFlowDefaults MassTransit configuration
@@ -143,6 +163,71 @@ public static class OutboundServiceCollectionExtensions
         // consumer to ShopFlow.Channel.Infrastructure with a real adapter.
 
         return services;
+    }
+
+    /// <summary>
+    /// Finish-line U4 — the Outbound-specific bus configuration that MUST run
+    /// inside the kernel's SINGLE <c>AddMassTransit</c> call. MassTransit forbids
+    /// a second <c>AddMassTransit</c> per container, so <c>Outbound.Api/Program.cs</c>
+    /// passes this method as <see cref="ShopFlowDefaultsOptions.ConfigureBus"/>.
+    /// It gives the <see cref="FulfillmentSaga"/> its EF saga repository (against
+    /// <c>saga_state</c>) and registers the two SignalR relay consumers, which
+    /// live in <c>ShopFlow.SharedKernel.Infrastructure.SignalR</c> — an assembly
+    /// the kernel does NOT scan, so they would otherwise never register.
+    /// </summary>
+    /// <remarks>
+    /// <para>The kernel's <c>AddSagaStateMachines(asm)</c> scan also discovers
+    /// <see cref="FulfillmentSaga"/> in the scanned Application assembly;
+    /// re-registering it here returns the same registration and the explicit
+    /// <c>EntityFrameworkRepository</c> configuration takes effect. The repository
+    /// resolves the scoped <see cref="OutboundDbContext"/> registered in
+    /// <see cref="AddOutboundModule"/>, which reads
+    /// <c>IRequestContext.DbConnectionString</c> at construction — so the saga
+    /// lands in the correct per-tenant DB once the tenant is bound for the
+    /// consume scope.</para>
+    ///
+    /// <para>The relays register ONLY on Outbound.Api (the single hub-host per
+    /// the Sprint-7 decision): if they subscribed in the kernel — which runs for
+    /// every module API — every module process would join the same pub/sub
+    /// topology and competing-consumer semantics would deliver each event to one
+    /// arbitrary process, not necessarily the hub host the client is connected
+    /// to. Registering them here keeps the relay process == the hub-host
+    /// process.</para>
+    /// </remarks>
+    public static void ConfigureOutboundBus(IBusRegistrationConfigurator bus)
+    {
+        ArgumentNullException.ThrowIfNull(bus);
+
+        bus.AddSagaStateMachine<FulfillmentSaga, FulfillmentSagaState>()
+            .EntityFrameworkRepository(r =>
+            {
+                r.ExistingDbContext<OutboundDbContext>();
+                // Postgres-specific row-lock statement for the saga repository's
+                // pessimistic concurrency (R5).
+                r.UsePostgres();
+            });
+
+        bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.StockChangedRelayConsumer>();
+        bus.AddConsumer<ShopFlow.SharedKernel.Infrastructure.SignalR.SagaTransitionedRelayConsumer>();
+
+        // Finish-line U4 (bug 6) — attach the per-message tenant binding to
+        // every Outbound receive endpoint (saga + the two relays). The
+        // open-generic TenantBindingSagaFilter<T> (registered Scoped in
+        // AddOutboundModule) reads the tenant_id envelope header, resolves the
+        // tenant via ITenantCatalog, and binds the scoped RequestContext BEFORE
+        // the consumer/saga body runs — so the saga repository's
+        // ExistingDbContext<OutboundDbContext>() AND the SagaTransitionObserver's
+        // audit DbContext (both read IRequestContext.DbConnectionString) resolve
+        // the correct per-tenant database. AddConfigureEndpointsCallback runs
+        // during ConfigureEndpoints, so this stays inside the kernel's SINGLE
+        // AddMassTransit (no forbidden second call) and touches no other
+        // module's bus (ConfigureOutboundBus runs only for Outbound.Api). The
+        // K12 filter's doc comment specified exactly this attachment shape;
+        // production never wired it — see bug 6 in
+        // docs/solutions/2026-05-27-outbound-api-never-booted-composition-bugs.md.
+        bus.AddConfigureEndpointsCallback(
+            (context, _, cfg) => cfg.UseConsumeFilter(typeof(TenantBindingSagaFilter<>), context)
+        );
     }
 }
 

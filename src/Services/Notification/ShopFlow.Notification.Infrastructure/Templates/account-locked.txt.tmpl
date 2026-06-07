@@ -1,0 +1,16 @@
+Account locked: {user_email}
+
+Hi Owner,
+
+The account {user_email} reached the failed-login threshold and was locked.
+
+Details:
+  Account:        {user_email}
+  Failed attempts: {failed_login_count}
+  Locked until:    {locked_until_utc} UTC
+  Last source IP:  {source_ip}
+  Detected at:     {occurred_at_utc} UTC
+
+The lockout auto-releases at the time shown above. To unlock the account immediately, sign in as Owner and use the admin → users → Unlock action. If the source IP isn't recognised, consider asking the user to change their password.
+
+— ShopFlow WMS Security

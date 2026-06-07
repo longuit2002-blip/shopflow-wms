@@ -92,9 +92,7 @@ public sealed class TenantProvisioner : ITenantProvisioner
             return ProvisionOutcome.AlreadyReady;
         }
 
-        if (
-            tenant.Status is TenantStatus.Archiving or TenantStatus.Archived
-        )
+        if (tenant.Status is TenantStatus.Archiving or TenantStatus.Archived)
         {
             throw new InvalidOperationException(
                 $"cannot provision tenant '{normalized}' from status '{tenant.Status}'. Use 'restore' first."
@@ -153,7 +151,11 @@ public sealed class TenantProvisioner : ITenantProvisioner
     private async Task EnsureAppRoleAsync(CancellationToken ct)
     {
         await _admin
-            .EnsureLoginRoleAsync(_options.Postgres.AppRoleName, _options.Postgres.AppRolePassword, ct)
+            .EnsureLoginRoleAsync(
+                _options.Postgres.AppRoleName,
+                _options.Postgres.AppRolePassword,
+                ct
+            )
             .ConfigureAwait(false);
     }
 

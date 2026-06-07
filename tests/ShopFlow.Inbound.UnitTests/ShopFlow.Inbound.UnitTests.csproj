@@ -8,6 +8,7 @@
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Domain\ShopFlow.Inbound.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Application\ShopFlow.Inbound.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Infrastructure\ShopFlow.Inbound.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inbound\ShopFlow.Inbound.Api\ShopFlow.Inbound.Api.csproj" />
   </ItemGroup>
 
 </Project>

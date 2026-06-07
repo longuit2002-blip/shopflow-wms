@@ -18,11 +18,7 @@ internal sealed class PickerConfiguration : IEntityTypeConfiguration<Picker>
 
         builder.HasKey(p => p.PickerId).HasName("pk_pickers");
 
-        builder
-            .Property(p => p.PickerId)
-            .HasColumnName("picker_id")
-            .HasMaxLength(64)
-            .IsRequired();
+        builder.Property(p => p.PickerId).HasColumnName("picker_id").HasMaxLength(64).IsRequired();
 
         builder
             .Property(p => p.DisplayName)

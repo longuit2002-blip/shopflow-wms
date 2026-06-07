@@ -89,10 +89,7 @@ public sealed class Order : BaseEntity
         var lineList = lines.ToList();
         if (lineList.Count == 0)
         {
-            return Result<Order>.Failure(
-                "order must have at least one line.",
-                "order.no_lines"
-            );
+            return Result<Order>.Failure("order must have at least one line.", "order.no_lines");
         }
 
         var order = new Order
@@ -126,35 +123,34 @@ public sealed class Order : BaseEntity
     /// Created → AwaitingReservation. Invoked by U4's saga when it
     /// publishes <c>ReserveStockV1</c> to the Inventory module.
     /// </summary>
-    public Result MarkAwaitingReservation()
-        => TransitionFrom(OrderStatus.Created, OrderStatus.AwaitingReservation);
+    public Result MarkAwaitingReservation() =>
+        TransitionFrom(OrderStatus.Created, OrderStatus.AwaitingReservation);
 
     /// <summary>
     /// AwaitingReservation → Reserved. Invoked by U4's saga on
     /// <c>StockReservedV1</c>.
     /// </summary>
-    public Result MarkReserved()
-        => TransitionFrom(OrderStatus.AwaitingReservation, OrderStatus.Reserved);
+    public Result MarkReserved() =>
+        TransitionFrom(OrderStatus.AwaitingReservation, OrderStatus.Reserved);
 
     /// <summary>
     /// Reserved → AwaitingPick. Invoked by U4's saga as it enqueues the
     /// order onto the pick queue (U5).
     /// </summary>
-    public Result MarkAwaitingPick()
-        => TransitionFrom(OrderStatus.Reserved, OrderStatus.AwaitingPick);
+    public Result MarkAwaitingPick() =>
+        TransitionFrom(OrderStatus.Reserved, OrderStatus.AwaitingPick);
 
     /// <summary>
     /// AwaitingPick → Picked. Invoked by U6's <c>POST /confirm-pick</c>
     /// endpoint after the picker reports completion.
     /// </summary>
-    public Result MarkPicked()
-        => TransitionFrom(OrderStatus.AwaitingPick, OrderStatus.Picked);
+    public Result MarkPicked() => TransitionFrom(OrderStatus.AwaitingPick, OrderStatus.Picked);
 
     /// <summary>
     /// Picked → AwaitingPack.
     /// </summary>
-    public Result MarkAwaitingPack()
-        => TransitionFrom(OrderStatus.Picked, OrderStatus.AwaitingPack);
+    public Result MarkAwaitingPack() =>
+        TransitionFrom(OrderStatus.Picked, OrderStatus.AwaitingPack);
 
     /// <summary>
     /// AwaitingPack → Packed. Invoked by U6's <c>POST /confirm-pack</c>
@@ -175,8 +171,8 @@ public sealed class Order : BaseEntity
     /// <summary>
     /// Packed → AwaitingShip.
     /// </summary>
-    public Result MarkAwaitingShip()
-        => TransitionFrom(OrderStatus.Packed, OrderStatus.AwaitingShip);
+    public Result MarkAwaitingShip() =>
+        TransitionFrom(OrderStatus.Packed, OrderStatus.AwaitingShip);
 
     /// <summary>
     /// AwaitingShip → Shipped. Records the carrier label + tracking number
@@ -190,10 +186,7 @@ public sealed class Order : BaseEntity
         }
         if (string.IsNullOrWhiteSpace(trackingNumber))
         {
-            return Result.Failure(
-                "tracking_number is required.",
-                "order.tracking_number_required"
-            );
+            return Result.Failure("tracking_number is required.", "order.tracking_number_required");
         }
         var transition = TransitionFrom(OrderStatus.AwaitingShip, OrderStatus.Shipped);
         if (!transition.IsSuccess)
@@ -206,9 +199,9 @@ public sealed class Order : BaseEntity
     }
 
     /// <summary>
-    /// Reserved OR AwaitingPick → CompensatingReservation. Entry point for
-    /// the saga's compensation path (U7). The saga publishes
-    /// <c>ReleaseStockV1</c> from this state. Two callers:
+    /// Reserved OR AwaitingPick OR AwaitingShip → CompensatingReservation.
+    /// Entry point for the saga's compensation paths. The saga publishes
+    /// <c>ReleaseStockV1</c> from this state. Three callers:
     /// </summary>
     /// <remarks>
     /// <para><c>Reserved</c> pre-state is the legacy hook from the
@@ -219,20 +212,49 @@ public sealed class Order : BaseEntity
     /// CompensatingReservation state and drives the Order to
     /// <c>Cancelled</c> via the in-process <c>OrderCancelled</c> event).</para>
     ///
-    /// <para><c>AwaitingPick</c> pre-state is the U7 pick-failure path:
-    /// <c>POST /mark-pick-failed</c> calls this method to record the
-    /// Order's compensating intent BEFORE publishing the saga's
+    /// <para><c>AwaitingPick</c> pre-state is the Sprint-3-redux U7 pick-
+    /// failure path: <c>POST /mark-pick-failed</c> calls this method to
+    /// record the Order's compensating intent BEFORE publishing the saga's
     /// <c>PickFailed</c> event. The Order stays in
     /// <c>CompensatingReservation</c> until the saga's compensation
     /// completes and the <c>OrderCancelled</c> consumer flips it to
     /// <c>Cancelled</c> (R3 eventual-consistency boundary).</para>
+    ///
+    /// <para><c>Picked</c> pre-state is the Sprint-13 U3 pack-failure path:
+    /// <c>POST /mark-pack-failed</c> calls this method when the Packer
+    /// discovers a damaged item at the pack station AFTER pick-confirm but
+    /// BEFORE pack-confirm. Per Sprint-13 K1 (BLOCKING factual correction
+    /// over the brainstorm), the Order aggregate is in <c>Picked</c> — NOT
+    /// <c>AwaitingPack</c> — at this moment: <c>ConfirmPackAsync</c> chains
+    /// <c>MarkPacked → MarkAwaitingShip</c> atomically, so the aggregate
+    /// never sits at rest in <c>AwaitingPack</c>. The saga is also in
+    /// <c>Picked</c>; its <c>During(Picked, When(PackFailed))</c> Path D
+    /// clause reuses the Sprint-3-redux Path B / Sprint-12.5 Path C
+    /// compensation primitives unchanged (<c>ReservedLineSkus</c> +
+    /// <c>LinesAwaitingRelease</c> survive through <c>Picked</c>).</para>
+    ///
+    /// <para><c>AwaitingShip</c> pre-state is the Sprint-12.5 U3 ship-
+    /// failure path: <c>POST /mark-ship-failed</c> calls this method when
+    /// the carrier rejects the label or the package is damaged pre-ship.
+    /// Per Sprint-12 KTD2, by the time mark-ship-failed fires, the Order
+    /// aggregate has already moved Packed → AwaitingShip via
+    /// <c>ConfirmPackAsync</c>'s chain (the saga state is still Packed —
+    /// these two state machines run one step apart by design). The saga's
+    /// Packed → CompensatingReservation Path C reuses the Sprint-3-redux
+    /// Path B compensation primitives unchanged
+    /// (<c>ReservedLineSkus</c> + <c>LinesAwaitingRelease</c>).</para>
     /// </remarks>
     public Result MarkCompensatingReservation()
     {
-        if (Status != OrderStatus.Reserved && Status != OrderStatus.AwaitingPick)
+        if (
+            Status != OrderStatus.Reserved
+            && Status != OrderStatus.AwaitingPick
+            && Status != OrderStatus.Picked
+            && Status != OrderStatus.AwaitingShip
+        )
         {
             return Result.Failure(
-                $"cannot transition from {Status} to CompensatingReservation; required pre-state Reserved or AwaitingPick.",
+                $"cannot transition from {Status} to CompensatingReservation; required pre-state Reserved, AwaitingPick, Picked, or AwaitingShip.",
                 "order.invalid_state"
             );
         }
@@ -258,10 +280,7 @@ public sealed class Order : BaseEntity
             && Status != OrderStatus.Created
         )
         {
-            return Result.Failure(
-                $"cannot cancel order in {Status} state.",
-                "order.invalid_state"
-            );
+            return Result.Failure($"cannot cancel order in {Status} state.", "order.invalid_state");
         }
         Status = OrderStatus.Cancelled;
         UpdatedAt = DateTime.UtcNow;

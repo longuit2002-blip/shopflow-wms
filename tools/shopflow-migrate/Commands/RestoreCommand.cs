@@ -106,10 +106,7 @@ public sealed class RestoreCommand : ICommand
         );
         await _catalogDb.SaveChangesAsync(ct).ConfigureAwait(false);
 
-        _logger.LogInformation(
-            "Tenant '{Slug}' restored to Ready; CONNECT granted.",
-            normalized
-        );
+        _logger.LogInformation("Tenant '{Slug}' restored to Ready; CONNECT granted.", normalized);
         return 0;
     }
 }

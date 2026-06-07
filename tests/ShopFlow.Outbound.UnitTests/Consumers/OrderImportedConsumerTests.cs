@@ -44,7 +44,8 @@ public sealed class OrderImportedConsumerTests
         requestContext.TenantId.Returns(TenantId);
         var clock = TimeProvider.System;
 
-        orderRepo.FindByExternalIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+        orderRepo
+            .FindByExternalIdAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns((Order?)null);
 
         var services = new ServiceCollection();
@@ -66,9 +67,9 @@ public sealed class OrderImportedConsumerTests
         (await consumerHarness.Consumed.Any<OrderImportedV1>()).Should().BeTrue();
 
         await orderRepo.Received(1).AddAsync(Arg.Any<Order>(), Arg.Any<CancellationToken>());
-        await outbox.Received(1).AppendAsync(
-            Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .Received(1)
+            .AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
         await uow.Received(1).SaveChangesAsync(Arg.Any<CancellationToken>());
 
         await harness.Stop();
@@ -87,9 +88,7 @@ public sealed class OrderImportedConsumerTests
         var existing = Order
             .Create("ext-001", "STANDARD", new[] { ("SKU-1", 2, (int?)null) })
             .Value!;
-        orderRepo
-            .FindByExternalIdAsync("ext-001", Arg.Any<CancellationToken>())
-            .Returns(existing);
+        orderRepo.FindByExternalIdAsync("ext-001", Arg.Any<CancellationToken>()).Returns(existing);
 
         var services = new ServiceCollection();
         services.AddSingleton(orderRepo);
@@ -110,9 +109,9 @@ public sealed class OrderImportedConsumerTests
         (await consumerHarness.Consumed.Any<OrderImportedV1>()).Should().BeTrue();
 
         await orderRepo.DidNotReceive().AddAsync(Arg.Any<Order>(), Arg.Any<CancellationToken>());
-        await outbox.DidNotReceive().AppendAsync(
-            Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
         await uow.DidNotReceive().SaveChangesAsync(Arg.Any<CancellationToken>());
 
         await harness.Stop();
@@ -155,9 +154,9 @@ public sealed class OrderImportedConsumerTests
         (await consumerHarness.Consumed.Any<OrderImportedV1>()).Should().BeTrue();
 
         await orderRepo.DidNotReceive().AddAsync(Arg.Any<Order>(), Arg.Any<CancellationToken>());
-        await outbox.DidNotReceive().AppendAsync(
-            Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>()
-        );
+        await outbox
+            .DidNotReceive()
+            .AppendAsync(Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>());
 
         await harness.Stop();
     }

@@ -34,19 +34,12 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
             .HasConversion(v => v.Value, v => Sku.Create(v))
             .IsRequired();
 
-        builder
-            .Property(r => r.OrderId)
-            .HasColumnName("order_id")
-            .HasMaxLength(128)
-            .IsRequired();
+        builder.Property(r => r.OrderId).HasColumnName("order_id").HasMaxLength(128).IsRequired();
 
         // Sprint-3-redux K10: per-line id under order_id; defaults to
         // '_default' for legacy single-line shape via the migration default
         // + the Domain layer's DefaultOrderLineId constant.
-        builder
-            .Property(r => r.OrderLineId)
-            .HasColumnName("order_line_id")
-            .IsRequired();
+        builder.Property(r => r.OrderLineId).HasColumnName("order_line_id").IsRequired();
 
         builder
             .HasIndex("OrderId", "OrderLineId")

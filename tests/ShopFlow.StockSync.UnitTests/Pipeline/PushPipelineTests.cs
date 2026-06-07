@@ -26,15 +26,17 @@ public sealed class PushPipelineTests
     )
     {
         return new PushPipelineFactory(
-            Options.Create(new StockSyncOptions
-            {
-                Breaker = new StockSyncOptions.BreakerSettings
+            Options.Create(
+                new StockSyncOptions
                 {
-                    MinimumThroughput = minimumThroughput,
-                    BreakDurationSeconds = breakDurationSeconds,
-                    SamplingDurationSeconds = 30,
-                },
-            }),
+                    Breaker = new StockSyncOptions.BreakerSettings
+                    {
+                        MinimumThroughput = minimumThroughput,
+                        BreakDurationSeconds = breakDurationSeconds,
+                        SamplingDurationSeconds = 30,
+                    },
+                }
+            ),
             NullLogger<PushPipelineFactory>.Instance
         );
     }
@@ -68,11 +70,12 @@ public sealed class PushPipelineTests
             );
         }
 
-        var act = async () => await bundle.Pipeline.ExecuteAsync(
-            static (_, _) => ValueTask.FromResult(Result.Success()),
-            0,
-            CancellationToken.None
-        );
+        var act = async () =>
+            await bundle.Pipeline.ExecuteAsync(
+                static (_, _) => ValueTask.FromResult(Result.Success()),
+                0,
+                CancellationToken.None
+            );
 
         await act.Should().ThrowAsync<BrokenCircuitException>();
         bundle.StateProvider.CircuitState.Should().Be(CircuitState.Open);
@@ -90,21 +93,19 @@ public sealed class PushPipelineTests
 
         for (var i = 0; i < 3; i++)
         {
-            var act = async () => await bundle.Pipeline.ExecuteAsync(
-                ThrowingCallback,
-                0,
-                CancellationToken.None
-            );
+            var act = async () =>
+                await bundle.Pipeline.ExecuteAsync(ThrowingCallback, 0, CancellationToken.None);
             await act.Should().ThrowAsync<InvalidOperationException>();
         }
 
         // After 3 thrown exceptions the breaker is open: any next
         // execute short-circuits.
-        var next = async () => await bundle.Pipeline.ExecuteAsync(
-            static (_, _) => ValueTask.FromResult(Result.Success()),
-            0,
-            CancellationToken.None
-        );
+        var next = async () =>
+            await bundle.Pipeline.ExecuteAsync(
+                static (_, _) => ValueTask.FromResult(Result.Success()),
+                0,
+                CancellationToken.None
+            );
         await next.Should().ThrowAsync<BrokenCircuitException>();
         bundle.StateProvider.CircuitState.Should().Be(CircuitState.Open);
     }
@@ -114,16 +115,19 @@ public sealed class PushPipelineTests
     [InlineData(-1)]
     public void Ctor_RejectsNonPositiveMinimumThroughput(int value)
     {
-        var act = () => new PushPipelineFactory(
-            Options.Create(new StockSyncOptions
-            {
-                Breaker = new StockSyncOptions.BreakerSettings
-                {
-                    MinimumThroughput = value,
-                },
-            }),
-            NullLogger<PushPipelineFactory>.Instance
-        );
+        var act = () =>
+            new PushPipelineFactory(
+                Options.Create(
+                    new StockSyncOptions
+                    {
+                        Breaker = new StockSyncOptions.BreakerSettings
+                        {
+                            MinimumThroughput = value,
+                        },
+                    }
+                ),
+                NullLogger<PushPipelineFactory>.Instance
+            );
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 }

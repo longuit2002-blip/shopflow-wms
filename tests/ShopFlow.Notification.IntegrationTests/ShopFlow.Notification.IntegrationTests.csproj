@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Integration test harness for the Notification module against real
+    Postgres + RabbitMQ + Mailpit Testcontainers (Sprint-9.5 U4). Three
+    suites:
+      • HappyPathDeliveryFlowTests — F1 happy path + AE1 dedup via the
+        KTD3 UNIQUE on notification_log + AE2 retry curve + DLQ landing.
+      • DispatcherClaimSemanticsTests — FOR UPDATE SKIP LOCKED contract
+        under concurrent dispatcher instances.
+
+    All cases carry [Trait("Category", "Integration")] + Skip-mark when
+    Docker daemon is unreachable per Sprint-1+ posture; CI runs the
+    full suite on every PR.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Notification.IntegrationTests</RootNamespace>
+    <!-- MailKit advisory accepted via the same NU1902 carve-out as the
+         Infrastructure csproj — Testcontainers harness needs to call
+         the SMTP send path. Operational pre-flight gates re-evaluation. -->
+    <NoWarn>$(NoWarn);NU1902</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="MassTransit" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.Contracts\ShopFlow.Contracts.csproj" />
+    <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Domain\ShopFlow.Notification.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Application\ShopFlow.Notification.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Notification\ShopFlow.Notification.Infrastructure\ShopFlow.Notification.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

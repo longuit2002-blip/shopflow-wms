@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Auth module — real auth surface (Sprint-8 U9). Replaces the
+       Sprint-6 dev-mode fake login. Composes Application MediatR
+       handlers + Infrastructure (AuthDbContext + Argon2id + Redis +
+       JWT) + ControlPlane (ITenantCatalog) + the SharedKernel
+       middleware pipeline. -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>ShopFlow.Auth.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
+    <ProjectReference Include="..\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Hellang.Middleware.ProblemDetails" />
+  </ItemGroup>
+
+</Project>

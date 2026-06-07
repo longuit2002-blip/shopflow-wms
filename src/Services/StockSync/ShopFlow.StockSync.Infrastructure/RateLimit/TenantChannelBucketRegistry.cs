@@ -30,7 +30,10 @@ namespace ShopFlow.StockSync.Infrastructure.RateLimit;
 /// </remarks>
 public sealed class TenantChannelBucketRegistry : IDisposable
 {
-    private readonly ConcurrentDictionary<(Guid TenantId, string ChannelType), TokenBucketRateLimiter> _buckets = new();
+    private readonly ConcurrentDictionary<
+        (Guid TenantId, string ChannelType),
+        TokenBucketRateLimiter
+    > _buckets = new();
     private readonly StockSyncOptions.TokenBucketSettings _settings;
     private int _disposed;
 
@@ -49,7 +52,9 @@ public sealed class TenantChannelBucketRegistry : IDisposable
     /// overflow surfaces as <c>IsAcquired = false</c>.
     /// </summary>
     public ValueTask<RateLimitLease> AcquireAsync(
-        Guid tenantId, string channelType, CancellationToken ct
+        Guid tenantId,
+        string channelType,
+        CancellationToken ct
     )
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(channelType);
@@ -99,16 +104,20 @@ public sealed class TenantChannelBucketRegistry : IDisposable
         }
     }
 
-    private static TokenBucketRateLimiter CreateBucket(StockSyncOptions.TokenBucketSettings settings)
+    private static TokenBucketRateLimiter CreateBucket(
+        StockSyncOptions.TokenBucketSettings settings
+    )
     {
-        return new TokenBucketRateLimiter(new TokenBucketRateLimiterOptions
-        {
-            TokenLimit = settings.Burst,
-            TokensPerPeriod = settings.Sustain,
-            ReplenishmentPeriod = TimeSpan.FromSeconds(1),
-            AutoReplenishment = true,
-            QueueLimit = settings.QueueLimit,
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-        });
+        return new TokenBucketRateLimiter(
+            new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = settings.Burst,
+                TokensPerPeriod = settings.Sustain,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(1),
+                AutoReplenishment = true,
+                QueueLimit = settings.QueueLimit,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            }
+        );
     }
 }

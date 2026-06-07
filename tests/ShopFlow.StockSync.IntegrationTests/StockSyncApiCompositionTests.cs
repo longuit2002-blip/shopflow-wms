@@ -139,10 +139,12 @@ public sealed class StockSyncApiCompositionTests
         return new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Testing");
-            builder.ConfigureAppConfiguration((_, cfg) =>
-            {
-                cfg.AddInMemoryCollection(BaseConfig(diagnosticsEnabled));
-            });
+            builder.ConfigureAppConfiguration(
+                (_, cfg) =>
+                {
+                    cfg.AddInMemoryCollection(BaseConfig(diagnosticsEnabled));
+                }
+            );
         });
     }
 }

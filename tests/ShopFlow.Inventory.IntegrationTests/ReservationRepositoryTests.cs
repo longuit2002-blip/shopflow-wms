@@ -83,7 +83,9 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
 
         var outbox = await db
             .OutboxMessages.AsNoTracking()
-            .Where(o => o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReservedEvent"))
+            .Where(o =>
+                o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReservedEvent")
+            )
             .CountAsync();
         outbox.Should().Be(1);
     }
@@ -222,7 +224,9 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
 
         var stockRow = await GetStockAsync(db0, "HOT-1000");
         // Available + Reserved must equal initial total — invariant of TryReserve.
-        (stockRow.Available.Value + stockRow.Reserved.Value).Should().Be(1000);
+        (stockRow.Available.Value + stockRow.Reserved.Value)
+            .Should()
+            .Be(1000);
         // Reserved must equal successes × qtyEach.
         stockRow.Reserved.Value.Should().Be(successCount * qtyEach);
     }
@@ -273,7 +277,9 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         var result = await repo.ConfirmAsync("ORDER-CONFIRM", CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        var row = await db.Reservations.AsNoTracking().FirstAsync(r => r.OrderId == "ORDER-CONFIRM");
+        var row = await db
+            .Reservations.AsNoTracking()
+            .FirstAsync(r => r.OrderId == "ORDER-CONFIRM");
         row.Status.Should().Be(ReservationStatus.Confirmed);
         row.ConfirmedAt.Should().NotBeNull();
 
@@ -283,7 +289,9 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
 
         var changeEvents = await db
             .OutboxMessages.AsNoTracking()
-            .CountAsync(o => o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockChangedEvent"));
+            .CountAsync(o =>
+                o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockChangedEvent")
+            );
         changeEvents.Should().Be(1);
     }
 
@@ -388,7 +396,9 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
 
         var releaseEvents = await db
             .OutboxMessages.AsNoTracking()
-            .CountAsync(o => o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReleasedEvent"));
+            .CountAsync(o =>
+                o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReleasedEvent")
+            );
         releaseEvents.Should().Be(3);
     }
 
@@ -412,7 +422,9 @@ public sealed class ReservationRepositoryTests : IAsyncLifetime
         stock.Reserved.Value.Should().Be(2);
         var releaseEvents = await db
             .OutboxMessages.AsNoTracking()
-            .CountAsync(o => o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReleasedEvent"));
+            .CountAsync(o =>
+                o.EventType.StartsWith("ShopFlow.Inventory.Domain.Events.StockReleasedEvent")
+            );
         releaseEvents.Should().Be(0);
     }
 

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Sprint-8.5 U11 — integration test harness for the shopflow-migrate
+    CLI's OwnerSeed path against real Postgres via Testcontainers.
+    Mirrors the Sprint-8 U3 ShopFlow.Auth.IntegrationTests csproj shape.
+
+    Pattern:
+      • PostgreSqlBuilder().WithImage("postgres:16") via shared
+        MigrateTenantFixture (xUnit ICollectionFixture).
+      • Per-test fresh tenant DB; the IModuleMigrationRegistry chain
+        (Inventory + Auth) runs MigrateAsync against the new DB so
+        users table exists before SeedAsync runs.
+      • OwnerSeed instantiated directly (Application.IPasswordGenerator
+        + NullLogger). The generated PHC hash verifies via
+        Argon2idPasswordHasher.Verify to prove the round-trip.
+
+    All tests Category=Integration; deferred to CI per Sprint-1+ posture.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>ShopFlow.Migrate.IntegrationTests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Application\ShopFlow.Auth.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\ShopFlow.Auth.Infrastructure\ShopFlow.Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\tools\shopflow-migrate\shopflow-migrate.csproj" />
+  </ItemGroup>
+
+</Project>

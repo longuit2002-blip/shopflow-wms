@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Notification module — Domain. Sprint-9.5 U1 ships the minimum value
+       objects (NotificationKind enum + Recipient + RenderedEmail) plus the
+       three EF row entities (NotificationOutboxEntry + NotificationLogEntry
+       + NotificationDeadLetterEntry). Pure C#; references SharedKernel only.
+       Per ADR-0003 no tenant_id column on any Notification table; tenant
+       identity comes from the per-request DbContext binding (the DB is the
+       boundary). Recipient.TenantId is in-process metadata used by the
+       dispatcher for logging, not a persisted column. -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

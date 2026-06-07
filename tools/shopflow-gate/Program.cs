@@ -51,7 +51,10 @@ var checks = new List<(string Name, Func<Task<(bool ok, string detail)>> Run)>
     ("catalog reachable", () => CheckCatalogReachable(db)),
     ("catalog migrated", () => CheckCatalogMigrated(db)),
     ("tenants Ready", () => CheckTenantsReady(db)),
-    ("pgbouncer reachable", () => CheckPgBouncerReachable(options.PgBouncerConnectionString, logger)),
+    (
+        "pgbouncer reachable",
+        () => CheckPgBouncerReachable(options.PgBouncerConnectionString, logger)
+    ),
 };
 
 var failures = 0;
@@ -67,7 +70,7 @@ foreach (var (name, run) in checks)
         var (ok, detail) = await run();
         sw.Stop();
         var status = ok ? "PASS" : "FAIL";
-        Console.Out.WriteLine($"  [{status}] {name,-26} {sw.ElapsedMilliseconds,6}ms — {detail}");
+        Console.Out.WriteLine($"  [{status}] {name, -26} {sw.ElapsedMilliseconds, 6}ms — {detail}");
         if (!ok)
         {
             failures++;
@@ -77,12 +80,18 @@ foreach (var (name, run) in checks)
     {
         sw.Stop();
         failures++;
-        Console.Out.WriteLine($"  [FAIL] {name,-26} {sw.ElapsedMilliseconds,6}ms — {ex.GetType().Name}: {ex.Message}");
+        Console.Out.WriteLine(
+            $"  [FAIL] {name, -26} {sw.ElapsedMilliseconds, 6}ms — {ex.GetType().Name}: {ex.Message}"
+        );
     }
 }
 
 Console.Out.WriteLine(new string('=', 60));
-Console.Out.WriteLine(failures == 0 ? "phase-0-redux gate: PASS" : $"phase-0-redux gate: FAIL ({failures} check(s) failed)");
+Console.Out.WriteLine(
+    failures == 0
+        ? "phase-0-redux gate: PASS"
+        : $"phase-0-redux gate: FAIL ({failures} check(s) failed)"
+);
 Console.Out.WriteLine();
 
 return failures == 0 ? 0 : 1;
@@ -91,11 +100,13 @@ static IHost BuildHost(string[] args)
 {
     var builder = Host.CreateApplicationBuilder(args);
 
-    var catalogConn = builder.Configuration.GetValue<string>("ControlPlane:ConnectionString")
+    var catalogConn =
+        builder.Configuration.GetValue<string>("ControlPlane:ConnectionString")
         ?? throw new InvalidOperationException(
             "configuration 'ControlPlane:ConnectionString' is required."
         );
-    var pgBouncerConn = builder.Configuration.GetValue<string>("PgBouncer:HealthCheckConnectionString")
+    var pgBouncerConn =
+        builder.Configuration.GetValue<string>("PgBouncer:HealthCheckConnectionString")
         ?? catalogConn;
 
     builder.Services.AddSingleton(new GateOptions(catalogConn, pgBouncerConn));
@@ -144,7 +155,10 @@ static async Task<(bool ok, string detail)> CheckCatalogMigrated(ControlPlaneDbC
     }
     return pending.Count == 0
         ? (true, $"{applied.Count} migration(s) applied; 0 pending")
-        : (false, $"{pending.Count} pending migration(s); run shopflow-migrate provision --catalog");
+        : (
+            false,
+            $"{pending.Count} pending migration(s); run shopflow-migrate provision --catalog"
+        );
 }
 
 static async Task<(bool ok, string detail)> CheckTenantsReady(ControlPlaneDbContext db)

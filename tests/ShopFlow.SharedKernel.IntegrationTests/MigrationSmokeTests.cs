@@ -55,17 +55,9 @@ public sealed class MigrationSmokeTests
         );
         await AssertConstraintsExistAsync(
             connStr,
-            new[]
-            {
-                "pk_tenants",
-                "pk_tenant_events",
-                "pk_channel_connections",
-            }
+            new[] { "pk_tenants", "pk_tenant_events", "pk_channel_connections" }
         );
-        await AssertIndexesExistAsync(
-            connStr,
-            new[] { "ux_tenants_slug", "ux_tenants_db_name" }
-        );
+        await AssertIndexesExistAsync(connStr, new[] { "ux_tenants_slug", "ux_tenants_db_name" });
     }
 
     [Fact]
@@ -274,13 +266,7 @@ public sealed class MigrationSmokeTests
         await AssertHistoryAppliedAsync(connStr);
         await AssertTablesExistAsync(
             connStr,
-            new[]
-            {
-                "channels",
-                "webhook_events",
-                "product_mappings",
-                "channel_outbox_messages",
-            }
+            new[] { "channels", "webhook_events", "product_mappings", "channel_outbox_messages" }
         );
         await AssertConstraintsExistAsync(
             connStr,
@@ -322,12 +308,7 @@ public sealed class MigrationSmokeTests
         await AssertHistoryAppliedAsync(connStr);
         await AssertTablesExistAsync(
             connStr,
-            new[]
-            {
-                "stock_sync_sku_flag",
-                "stock_sync_push_log",
-                "stock_sync_outbox_messages",
-            }
+            new[] { "stock_sync_sku_flag", "stock_sync_push_log", "stock_sync_outbox_messages" }
         );
         await AssertConstraintsExistAsync(
             connStr,
@@ -380,7 +361,8 @@ public sealed class MigrationSmokeTests
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"";
         var count = (long)(await cmd.ExecuteScalarAsync())!;
-        count.Should()
+        count
+            .Should()
             .BeGreaterThanOrEqualTo(
                 1,
                 "MigrateAsync() must record at least one row in __EFMigrationsHistory "
@@ -398,7 +380,8 @@ public sealed class MigrationSmokeTests
             cmd.CommandText = "SELECT to_regclass(@n)::text";
             cmd.Parameters.AddWithValue("n", table);
             var result = await cmd.ExecuteScalarAsync();
-            result.Should()
+            result
+                .Should()
                 .NotBe(DBNull.Value, $"expected table '{table}' to exist after migration");
         }
     }

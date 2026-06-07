@@ -12,6 +12,21 @@
 
   <ItemGroup>
     <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- Sprint-7 U6 — NSubstitute for the SagaTransitionsEndToEndSignalRTests
+         mock IHubContext + ITenantCatalog (real SignalR transport would
+         require booting WebApplicationFactory<Program>). -->
+    <PackageReference Include="NSubstitute" />
+    <!-- Sprint-8.5 U10 — ILoggingBuilder.AddProvider lives in
+         Microsoft.Extensions.Logging core (not Logging.Configuration);
+         the BuildHarness fixtures want explicit NullLoggerProvider.Instance
+         to silence test logging. Explicit pin preserves the test-author
+         intent without re-deriving the dependency. -->
+    <PackageReference Include="Microsoft.Extensions.Logging" />
+    <!-- Sprint-10.5 U4 — WebApplicationFactory<Program> for the 403
+         wire-shape integration suite under Authorization/. Outbound
+         already booted WAF in Sprint-7 endpoint tests; this entry pins
+         the explicit package floor. -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +44,40 @@
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Domain\ShopFlow.Inventory.Domain.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Application\ShopFlow.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\src\Services\Inventory\ShopFlow.Inventory.Infrastructure\ShopFlow.Inventory.Infrastructure.csproj" />
+    <!-- Finish-line U4 — HandoffFixture provisions a control-plane catalog +
+         registers the handoff tenant so the WAF's TenantRoutingMiddleware can
+         resolve it. ControlPlane.Migrations must be on the probing path for
+         ControlPlaneDbContext.MigrateAsync (same reason SharedKernel +
+         StockSync.IntegrationTests reference it). -->
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Infrastructure\ShopFlow.ControlPlane.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\ControlPlane\ShopFlow.ControlPlane.Migrations\ShopFlow.ControlPlane.Migrations.csproj" />
+    <!-- Sprint-10.5 U4 — NarrowedJwtBuilder is linked as a Compile item
+         from Auth.IntegrationTests/Authorization/. Cross-test-project
+         ProjectReference (the plan's prescribed shape) pulls Auth.Api.dll
+         transitively and collides with this project's WAF target
+         (Outbound.Api Program). Linked-file keeps the helper single-
+         sourced without the transitive cost. -->
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\ShopFlow.Auth.IntegrationTests\Authorization\NarrowedJwtBuilder.cs">
+      <Link>Authorization\NarrowedJwtBuilder.cs</Link>
+    </Compile>
+    <!-- Sprint-12 U4 — RolePermissionsSeed is linked from tools/shopflow-migrate/
+         so HandoffFixture's BuildPickerJwt / BuildDispatcherJwt can pin the
+         JWT perm[] against the canonical PickerBaseline + DispatcherBaseline
+         constants directly. Cross-project ProjectReference to the migrate
+         tool would pull its Program entrypoint (OutputType=Exe) and collide
+         with this project's Outbound.Api Program WAF target — same trap
+         Sprint-10.5 U4 documented for Auth.Api. The Compile-link keeps a
+         single source of truth without the transitive cost. -->
+    <Compile Include="..\..\tools\shopflow-migrate\Provisioning\RolePermissionsSeed.cs">
+      <Link>Provisioning\RolePermissionsSeed.cs</Link>
+    </Compile>
+    <!-- Finish-line U4 — proof-run gate for the cross-role denial harness. -->
+    <Compile Include="..\_shared\ProofGate.cs">
+      <Link>_shared\ProofGate.cs</Link>
+    </Compile>
   </ItemGroup>
 
 </Project>

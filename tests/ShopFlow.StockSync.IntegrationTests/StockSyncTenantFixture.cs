@@ -59,10 +59,7 @@ public sealed class StockSyncTenantFixture : IAsyncLifetime
         }.ConnectionString;
 
         var options = new DbContextOptionsBuilder<StockSyncDbContext>()
-            .UseNpgsql(
-                connStr,
-                npg => npg.MigrationsAssembly("ShopFlow.StockSync.Infrastructure")
-            )
+            .UseNpgsql(connStr, npg => npg.MigrationsAssembly("ShopFlow.StockSync.Infrastructure"))
             .Options;
 
         await using (var ctx = new StockSyncDbContext(options))
@@ -85,8 +82,7 @@ public sealed class StockSyncTenantFixture : IAsyncLifetime
 }
 
 [CollectionDefinition(Name)]
-public sealed class StockSyncTenantCollection
-    : ICollectionFixture<StockSyncTenantFixture>
+public sealed class StockSyncTenantCollection : ICollectionFixture<StockSyncTenantFixture>
 {
     public const string Name = "StockSyncTenant";
 }

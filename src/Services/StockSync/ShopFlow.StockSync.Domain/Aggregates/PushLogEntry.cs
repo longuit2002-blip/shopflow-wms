@@ -153,10 +153,7 @@ public sealed class PushLogEntry
 
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
-            throw new ArgumentException(
-                "IdempotencyKey must be non-empty",
-                nameof(idempotencyKey)
-            );
+            throw new ArgumentException("IdempotencyKey must be non-empty", nameof(idempotencyKey));
         }
 
         if (latencyMs < 0)

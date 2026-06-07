@@ -107,20 +107,14 @@ public sealed class ReservationRepository : IReservationRepository
         }
         if (ttl <= TimeSpan.Zero)
         {
-            return Result<Reservation>.Failure(
-                "ttl must be > 0.",
-                "reservation.ttl_non_positive"
-            );
+            return Result<Reservation>.Failure("ttl must be > 0.", "reservation.ttl_non_positive");
         }
 
         // Sprint-3-redux U3 wrapper: route through the multi-line path with
         // a single-element list using the default order_line_id. External
         // behavior (success row shape, oversold code, idempotency outcome)
         // unchanged from Sprint-1-redux.
-        var lines = new[]
-        {
-            new LineReservation(sku, Reservation.DefaultOrderLineId, quantity),
-        };
+        var lines = new[] { new LineReservation(sku, Reservation.DefaultOrderLineId, quantity) };
         var multi = await TryReserveLinesAsync(orderId, lines, ttl, ct).ConfigureAwait(false);
         if (multi.IsSuccess)
         {
@@ -210,9 +204,7 @@ public sealed class ReservationRepository : IReservationRepository
 
                 try
                 {
-                    await using var reader = await cmd
-                        .ExecuteReaderAsync(ct)
-                        .ConfigureAwait(false);
+                    await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
                     while (await reader.ReadAsync(ct).ConfigureAwait(false))
                     {
                         insertedRows.Add(
@@ -259,11 +251,7 @@ public sealed class ReservationRepository : IReservationRepository
             {
                 await transaction.RollbackAsync(ct).ConfigureAwait(false);
                 var outcomes = await ComputeOversoldOutcomesAsync(lines, ct).ConfigureAwait(false);
-                return TryReserveLinesResult.Failure(
-                    "oversold.",
-                    "reservation.oversold",
-                    outcomes
-                );
+                return TryReserveLinesResult.Failure("oversold.", "reservation.oversold", outcomes);
             }
 
             // Hydrate Reservation entities from the inserted rows + emit one
@@ -285,20 +273,10 @@ public sealed class ReservationRepository : IReservationRepository
                     );
                 }
 
-                var reservation = MaterializeReservation(
-                    row.Id,
-                    line,
-                    orderId,
-                    expiresAt
-                );
+                var reservation = MaterializeReservation(row.Id, line, orderId, expiresAt);
                 reservations.Add(reservation);
                 outcomesSuccess.Add(
-                    new LineOutcome(
-                        line.OrderLineId,
-                        line.Sku,
-                        row.Id,
-                        LineOutcomeStatus.Reserved
-                    )
+                    new LineOutcome(line.OrderLineId, line.Sku, row.Id, LineOutcomeStatus.Reserved)
                 );
 
                 AppendOutbox(
@@ -319,11 +297,12 @@ public sealed class ReservationRepository : IReservationRepository
             // does a follow-up SELECT inside the same transaction.
             var affectedSkus = insertedRows.Select(r => r.Sku).Distinct().ToArray();
             var perSkuAvailable = await ReadAvailableForSkusAsync(
-                connection,
-                transaction,
-                affectedSkus,
-                ct
-            ).ConfigureAwait(false);
+                    connection,
+                    transaction,
+                    affectedSkus,
+                    ct
+                )
+                .ConfigureAwait(false);
             foreach (var (sku, available) in perSkuAvailable)
             {
                 AppendOutbox(
@@ -476,10 +455,7 @@ public sealed class ReservationRepository : IReservationRepository
                 }
             );
             cmd.Parameters.Add(
-                new NpgsqlParameter($"p_resid_{i}", NpgsqlDbType.Uuid)
-                {
-                    Value = Guid.NewGuid(),
-                }
+                new NpgsqlParameter($"p_resid_{i}", NpgsqlDbType.Uuid) { Value = Guid.NewGuid() }
             );
         }
         cmd.Parameters.Add(
@@ -568,8 +544,7 @@ public sealed class ReservationRepository : IReservationRepository
         await fresh.OpenAsync(ct).ConfigureAwait(false);
         await using (var cmd = fresh.CreateCommand())
         {
-            cmd.CommandText =
-                "SELECT sku, available FROM stock_items WHERE sku = ANY(@p_skus)";
+            cmd.CommandText = "SELECT sku, available FROM stock_items WHERE sku = ANY(@p_skus)";
             cmd.Parameters.Add(
                 new NpgsqlParameter("p_skus", NpgsqlDbType.Array | NpgsqlDbType.Varchar)
                 {
@@ -868,10 +843,7 @@ public sealed class ReservationRepository : IReservationRepository
         ArgumentNullException.ThrowIfNull(orderLineIds);
         if (string.IsNullOrWhiteSpace(orderId))
         {
-            throw new ArgumentException(
-                "order_id is required.",
-                nameof(orderId)
-            );
+            throw new ArgumentException("order_id is required.", nameof(orderId));
         }
         if (orderLineIds.Count == 0)
         {
@@ -1108,11 +1080,12 @@ public sealed class ReservationRepository : IReservationRepository
             // surface the new available; read it inside the same tx.
             var affectedSkus = expired.Select(e => e.Sku).Distinct().ToArray();
             var perSkuAvailable = await ReadAvailableForSkusAsync(
-                connection,
-                transaction,
-                affectedSkus,
-                ct
-            ).ConfigureAwait(false);
+                    connection,
+                    transaction,
+                    affectedSkus,
+                    ct
+                )
+                .ConfigureAwait(false);
             foreach (var (sku, available) in perSkuAvailable)
             {
                 AppendOutbox(

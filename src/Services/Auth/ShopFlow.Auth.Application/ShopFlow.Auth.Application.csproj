@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Auth module — Application. Sprint-8 U2 shipped the Ports
+       (IUserRepository, IPasswordHasher, IRefreshTokenStore,
+       ITokenIssuer) + Dtos. Sprint-8 U7/U8 lands the MediatR command
+       handlers (Login / Refresh / Logout / ChangePassword + admin
+       Create / UpdateUser / ListUsers) backed by Domain aggregates +
+       Infrastructure persistence + Redis refresh store. -->
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ShopFlow.Auth.Domain\ShopFlow.Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\..\Shared\ShopFlow.SharedKernel\ShopFlow.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -57,8 +57,7 @@ namespace ShopFlow.Outbound.IntegrationTests;
 [Trait("Category", "Integration")]
 public sealed class PickFailureCompensationTests : IAsyncLifetime
 {
-    private static readonly DateTimeOffset FixedNow =
-        new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset FixedNow = new(2026, 5, 13, 10, 0, 0, TimeSpan.Zero);
 
     private readonly OutboundTenantFixture _fx;
     private ProvisionedOutboundTenant _tenant = default!;
@@ -378,9 +377,7 @@ public sealed class PickFailureCompensationTests : IAsyncLifetime
     private async Task AssertOrderStatusAsync(Guid orderId, OrderStatus expected)
     {
         await using var verify = new OutboundDbContext(_tenant.Options);
-        var order = await verify
-            .Orders.AsNoTracking()
-            .SingleAsync(o => o.Id == orderId);
+        var order = await verify.Orders.AsNoTracking().SingleAsync(o => o.Id == orderId);
         order.Status.Should().Be(expected);
     }
 
@@ -390,18 +387,14 @@ public sealed class PickFailureCompensationTests : IAsyncLifetime
         while (DateTime.UtcNow < deadline)
         {
             await using var verify = new OutboundDbContext(_tenant.Options);
-            var order = await verify
-                .Orders.AsNoTracking()
-                .SingleAsync(o => o.Id == orderId);
+            var order = await verify.Orders.AsNoTracking().SingleAsync(o => o.Id == orderId);
             if (order.Status == expected)
             {
                 return;
             }
             await Task.Delay(100);
         }
-        throw new TimeoutException(
-            $"Order {orderId} did not reach status {expected} within 10s."
-        );
+        throw new TimeoutException($"Order {orderId} did not reach status {expected} within 10s.");
     }
 
     private async Task WaitForSagaStateAsync(Guid orderId, string expectedState)
@@ -493,10 +486,7 @@ public sealed class PickFailureCompensationTests : IAsyncLifetime
             CancellationToken cancellationToken = default
         ) => Task.CompletedTask;
 
-        public Task Publish<T>(
-            object values,
-            CancellationToken cancellationToken = default
-        )
+        public Task Publish<T>(object values, CancellationToken cancellationToken = default)
             where T : class => Task.CompletedTask;
 
         public Task Publish<T>(
