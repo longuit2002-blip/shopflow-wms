@@ -1,6 +1,10 @@
 /* ShopFlow WMS — design tokens
- * Warm-neutral palette + amber-ochre accent. Border-based elevation.
- * Tabular numerals everywhere. Vietnamese number conventions.
+ * Cool/true-neutral palette + indigo-blue accent (calm precision instrument).
+ * Border-based elevation. Tabular numerals everywhere. Color = status, not decor.
+ * Identity + rationale: see PRODUCT.md / DESIGN.md at repo root. Pre-2026-06 this
+ * was warm-cream + amber-ochre (the AI-slop default); re-skinned to cool-neutral +
+ * indigo. Token NAMES are stable — screens consume the legacy aliases below, so the
+ * value swap re-skins the whole app at once.
  *
  * Sprint-6 U2 — ported from design canon `tokens.css` with:
  *   - STYLING_SPECS §3.3 delta patch inlined (--neutral-300, --neutral-500,
@@ -12,33 +16,33 @@
  */
 
 :root {
-  /* Neutral — warm-leaning */
-  --neutral-0: #fafaf7;
-  --neutral-50: #f4f3ee;
-  --neutral-100: #e8e6de;
-  --neutral-200: #d4d1c5;
-  --neutral-300: #b6b3a6; /* §3.3 — new step */
-  --neutral-400: #8e8b7e;
-  --neutral-500: #71706a; /* §6.1 — new step for AA-passing tertiary ink */
-  --neutral-600: #5b5a52;
-  --neutral-800: #2d2c28;
-  --neutral-900: #1a1a18;
+  /* Neutral — cool/true-neutral (near-zero chroma) */
+  --neutral-0: #fbfbfc;
+  --neutral-50: #f4f5f7;
+  --neutral-100: #eceef2;
+  --neutral-200: #e4e7ec;
+  --neutral-300: #cdd2db; /* strong line / faint ink */
+  --neutral-400: #98a1b0;
+  --neutral-500: #667085; /* tertiary ink — AA ~4.9:1 on white */
+  --neutral-600: #475467;
+  --neutral-800: #1d2433;
+  --neutral-900: #101322;
 
-  /* Primary accent — amber-ochre */
-  --primary-500: #c77f1f;
-  --primary-600: #a66514;
-  --primary-400: #e8a04a;
-  --primary-100: #f7e8d1;
+  /* Primary accent — indigo-blue (≤10%: focus, primary action, selected) */
+  --primary-500: #4263eb;
+  --primary-600: #3651c9;
+  --primary-400: #7c93f5;
+  --primary-100: #e8edfd;
 
   /* Semantic */
-  --success-500: #1f7a4c;
-  --success-100: #dcefe3;
-  --warning-500: #b8651f;
-  --warning-100: #fbe6cb;
-  --danger-500: #b12b2b;
-  --danger-100: #f7d9d9;
-  --info-500: #3d5a80;
-  --info-100: #dde5f0;
+  --success-500: #067647;
+  --success-100: #dcfae6;
+  --warning-500: #b54708;
+  --warning-100: #fef0c7;
+  --danger-500: #d92d20;
+  --danger-100: #fee4e2;
+  --info-500: #1570ef;
+  --info-100: #d1e9ff;
 
   /* Channel accent dots */
   --ch-shopee: #ee4d2d;
@@ -63,23 +67,23 @@
   --line-strong: var(--neutral-400);
   --accent: var(--primary-500);
   --accent-soft: var(--primary-100);
-  --accent-line: #e2bc7a;
+  --accent-line: #b9c6f7;
   --accent-ink: var(--primary-600);
   --ok: var(--success-500);
   --ok-soft: var(--success-100);
-  --ok-line: #a8d6bc;
-  --ok-ink: #1a5a2e; /* §3.3 — accent text on success backgrounds */
+  --ok-line: #a9e0c1;
+  --ok-ink: #05603a; /* accent text on success backgrounds */
   --warn: var(--warning-500);
   --warn-soft: var(--warning-100);
-  --warn-line: #e8b985;
-  --warn-ink: #7a4310;
+  --warn-line: #f0c48a;
+  --warn-ink: #93370d;
   --bad: var(--danger-500);
   --bad-soft: var(--danger-100);
-  --bad-line: #e5a4a4;
-  --bad-ink: #7a1a1a;
+  --bad-line: #f2b8b2;
+  --bad-ink: #912018;
   --info: var(--info-500);
   --info-soft: var(--info-100);
-  --info-line: #a8b6cc;
+  --info-line: #a3c8f5;
 
   /* Typography — IBM Plex self-hosted via @fontsource (see fonts.css) */
   --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -134,7 +138,7 @@
 
   /* Focus ring — §3.3 + §6.2 */
   --focus-ring-color: var(--primary-500);
-  --focus-ring: 0 0 0 2px rgba(199, 127, 31, 0.3);
+  --focus-ring: 0 0 0 2px rgba(66, 99, 235, 0.3);
 
   /* Motion — §3.3 */
   --duration-instant: 0ms;
