@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { Pill } from '../../components/primitives/Pill';
+import { StatRow } from '../../components/primitives/StatRow';
 import { t, useLocale } from '../../hooks/useLocale';
 
 /**
@@ -307,66 +308,55 @@ function SettingsBreadcrumb({ crumb, sub }: { crumb: string; sub?: string }) {
 
 function ComplianceHeader() {
   return (
-    <div
-      data-review="compliance-header"
-      style={{
-        borderTop: '1px solid var(--line)',
-        borderBottom: '1px solid var(--line)',
-        background: 'var(--bg-soft)',
-        margin: '14px 0 0',
-        padding: '14px 24px',
-        display: 'grid',
-        gridTemplateColumns: '1.1fr 1.2fr 1.3fr 1fr 1fr',
-        gap: 24,
-        alignItems: 'center',
-      }}
-    >
-      <CompCol icon={Building2} label={t('Pháp nhân', 'Tenant identity')}>
-        <div style={{ fontSize: 12.5, fontWeight: 600 }}>{TENANT.legal}</div>
-        <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-          {TENANT.erc} · {TENANT.region} · sg-1
-        </div>
-      </CompCol>
-      <CompCol icon={Database} label={t('Cô lập · Isolation', 'Isolation guarantee')}>
-        <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
-          {t('CSDL vật lý riêng', 'Dedicated physical DB')}
-        </div>
-        <div
-          className="mono"
-          style={{ fontSize: 11, color: 'var(--ink)', userSelect: 'all', marginTop: 2 }}
-        >
-          {TENANT.db}
-        </div>
-      </CompCol>
-      <CompCol icon={ShieldCheck} label={t('Trạng thái tuân thủ', 'Compliance status')}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span className="live-dot ok" />
-          <span style={{ fontSize: 12, fontWeight: 500 }}>
-            {t('Tuân thủ NĐ 13/2023/NĐ-CP', 'Compliant — Decree 13/2023/NĐ-CP')}
-          </span>
-        </div>
-        <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 2 }}>
-          {t('Cập nhật 14:23 ngày 08/05', 'Refreshed 14:23 on 08/05')}
-        </div>
-      </CompCol>
-      <CompCol icon={History} label={t('Cập nhật nhà cung cấp', 'Sub-processor change')}>
-        <div style={{ fontSize: 12 }}>{t('28 ngày trước', '28 days ago')}</div>
-        <a
-          href="#subprocs"
-          style={{ fontSize: 10.5, color: 'var(--ink-3)', textDecoration: 'underline' }}
-        >
-          {t('xem danh sách →', 'view list →')}
-        </a>
-      </CompCol>
-      <CompCol icon={FileSearch} label={t('Audit log', 'Audit log')}>
-        <div style={{ fontSize: 12 }}>
-          <span className="mono tnum" style={{ fontWeight: 600 }}>
-            3.247
-          </span>{' '}
-          {t('sự kiện', 'events')}
-        </div>
-        <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>{t('24 giờ qua', 'last 24h')}</div>
-      </CompCol>
+    <div data-review="compliance-header">
+      <StatRow ariaLabel={t('Tóm tắt tuân thủ', 'Compliance summary')}>
+        <CompCol icon={Building2} label={t('Pháp nhân', 'Tenant identity')}>
+          <div style={{ fontSize: 12.5, fontWeight: 600 }}>{TENANT.legal}</div>
+          <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+            {TENANT.erc} · {TENANT.region} · sg-1
+          </div>
+        </CompCol>
+        <CompCol icon={Database} label={t('Cô lập · Isolation', 'Isolation guarantee')}>
+          <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>
+            {t('CSDL vật lý riêng', 'Dedicated physical DB')}
+          </div>
+          <div
+            className="mono"
+            style={{ fontSize: 11, color: 'var(--ink)', userSelect: 'all', marginTop: 2 }}
+          >
+            {TENANT.db}
+          </div>
+        </CompCol>
+        <CompCol icon={ShieldCheck} label={t('Trạng thái tuân thủ', 'Compliance status')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="live-dot ok" />
+            <span style={{ fontSize: 12, fontWeight: 500 }}>
+              {t('Tuân thủ NĐ 13/2023/NĐ-CP', 'Compliant — Decree 13/2023/NĐ-CP')}
+            </span>
+          </div>
+          <div style={{ fontSize: 10.5, color: 'var(--ink-3)', marginTop: 2 }}>
+            {t('Cập nhật 14:23 ngày 08/05', 'Refreshed 14:23 on 08/05')}
+          </div>
+        </CompCol>
+        <CompCol icon={History} label={t('Cập nhật nhà cung cấp', 'Sub-processor change')}>
+          <div style={{ fontSize: 12 }}>{t('28 ngày trước', '28 days ago')}</div>
+          <a
+            href="#subprocs"
+            style={{ fontSize: 10.5, color: 'var(--ink-3)', textDecoration: 'underline' }}
+          >
+            {t('xem danh sách →', 'view list →')}
+          </a>
+        </CompCol>
+        <CompCol icon={FileSearch} label={t('Audit log', 'Audit log')}>
+          <div style={{ fontSize: 12 }}>
+            <span className="mono tnum" style={{ fontWeight: 600 }}>
+              3.247
+            </span>{' '}
+            {t('sự kiện', 'events')}
+          </div>
+          <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>{t('24 giờ qua', 'last 24h')}</div>
+        </CompCol>
+      </StatRow>
     </div>
   );
 }
