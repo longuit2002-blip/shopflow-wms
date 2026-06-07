@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type ReactNode } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
 import {
   Plus,
@@ -28,10 +28,12 @@ import { t, useLocale } from '../../hooks/useLocale';
  * scroll body, plus a 3-step Connect-channel modal flow (OAuth handshake →
  * product mapping → confirm).
  *
- * - Overview: per-channel cards with last-sync, orders-today, token-bucket
- *   headroom bar, circuit-breaker state, last webhook, and a PDPA
- *   sub-processor footer — the four SEA marketplaces (Shopee / Lazada /
- *   TikTok Shop / Shopify) plus one available-to-connect dashed card.
+ * - Overview: a dense channel table (one row per channel) with status,
+ *   orders-today, last-sync, token-bucket headroom bar, circuit-breaker
+ *   state, and last webhook — the four SEA marketplaces (Shopee / Lazada /
+ *   TikTok Shop / Shopify), a quiet available-to-connect footer row, and a
+ *   single PDPA data-residency caption (the full disclosure lives in the
+ *   Compliance tab).
  * - Allocation rules: per-channel weight sliders with priority / cap /
  *   safety-stock columns and a live 1.000-unit split preview.
  * - Webhook log: live event feed with idempotency dedup state, latency, and
@@ -257,51 +259,89 @@ function ChannelsRouteComponent() {
 
 // ── Overview tab ─────────────────────────────────────────────────────────────
 
+/**
+ * Overview is a dense channel table, not a card grid. One row per connected
+ * channel, channel identity carried by the leading brand dot (the established
+ * `ChannelDot` vocabulary shared with the Allocation + Webhook tabs). The
+ * per-card compliance footer the prior card layout repeated 4× collapses into
+ * a single residency caption below the table — the full sub-processor
+ * disclosure lives in the Compliance tab, so repeating it per row was noise.
+ */
 function ChannelCards() {
   return (
-    <div
-      data-review="channel-cards"
-      style={{ padding: 18, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}
-    >
-      {CHANNELS.map((c) => (
-        <ChannelCard key={c.id} channel={c} />
-      ))}
+    <div data-review="channel-cards" style={{ padding: 18 }}>
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <div className="scroll-x">
+          <table className="t-data" style={{ minWidth: 1080 }}>
+            <thead>
+              <tr>
+                <th style={{ minWidth: 220 }}>{t('Kênh', 'Channel')}</th>
+                <th style={{ width: 112 }}>{t('Trạng thái', 'Status')}</th>
+                <th style={{ width: 100, textAlign: 'right' }}>
+                  {t('Đơn hôm nay', 'Orders today')}
+                </th>
+                <th style={{ width: 112 }}>{t('Đồng bộ gần nhất', 'Last sync')}</th>
+                <th style={{ width: 172 }}>{t('Dư địa rate-limit', 'Rate headroom')}</th>
+                <th style={{ width: 112 }}>Circuit breaker</th>
+                <th style={{ width: 156 }}>{t('Webhook gần nhất', 'Last webhook')}</th>
+                <th style={{ width: 116 }}>
+                  <span className="sr-only">{t('Hành động', 'Actions')}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {CHANNELS.map((c) => (
+                <ChannelRow key={c.id} channel={c} />
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      {/* Available to connect */}
-      <div
-        className="card"
-        style={{ overflow: 'hidden', borderStyle: 'dashed', borderColor: 'var(--line-2)' }}
-      >
-        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            className="oauth-mark"
-            style={{
-              background: 'var(--bg-sunken)',
-              color: 'var(--ink-3)',
-              border: '1px solid var(--line)',
-            }}
-          >
-            S
+        {/* Available to connect — a quiet footer row, not a dashed card. */}
+        <div
+          className="hairline-t"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 14px',
+            background: 'var(--bg-soft)',
+          }}
+        >
+          <span className="lbl">{t('Có thể thêm', 'Available')}</span>
+          <ChannelDot id="sendo" />
+          <span style={{ fontSize: 12, color: 'var(--ink-3)' }}>
+            {t('— kết nối để mở rộng sang kênh thứ 5', '— connect to add a 5th channel')}
           </span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13.5, fontWeight: 600 }}>Sendo</div>
-            <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-              {t(
-                'Có sẵn — kết nối để mở rộng sang kênh thứ 5',
-                'Available — connect to add a 5th channel',
-              )}
-            </div>
-          </div>
+          <span style={{ flex: 1 }} />
           <button className="btn sm primary" type="button">
             <Plug size={11} strokeWidth={1.5} aria-hidden /> {t('Kết nối', 'Connect')}
           </button>
         </div>
       </div>
+
+      {/* PDPA residency caption — replaces the per-card compliance footers. */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          marginTop: 10,
+          fontSize: 11,
+          color: 'var(--ink-3)',
+        }}
+      >
+        <ShieldCheck size={12} strokeWidth={1.5} style={{ color: 'var(--ok)' }} aria-hidden />
+        {t(
+          'Mọi kênh lưu tại SG-1 · ap-southeast-1 · xem tab Tuân thủ để biết công bố sub-processor.',
+          'All channels store in SG-1 · ap-southeast-1 — see the Compliance tab for sub-processor disclosure.',
+        )}
+      </div>
     </div>
   );
 }
 
-function ChannelCard({ channel }: { channel: Channel }) {
+function ChannelRow({ channel }: { channel: Channel }) {
   const s = stripFor(channel.id);
   const connected = channel.id !== 'shopify';
   const tokensLeft = Math.round(s.rate * 5000);
@@ -309,159 +349,134 @@ function ChannelCard({ channel }: { channel: Channel }) {
   const breakerClosed = s.breaker === 'closed';
 
   return (
-    <div className="card" style={{ overflow: 'hidden', position: 'relative' }}>
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 4,
-          background: channel.color,
-        }}
-      />
-      <div
-        style={{
-          padding: '14px 16px 12px',
-          borderBottom: '1px solid var(--line)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-        <span className="oauth-mark" style={{ background: channel.color }}>
-          {channel.short.charAt(0)}
-        </span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600 }}>{channel.name}</div>
-          <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-            {channel.accountTag}
+    <tr>
+      {/* Channel identity — leading brand dot */}
+      <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <span className="ch-dot" style={{ background: channel.color }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{channel.name}</div>
+            <div className="mono tr" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
+              {channel.accountTag}
+            </div>
           </div>
         </div>
+      </td>
+
+      {/* Status */}
+      <td>
         <Pill kind={connected ? 'ok' : 'warn'}>
-          <span
-            className="s-dot"
-            style={{ background: connected ? 'var(--ok)' : 'var(--warn)', marginRight: 4 }}
-          />
+          <span className={'s-dot ' + (connected ? 'ok' : 'warn')} style={{ marginRight: 4 }} />
           {connected ? t('đã kết nối', 'connected') : t('giảm hiệu suất', 'degraded')}
         </Pill>
-      </div>
+      </td>
 
-      <div
-        style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}
-      >
-        <div>
-          <div className="lbl">{t('Đồng bộ thành công gần nhất', 'Last successful sync')}</div>
-          <div className="mono tnum" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-            {s.lastSync} {t('trước', 'ago')}
-          </div>
-          <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-            {t('p99 giữ chỗ', 'p99 reserve')} {s.syncMs}ms
-          </div>
+      {/* Orders today + 24h error sub */}
+      <td style={{ textAlign: 'right' }}>
+        <div className="mono tnum" style={{ fontSize: 14, fontWeight: 600 }}>
+          {VI_NUM.format(s.ordersToday)}
         </div>
-        <div>
-          <div className="lbl">{t('Đơn hôm nay', 'Orders today')}</div>
-          <div className="mono tnum" style={{ fontSize: 14, fontWeight: 600, marginTop: 2 }}>
-            {VI_NUM.format(s.ordersToday)}
-          </div>
-          <div style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-            {t('tỷ lệ lỗi 24h', '24h error rate')} · {s.err24}
-          </div>
+        <div style={{ fontSize: 10, color: 'var(--ink-3)' }}>
+          {s.err24} {t('lỗi · 24h', 'err · 24h')}
         </div>
+      </td>
 
-        <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <span className="lbl">
-              {t('Dư địa rate-limit · token bucket', 'Rate-limit headroom · token bucket')}
-            </span>
-            <span style={{ flex: 1 }} />
-            <span className="mono tnum" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-              {Math.round(s.rate * 100)}% {t('còn', 'left')} · {tokensLeft}/5000 token
-            </span>
-          </div>
-          <div className={'bar ' + rateKind} style={{ width: '100%' }}>
+      {/* Last sync + p99 */}
+      <td>
+        <div className="mono tnum" style={{ fontSize: 12.5, fontWeight: 500 }}>
+          {s.lastSync} {t('trước', 'ago')}
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--ink-3)' }}>p99 {s.syncMs}ms</div>
+      </td>
+
+      {/* Rate-limit headroom · token bucket */}
+      <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div className={'bar ' + rateKind} style={{ flex: 1, minWidth: 56 }}>
             <i style={{ width: Math.round(s.rate * 100) + '%' }} />
           </div>
+          <span
+            className="mono tnum"
+            style={{ fontSize: 11, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}
+          >
+            {Math.round(s.rate * 100)}%
+          </span>
         </div>
+        <div className="mono" style={{ fontSize: 10, color: 'var(--ink-3)', marginTop: 2 }}>
+          {tokensLeft}/5000 token
+        </div>
+      </td>
 
-        <div>
-          <div className="lbl">Circuit breaker</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-            <span className={'s-dot ' + (breakerClosed ? 'ok' : 'warn')} />
-            <span className="mono" style={{ fontSize: 12.5, fontWeight: 500 }}>
-              {s.breaker}
-            </span>
-            {!breakerClosed && (
-              <span style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-                · {t('thử lại sau 12s', 'retry in 12s')}
-              </span>
-            )}
-          </div>
+      {/* Circuit breaker */}
+      <td>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className={'s-dot ' + (breakerClosed ? 'ok' : 'warn')} />
+          <span className="mono" style={{ fontSize: 12, fontWeight: 500 }}>
+            {s.breaker}
+          </span>
         </div>
-        <div>
-          <div className="lbl">{t('Webhook gần nhất', 'Last webhook')}</div>
-          <div className="mono" style={{ fontSize: 12.5, fontWeight: 500, marginTop: 2 }}>
-            order.created
+        {!breakerClosed && (
+          <div style={{ fontSize: 10, color: 'var(--ink-3)' }}>
+            {t('thử lại sau 12s', 'retry in 12s')}
           </div>
-          <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)' }}>
-            {s.lastSync} {t('trước · đã khử trùng', 'ago · deduplicated')}
-          </div>
-        </div>
-      </div>
+        )}
+      </td>
 
-      {/* Compliance footer */}
-      <div
-        style={{
-          padding: '10px 16px',
-          background: 'var(--bg-soft)',
-          borderTop: '1px solid var(--line)',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: 12,
-        }}
-      >
-        <div>
-          <div className="lbl" style={{ fontSize: 9.5 }}>
-            Sub-processor
-          </div>
-          <div style={{ fontSize: 11, marginTop: 2 }}>
-            {channel.name} API ·{' '}
-            {channel.id === 'shopify'
-              ? t('edge toàn cầu', 'global edge')
-              : t('khu vực SG', 'SG region')}
-          </div>
+      {/* Last webhook */}
+      <td>
+        <div className="mono" style={{ fontSize: 12 }}>
+          order.created
         </div>
-        <div>
-          <div className="lbl" style={{ fontSize: 9.5 }}>
-            {t('Lưu trữ dữ liệu', 'Data residency')}
-          </div>
-          <div style={{ fontSize: 11, marginTop: 2 }}>SG-1 · ap-southeast-1</div>
+        <div
+          className="mono tr"
+          style={{ fontSize: 10, color: 'var(--ink-3)' }}
+          title={s.lastSync + t(' trước · đã khử trùng', ' ago · deduplicated')}
+        >
+          {s.lastSync} {t('trước · đã khử', 'ago · dedup')}
         </div>
-        <div>
-          <div className="lbl" style={{ fontSize: 9.5 }}>
-            {t('Công bố cập nhật', 'Disclosure updated')}
-          </div>
-          <div className="mono" style={{ fontSize: 11, marginTop: 2 }}>
-            2026-03-04
-          </div>
-        </div>
-      </div>
+      </td>
 
-      <div
-        style={{ padding: '8px 16px', display: 'flex', gap: 8, borderTop: '1px solid var(--line)' }}
-      >
-        <button className="btn sm" type="button">
-          <RotateCw size={11} strokeWidth={1.5} aria-hidden /> {t('Ép đồng bộ', 'Force sync')}
-        </button>
-        <button className="btn sm" type="button">
-          <Settings size={11} strokeWidth={1.5} aria-hidden /> {t('Cấu hình', 'Configure')}
-        </button>
-        <span style={{ flex: 1 }} />
-        <button className="btn sm ghost" type="button" style={{ color: 'var(--bad-ink)' }}>
-          <Unlink size={11} strokeWidth={1.5} aria-hidden /> {t('Ngắt kết nối', 'Disconnect')}
-        </button>
-      </div>
-    </div>
+      {/* Actions — icon-only, dense */}
+      <td>
+        <div style={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+          <RowAction
+            icon={<RotateCw size={13} strokeWidth={1.5} aria-hidden />}
+            label={t('Ép đồng bộ', 'Force sync') + ' ' + channel.short}
+          />
+          <RowAction
+            icon={<Settings size={13} strokeWidth={1.5} aria-hidden />}
+            label={t('Cấu hình', 'Configure') + ' ' + channel.short}
+          />
+          <RowAction
+            icon={<Unlink size={13} strokeWidth={1.5} aria-hidden />}
+            label={t('Ngắt kết nối', 'Disconnect') + ' ' + channel.short}
+            danger
+          />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function RowAction({
+  icon,
+  label,
+  danger = false,
+}: {
+  icon: ReactNode;
+  label: string;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      className="btn ghost sm"
+      type="button"
+      title={label}
+      aria-label={label}
+      style={{ padding: '0 7px', ...(danger ? { color: 'var(--bad-ink)' } : null) }}
+    >
+      {icon}
+    </button>
   );
 }
 
