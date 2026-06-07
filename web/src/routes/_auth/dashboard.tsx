@@ -596,6 +596,9 @@ function BreachTable({ ageAdj }: { ageAdj: number }) {
       className="card"
       style={{ overflow: 'hidden' }}
     >
+      {/* The command header owns the count + Assign-all CTA; this table is the
+          itemized detail of that alarm, so its header stays quiet — red-linked
+          but no duplicate count or button. */}
       <div
         className="card-h"
         style={{ background: 'var(--bad-soft)', borderBottom: '1px solid var(--bad-line)' }}
@@ -604,14 +607,10 @@ function BreachTable({ ageAdj }: { ageAdj: number }) {
         <span className="t" style={{ color: 'var(--bad-ink)' }}>
           {t('Vi phạm SLA · đang hoạt động', 'SLA breaches · active')}
         </span>
-        <span style={{ color: 'var(--bad-ink)', fontSize: 11.5 }}>
-          · {t(`${BREACHES.length} đơn quá hạn`, `${BREACHES.length} orders past SLA`)}
-        </span>
         <span style={{ flex: 1 }} />
-        <button className="btn sm" type="button">
-          {t('Phân công tất cả', 'Assign all')}{' '}
-          <ChevronRight size={11} strokeWidth={1.5} aria-hidden />
-        </button>
+        <span className="lbl" style={{ color: 'var(--bad-ink)' }}>
+          {t('cũ nhất trước', 'oldest first')}
+        </span>
       </div>
       <table className="t-data">
         <thead>
