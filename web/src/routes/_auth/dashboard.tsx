@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { createFileRoute } from '@tanstack/react-router';
-import { ChevronRight, ArrowUpRight } from 'lucide-react';
+import { ChevronRight, ArrowUpRight, AlertTriangle, Check } from 'lucide-react';
 import { Pill } from '../../components/primitives/Pill';
 import { t, useLocale } from '../../hooks/useLocale';
 
@@ -12,9 +12,11 @@ import { t, useLocale } from '../../hooks/useLocale';
  * the real source has no role switcher, so this renders the primary
  * Ops-Manager / Owner view only and drops the operator + seller branches.
  *
- * Layout: top live strip (per-tenant reservation p99 vs fleet median +
- * noisy-neighbour pill) → order pipeline card (5 saga stages, breach-tinted)
- * → manager body grid (active-SLA-breach table on the left; picker
+ * Layout: top vitals strip (per-tenant reservation p99 with Δ-vs-fleet +
+ * noisy-neighbour pill) → order pipeline funnel (four in-flight saga stages
+ * with flow chevrons + share-of-WIP bars + a breach focal stage, then a
+ * split-off terminal "Shipped today" total) → manager body grid
+ * (active-SLA-breach table on the left; picker
  * performance + fulfillment-time sparkline + breach-cause bars on the right)
  * → full-width channel-health strip (per-channel circuit-breaker state +
  * rate-limit headroom).
@@ -256,26 +258,45 @@ function DashboardRouteComponent() {
 // ── Top live strip ───────────────────────────────────────────────────────---
 
 function LiveStrip() {
+  // Faster than the fleet median is the healthy signal — surface the delta, not
+  // two bare numbers the reader has to subtract.
+  const delta = HEALTH.fleetMedianMs - HEALTH.tenantP99Ms;
+  const faster = delta >= 0;
   return (
-    <div data-tour="fairness" className="strip" style={{ gap: 18 }}>
+    <div
+      data-tour="fairness"
+      className="strip"
+      style={{ gap: 14, paddingTop: 14, paddingBottom: 14 }}
+    >
       <LiveDot
         kind="info"
         label={t('Trực tiếp', 'Live')}
         sub={t(
-          `· ${HEALTH.signalrConns} kết nối signalr · tenant group ${TENANT.db}`,
-          `· ${HEALTH.signalrConns} signalr conns · tenant group ${TENANT.db}`,
+          `· ${HEALTH.signalrConns} kết nối signalr · ${TENANT.db}`,
+          `· ${HEALTH.signalrConns} signalr conns · ${TENANT.db}`,
         )}
       />
       <span style={{ flex: 1 }} />
-      <span className="lbl">{t('p99 giữ chỗ · tenant này', 'reserve p99 · this tenant')}</span>
-      <span className="mono tnum" style={{ fontSize: 13, fontWeight: 600 }}>
+      <span className="lbl">{t('p99 giữ chỗ · tenant', 'reserve p99 · tenant')}</span>
+      <span
+        className="mono tnum"
+        style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em' }}
+      >
         {HEALTH.tenantP99Ms}ms
       </span>
-      <span style={{ color: 'var(--ink-4)' }}>·</span>
-      <span className="lbl">{t('Trung vị toàn fleet', 'Fleet median')}</span>
-      <span className="mono tnum" style={{ fontSize: 13, color: 'var(--ink-3)' }}>
+      <span
+        className="mono tnum"
+        style={{
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: faster ? 'var(--ok)' : 'var(--bad-ink)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {faster ? '↓' : '↑'} {Math.abs(delta)}ms {t('so với fleet', 'vs fleet')}{' '}
         {HEALTH.fleetMedianMs}ms
       </span>
+      <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 4px' }} />
       <Pill kind="ok">{t('noisy-neighbour: ổn định', 'noisy-neighbour: stable')}</Pill>
     </div>
   );
@@ -305,65 +326,123 @@ function LiveDot({
 
 // ── Pipeline card ────────────────────────────────────────────────────────---
 
+const WIP_STAGES = PIPELINE.filter((p) => p.stage !== 'Shipped');
+const SHIPPED_STAGE = PIPELINE.find((p) => p.stage === 'Shipped')!;
+const WIP_TOTAL = WIP_STAGES.reduce((n, p) => n + p.count, 0);
+
+/**
+ * The pipeline reads as a flow, not five equal stat cells. Chevrons carry the
+ * left-to-right direction through the four in-flight stages; a share-of-WIP
+ * micro-bar under each shows where volume sits (the funnel narrowing); the
+ * breached stage is the focal alert. "Shipped" is split off past a heavier
+ * divider as the calm terminal total so the day's cumulative count stops
+ * out-shouting the work that still needs attention.
+ */
 function PipelineCard() {
   return (
-    <div style={{ padding: '14px 18px 0' }}>
+    <div style={{ padding: '16px 18px 4px' }}>
       <div className="lbl" style={{ marginBottom: 8 }}>
         {t('Quy trình đơn hàng · 60 phút gần nhất', 'Order pipeline · last 60 minutes')}
       </div>
-      <div className="card" data-review="border-card" style={{ overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'stretch' }}>
-          {PIPELINE.map((p, i) => {
-            const breached = p.breach > 0;
-            const sub = STAGE_SUB[p.stage];
-            return (
-              <div
-                key={p.stage}
-                style={{
-                  flex: 1,
-                  padding: '14px 16px',
-                  background: breached ? 'var(--bad-soft)' : 'transparent',
-                  borderRight: i < PIPELINE.length - 1 ? '1px solid var(--line)' : 'none',
-                  position: 'relative',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <span
-                    className="lbl"
-                    style={{ color: breached ? 'var(--bad-ink)' : 'var(--ink-3)' }}
-                  >
-                    {t(STAGE_LABEL[p.stage], p.stage)}
-                  </span>
-                  {breached && (
-                    <Pill kind="bad">
-                      {p.breach} {t('vi phạm', 'breached')}
-                    </Pill>
-                  )}
-                </div>
-                <div
-                  className="mono tnum"
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    color: breached ? 'var(--bad-ink)' : 'var(--ink)',
-                    letterSpacing: '-0.02em',
-                  }}
-                >
-                  {p.count.toLocaleString()}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 2 }}>
-                  {t(sub.vi, sub.en)}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div
+        className="card"
+        data-review="border-card"
+        style={{ overflow: 'hidden', display: 'flex', alignItems: 'stretch' }}
+      >
+        {WIP_STAGES.map((p, i) => (
+          <Fragment key={p.stage}>
+            <PipelineStageCell p={p} />
+            {i < WIP_STAGES.length - 1 && (
+              <span style={{ display: 'flex', alignItems: 'center', padding: '0 2px' }} aria-hidden>
+                <ChevronRight size={16} strokeWidth={1.5} style={{ color: 'var(--ink-4)' }} />
+              </span>
+            )}
+          </Fragment>
+        ))}
+        <span style={{ width: 1, background: 'var(--line-strong)', margin: '10px 0' }} />
+        <ShippedCell />
+      </div>
+    </div>
+  );
+}
+
+function PipelineStageCell({ p }: { p: PipelineStage }) {
+  const breached = p.breach > 0;
+  const sub = STAGE_SUB[p.stage];
+  const share = Math.round((p.count / WIP_TOTAL) * 100);
+  return (
+    <div
+      style={{
+        flex: 1,
+        padding: '15px 16px 13px',
+        background: breached ? 'var(--bad-soft)' : 'transparent',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          minHeight: 18,
+        }}
+      >
+        <span className="lbl" style={{ color: breached ? 'var(--bad-ink)' : 'var(--ink-3)' }}>
+          {t(STAGE_LABEL[p.stage], p.stage)}
+        </span>
+        {breached && (
+          <Pill kind="bad">
+            <AlertTriangle size={9} strokeWidth={2.5} aria-hidden style={{ marginRight: 2 }} />
+            {p.breach} {t('vi phạm', 'breached')}
+          </Pill>
+        )}
+      </div>
+      <div
+        className="mono tnum"
+        style={{
+          fontSize: 30,
+          fontWeight: 600,
+          color: breached ? 'var(--bad-ink)' : 'var(--ink)',
+          letterSpacing: '-0.02em',
+          lineHeight: 1.1,
+          marginTop: 2,
+        }}
+      >
+        {p.count.toLocaleString()}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>{t(sub.vi, sub.en)}</div>
+      <div className="bar" style={{ marginTop: 9 }}>
+        <i
+          style={{ width: share + '%', background: breached ? 'var(--bad)' : 'var(--neutral-400)' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ShippedCell() {
+  return (
+    <div style={{ flex: 1, padding: '15px 16px 13px', background: 'var(--bg-soft)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, minHeight: 18 }}>
+        <Check size={11} strokeWidth={3} style={{ color: 'var(--ok)' }} aria-hidden />
+        <span className="lbl" style={{ color: 'var(--ink-3)' }}>
+          {t('Đã giao', 'Shipped')}
+        </span>
+      </div>
+      <div
+        className="mono tnum"
+        style={{
+          fontSize: 30,
+          fontWeight: 600,
+          color: 'var(--ink-2)',
+          letterSpacing: '-0.02em',
+          lineHeight: 1.1,
+          marginTop: 2,
+        }}
+      >
+        {SHIPPED_STAGE.count.toLocaleString()}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--ink-3)', marginTop: 3 }}>
+        {t('hoàn tất hôm nay', 'completed today')}
       </div>
     </div>
   );
