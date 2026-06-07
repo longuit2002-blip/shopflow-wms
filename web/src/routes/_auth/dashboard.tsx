@@ -12,8 +12,9 @@ import { t, useLocale } from '../../hooks/useLocale';
  * the real source has no role switcher, so this renders the primary
  * Ops-Manager / Owner view only and drops the operator + seller branches.
  *
- * Layout: top vitals strip (per-tenant reservation p99 with Δ-vs-fleet +
- * noisy-neighbour pill) → order pipeline funnel (four in-flight saga stages
+ * Layout: command header (a live-aging SLA-breach focal panel + a vitals
+ * cluster — reserve p99 Δ-vs-fleet, fulfillment p50, channel health, live
+ * connections) → order pipeline funnel (four in-flight saga stages
  * with flow chevrons + share-of-WIP bars + a breach focal stage, then a
  * split-off terminal "Shipped today" total) → manager body grid
  * (active-SLA-breach table on the left; picker
@@ -28,11 +29,7 @@ import { t, useLocale } from '../../hooks/useLocale';
  * handoff (QA + guided-tour contract).
  */
 
-// ── Mock tenant + channels ──────────────────────────────────────────────────
-
-const TENANT = {
-  db: 'shopflow_yensaokhanhhoa',
-};
+// ── Mock channels ────────────────────────────────────────────────────────---
 
 interface ChannelMeta {
   id: string;
@@ -248,79 +245,199 @@ function DashboardRouteComponent() {
 
   return (
     <div className="scroll-y" style={{ flex: 1, minHeight: 0 }}>
-      <LiveStrip />
+      <CommandHeader ageAdj={ageAdj} />
       <PipelineCard />
       <ManagerBody ageAdj={ageAdj} />
     </div>
   );
 }
 
-// ── Top live strip ───────────────────────────────────────────────────────---
+// ── Command header ─────────────────────────────────────────────────────────-
 
-function LiveStrip() {
-  // Faster than the fleet median is the healthy signal — surface the delta, not
-  // two bare numbers the reader has to subtract.
+/**
+ * The command header leads with the single thing an ops manager must act on:
+ * how many orders are breaching SLA right now, the oldest one aging live, and
+ * the one-click way to clear it. When nothing is breaching it flips to a calm
+ * all-clear. To its right, a vitals cluster (reserve p99 vs fleet, fulfillment
+ * p50, channel health, live connections) reads at a glance. This replaces the
+ * thin status strip that buried these signals in tiny right-aligned text.
+ */
+function CommandHeader({ ageAdj }: { ageAdj: number }) {
+  const breaches = BREACHES.length;
+  const oldest = BREACHES.reduce((a, b) => (b.ageSec > a.ageSec ? b : a), BREACHES[0]!);
+  const unassigned = BREACHES.filter((b) => b.picker === '—').length;
+  const breachActive = breaches > 0;
+
   const delta = HEALTH.fleetMedianMs - HEALTH.tenantP99Ms;
   const faster = delta >= 0;
+  const channelsOk = CHANNEL_STRIP.filter((c) => c.breaker === 'closed').length;
+  const channelsTotal = CHANNEL_STRIP.length;
+  const channelsHealthy = channelsOk === channelsTotal;
+
   return (
     <div
       data-tour="fairness"
-      className="strip"
-      style={{ gap: 14, paddingTop: 14, paddingBottom: 14 }}
+      className="hairline-b"
+      style={{ display: 'flex', alignItems: 'stretch', background: 'var(--panel)' }}
     >
-      <LiveDot
-        kind="info"
-        label={t('Trực tiếp', 'Live')}
-        sub={t(
-          `· ${HEALTH.signalrConns} kết nối signalr · ${TENANT.db}`,
-          `· ${HEALTH.signalrConns} signalr conns · ${TENANT.db}`,
-        )}
-      />
-      <span style={{ flex: 1 }} />
-      <span className="lbl">{t('p99 giữ chỗ · tenant', 'reserve p99 · tenant')}</span>
-      <span
-        className="mono tnum"
-        style={{ fontSize: 17, fontWeight: 600, letterSpacing: '-0.01em' }}
-      >
-        {HEALTH.tenantP99Ms}ms
-      </span>
-      <span
-        className="mono tnum"
+      {/* Focal: what needs attention now */}
+      <div
         style={{
-          fontSize: 11.5,
-          fontWeight: 600,
-          color: faster ? 'var(--ok)' : 'var(--bad-ink)',
-          whiteSpace: 'nowrap',
+          flex: '0 0 auto',
+          minWidth: 300,
+          padding: '14px 20px',
+          background: breachActive ? 'var(--bad-soft)' : 'var(--ok-soft)',
+          borderRight: '1px solid var(--line)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 5,
         }}
       >
-        {faster ? '↓' : '↑'} {Math.abs(delta)}ms {t('so với fleet', 'vs fleet')}{' '}
-        {HEALTH.fleetMedianMs}ms
-      </span>
-      <span style={{ width: 1, height: 22, background: 'var(--line)', margin: '0 4px' }} />
-      <Pill kind="ok">{t('noisy-neighbour: ổn định', 'noisy-neighbour: stable')}</Pill>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className={`live-dot ${breachActive ? 'bad' : 'ok'}`} />
+          <span
+            className="lbl"
+            style={{ color: breachActive ? 'var(--bad-ink)' : 'var(--ok-ink)' }}
+          >
+            {t('Cần xử lý ngay', 'Needs attention')}
+          </span>
+        </div>
+
+        {breachActive ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+              <span
+                className="mono tnum"
+                style={{
+                  fontSize: 38,
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  color: 'var(--bad-ink)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                {breaches}
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--bad-ink)', fontWeight: 500 }}>
+                {t('đơn vi phạm SLA', 'orders breaching SLA')}
+              </span>
+            </div>
+            <div className="mono" style={{ fontSize: 11.5, color: 'var(--bad-ink)' }}>
+              {t('cũ nhất', 'oldest')} {fmtAge(oldest.ageSec + ageAdj)} · {chBy(oldest.ch).short}
+              {unassigned > 0 ? ` · ${unassigned} ${t('chưa phân công', 'unassigned')}` : ''}
+            </div>
+            <button
+              className="btn sm danger"
+              type="button"
+              style={{ alignSelf: 'flex-start', marginTop: 3 }}
+            >
+              {t('Phân công tất cả', 'Assign all')}{' '}
+              <ChevronRight size={11} strokeWidth={1.5} aria-hidden />
+            </button>
+          </>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, paddingTop: 4 }}>
+            <Check size={26} strokeWidth={2.5} style={{ color: 'var(--ok)' }} aria-hidden />
+            <span style={{ fontSize: 15, color: 'var(--ok-ink)', fontWeight: 600 }}>
+              {t('Không có vi phạm SLA', 'No SLA breaches')}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Vitals cluster */}
+      <div style={{ flex: 1, display: 'flex', alignItems: 'stretch' }}>
+        <Vital
+          first
+          label={t('p99 giữ chỗ · tenant', 'reserve p99 · tenant')}
+          value={`${HEALTH.tenantP99Ms}ms`}
+          delta={`${faster ? '↓' : '↑'} ${Math.abs(delta)}ms ${t('so với fleet', 'vs fleet')} ${HEALTH.fleetMedianMs}`}
+          deltaKind={faster ? 'ok' : 'bad'}
+        />
+        <Vital
+          label={t('Thời gian xử lý · p50', 'fulfillment · p50')}
+          value="18m"
+          delta={t('↑ 22% so với hôm qua', '↑ 22% vs yesterday')}
+          deltaKind="warn"
+        />
+        <Vital
+          label={t('Sức khoẻ kênh', 'channel health')}
+          value={`${channelsOk}/${channelsTotal}`}
+          delta={
+            channelsHealthy
+              ? t('tất cả ổn định', 'all stable')
+              : t('1 giảm hiệu suất', '1 degraded')
+          }
+          deltaKind={channelsHealthy ? 'ok' : 'warn'}
+        />
+        <Vital
+          label={t('Trực tiếp', 'live')}
+          value={`${HEALTH.signalrConns}`}
+          delta={t('kết nối signalr', 'signalr conns')}
+          deltaKind="muted"
+        />
+      </div>
     </div>
   );
 }
 
-function LiveDot({
-  kind,
+type VitalKind = 'ok' | 'warn' | 'bad' | 'muted';
+const VITAL_DELTA_COLOR: Record<VitalKind, string> = {
+  ok: 'var(--ok)',
+  warn: 'var(--warn-ink)',
+  bad: 'var(--bad-ink)',
+  muted: 'var(--ink-3)',
+};
+
+function Vital({
   label,
-  sub,
+  value,
+  delta,
+  deltaKind,
+  first = false,
 }: {
-  kind: 'ok' | 'warn' | 'bad' | 'info';
   label: string;
-  sub?: string;
+  value: string;
+  delta: string;
+  deltaKind: VitalKind;
+  first?: boolean;
 }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-      <span className={`live-dot ${kind}`} />
-      <span style={{ fontSize: 11.5, color: 'var(--ink-2)', fontWeight: 500 }}>{label}</span>
-      {sub && (
-        <span className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-          {sub}
-        </span>
-      )}
-    </span>
+    <div
+      style={{
+        flex: '1 1 0',
+        minWidth: 0,
+        padding: '14px 16px',
+        borderLeft: first ? 'none' : '1px solid var(--line)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 3,
+        justifyContent: 'center',
+      }}
+    >
+      <span className="lbl" style={{ color: 'var(--ink-3)' }}>
+        {label}
+      </span>
+      <span
+        className="mono tnum"
+        style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.01em' }}
+      >
+        {value}
+      </span>
+      <span
+        className="mono tnum"
+        style={{
+          fontSize: 11,
+          fontWeight: 600,
+          color: VITAL_DELTA_COLOR[deltaKind],
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {delta}
+      </span>
+    </div>
   );
 }
 
