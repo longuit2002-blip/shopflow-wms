@@ -15,9 +15,17 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 
+# C# source — explicit LF to match .editorconfig (end_of_line = lf) and the
+# CSharpier pre-commit hook, which formats with LF and rejects CRLF. Without
+# this pin, `* text=auto` + core.autocrlf=true check these out as CRLF on
+# Windows, so `csharpier --check` fails on ~500 files and blocks every commit.
+# (The cross-machine zip workflow also re-introduced mixed endings here.)
+*.cs     text eol=lf
+*.csx    text eol=lf
+
 # Frontend source — explicit LF (Sprint-6 introduces TypeScript / Vite stack).
 # Closes Sprint-5 methodology writeup friction mode 6 for the file types
-# this sprint creates. Existing .cs files unchanged.
+# this sprint creates.
 *.ts     text eol=lf
 *.tsx    text eol=lf
 *.js     text eol=lf
